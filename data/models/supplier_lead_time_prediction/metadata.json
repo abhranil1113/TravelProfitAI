@@ -10,7 +10,7 @@
     "historical_reliability"
   ],
   "feature_count": 3,
-  "saved_timestamp": "2026-11-23T09:48:39.047446+00:00",
+  "saved_timestamp": "2026-11-23T11:13:53.925144+00:00",
   "random_seed": 42,
   "packages": {
     "sklearn": "1.7.2",
@@ -18,13 +18,13 @@
     "lightgbm": "4.7.0",
     "joblib": "1.6.0"
   },
-  "fit_time_seconds": 0.0056,
+  "fit_time_seconds": 0.0041,
   "cv_summary": {
     "task_name": "supplier_lead_time_prediction",
     "model_name": "dummy",
     "n_splits": 3,
-    "mean_fit_time_sec": 0.0059,
-    "mean_inference_time_sec": 0.003509,
+    "mean_fit_time_sec": 0.0062,
+    "mean_inference_time_sec": 0.003464,
     "total_duration_sec": 0.04,
     "mean_mae": 3.0416,
     "std_mae": 0.0254,
