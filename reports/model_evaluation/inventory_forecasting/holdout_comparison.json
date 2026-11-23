@@ -1,0 +1,25 @@
+{
+  "entity_group_holdout": {
+    "train_records": 3187,
+    "test_records": 563,
+    "mae": 7.317,
+    "rmse": 9.8639,
+    "r2": 0.9126,
+    "wape": 16.59,
+    "smape": 31.76,
+    "forecast_bias": 3.0663
+  },
+  "global_chronological_holdout": {
+    "train_records": 3188,
+    "test_records": 516,
+    "embargo_records": 46,
+    "cutoff_date": "2027-02-06",
+    "embargo_date": "2027-02-13",
+    "mae": 10.2317,
+    "rmse": 13.7888,
+    "r2": 0.9003,
+    "wape": 16.82,
+    "smape": 29.25,
+    "forecast_bias": -6.6573
+  }
+}

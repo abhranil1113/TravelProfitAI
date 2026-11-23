@@ -1,0 +1,171 @@
+{
+  "market_seasonal_signals": {
+    "dataset_name": "market_seasonal_signals",
+    "source_path": "data/synthetic/market_seasonal_signals.csv",
+    "processing_timestamp": "2026-11-23T09:47:41.877511+00:00",
+    "initial_rows": 5000,
+    "final_rows": 5000,
+    "rows_removed": 0,
+    "records_modified": 5000,
+    "exact_duplicates_removed": 0,
+    "out_of_bounds_demand_index_count": 0,
+    "removal_reasons": "Zero rows removed; all 5,000 seasonal signal observations preserved.",
+    "modifications": [
+      "Standardized travel_date to ISO-8601 (YYYY-MM-DD)",
+      "Audited demand_index (100% verified compliant within [0.0, 1.0])",
+      "Normalized string casing on IDs and season_type",
+      "Preserved boolean indicator typing"
+    ]
+  },
+  "inventory_availability": {
+    "dataset_name": "inventory_availability",
+    "source_path": "data/synthetic/inventory_availability.csv",
+    "processing_timestamp": "2026-11-23T09:47:41.904645+00:00",
+    "initial_rows": 5000,
+    "final_rows": 5000,
+    "rows_removed": 0,
+    "records_modified": 5000,
+    "exact_duplicates_removed": 0,
+    "capacity_mismatches_detected": 0,
+    "removal_reasons": "Zero rows removed; all 5,000 inventory snapshot observations preserved across temporal horizons.",
+    "modifications": [
+      "Standardized travel_date and snapshot_date to ISO-8601 (YYYY-MM-DD)",
+      "Preserved legitimate null origin_id for stationary hotel properties",
+      "Audited inventory capacity balance equation (available = total - booked)",
+      "Synchronized sold_out boolean flag with zero availability condition",
+      "Normalized string casing for IDs and unit types"
+    ]
+  },
+  "supplier_offers": {
+    "dataset_name": "supplier_offers",
+    "source_path": "data/synthetic/supplier_offers.csv",
+    "processing_timestamp": "2026-11-23T09:47:41.962916+00:00",
+    "currency": "INR",
+    "initial_rows": 5000,
+    "final_rows": 5000,
+    "rows_removed": 0,
+    "records_modified": 5000,
+    "exact_duplicates_removed": 0,
+    "negative_margin_offers_detected": 0,
+    "removal_reasons": "Zero rows removed; all 5,000 wholesale offers preserved with commercial margin audit flags.",
+    "modifications": [
+      "Standardized travel_date and offer_valid_until to ISO-8601 (YYYY-MM-DD)",
+      "Preserved legitimate null origin_id for hotel supply offers",
+      "Computed unit_margin and margin_percentage features",
+      "Flagged negative margins without deleting legitimate market offers",
+      "Tagged explicit currency as INR (Indian Rupees for wholesale procurement contracts)"
+    ]
+  },
+  "customer_search_events": {
+    "dataset_name": "customer_search_events",
+    "source_path": "data/synthetic/customer_search_events.csv",
+    "processing_timestamp": "2026-11-23T09:47:42.002867+00:00",
+    "currency": "INR",
+    "initial_rows": 5000,
+    "final_rows": 5000,
+    "rows_removed": 0,
+    "records_modified": 5000,
+    "exact_duplicates_removed": 0,
+    "funnel_anomalies_detected": 0,
+    "removal_reasons": "Zero rows removed; all 5,000 search event observations preserved.",
+    "modifications": [
+      "Standardized search_date and travel_date to ISO-8601 (YYYY-MM-DD)",
+      "Engineered search_lead_days temporal delta feature",
+      "Preserved observed clicked indicator without mutation; flagged has_funnel_anomaly diagnostic",
+      "Tagged currency as INR (Indian Rupees for search quotes)",
+      "Preserved nullable rooms_count for flight searches and ensured positive counts for hotels"
+    ]
+  },
+  "airlines": {
+    "dataset_name": "airlines",
+    "source_path": "data/raw/flights/airlines.csv",
+    "processing_timestamp": "2026-11-23T09:47:42.061573+00:00",
+    "initial_rows": 14,
+    "final_rows": 14,
+    "rows_removed": 0,
+    "records_modified": 14,
+    "removal_reasons": "Zero rows removed; all 14 carrier master records preserved.",
+    "modifications": [
+      "Trimmed whitespace and uppercase standardized IATA codes"
+    ]
+  },
+  "airports": {
+    "dataset_name": "airports",
+    "source_path": "data/raw/flights/airports.csv",
+    "processing_timestamp": "2026-11-23T09:47:42.063935+00:00",
+    "initial_rows": 322,
+    "final_rows": 322,
+    "rows_removed": 0,
+    "records_modified": 322,
+    "removal_reasons": "Zero rows removed; all 322 airport master records preserved.",
+    "modifications": [
+      "Standardized airport names and geographic coordinates"
+    ]
+  },
+  "flights": {
+    "dataset_name": "flights",
+    "source_path": "data/raw/flights/flights.csv",
+    "processing_timestamp": "2026-11-23T09:47:42.068942+00:00",
+    "initial_rows": 1000,
+    "final_rows": 1000,
+    "rows_removed": 0,
+    "records_modified": 1000,
+    "cancelled_flights_preserved": 84,
+    "diverted_flights_preserved": 1,
+    "removal_reasons": "Zero rows removed; all flight records preserved including cancelled and diverted flights.",
+    "modifications": [
+      "Synthesized standard FLIGHT_DATE (YYYY-MM-DD) from year, month, day",
+      "Standardized ORIGIN_AIRPORT and DESTINATION_AIRPORT strings accommodating 3-letter IATA and 5-digit US DOT codes",
+      "Engineered ORIGIN-DESTINATION ROUTE feature",
+      "Preserved all legitimate cancelled and diverted flight records with delay details"
+    ]
+  },
+  "flight_prices": {
+    "dataset_name": "flight_prices",
+    "source_path": "data/raw/flight_prices/Flight Price Prediction.csv",
+    "processing_timestamp": "2026-11-23T09:47:42.143891+00:00",
+    "currency": "INR",
+    "initial_rows": 300153,
+    "final_rows": 300153,
+    "rows_removed": 0,
+    "records_modified": 300153,
+    "exact_duplicates_removed": 0,
+    "full_feature_duplicates_detected": 0,
+    "removal_reasons": "Zero rows removed; all 300,153 records represent distinct flight itineraries with unique combinations of carrier, route, timing, stops, and duration.",
+    "modifications": [
+      "Generated structured price_record_id surrogate key (PRC_xxxxxx)",
+      "Tagged explicit currency as INR (Indian Rupees for domestic routes)",
+      "Trimmed whitespace from all airline, city, and flight code strings",
+      "Mapped categorical stops to numeric stops_count",
+      "Synthesized origin-destination route feature",
+      "Preserved 100% of observations without discarding alternative transit itineraries"
+    ]
+  },
+  "hotel_bookings": {
+    "dataset_name": "hotel_bookings",
+    "source_path": "data/raw/hotel_bookings/hotel_bookings.csv",
+    "processing_timestamp": "2026-11-23T09:47:43.598185+00:00",
+    "currency": "EUR",
+    "initial_rows": 119390,
+    "final_rows": 119208,
+    "rows_removed": 182,
+    "records_modified": 119390,
+    "exact_duplicates_detected": 31994,
+    "exact_duplicates_removed": 0,
+    "negative_adr_detected": 1,
+    "extreme_adr_outliers_detected": 1,
+    "zero_occupancy_total_raw": 180,
+    "zero_occupancy_in_duplicates": 14,
+    "zero_occupancy_in_uniques": 166,
+    "cancellation_rate_preserved": 37.08,
+    "removal_reasons": "Filtered 182 data error records (negative ADR, extreme 5400 ADR, zero occupancy)",
+    "modifications": [
+      "Audited exact duplicate feature sets (31,994 rows flagged with is_duplicate_feature_copy)",
+      "Resolved mathematical zero-occupancy discrepancy: 180 total raw = 14 duplicate + 166 unique",
+      "Tagged explicit currency as EUR (Euros for Algarve/Lisbon Portugal properties)",
+      "Imputed missing children with 0 and country with 'Unknown'",
+      "Engineered arrival_date (YYYY-MM-DD), total_stay_nights, and total_guests",
+      "Preserved valid cancellation outcomes for downstream cancellation-risk ML models"
+    ]
+  }
+}

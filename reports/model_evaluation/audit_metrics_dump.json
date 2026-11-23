@@ -1,0 +1,131 @@
+{
+  "flight_price_audit": {
+    "kfold": {
+      "linear_regression": {
+        "mae": 4423.992160867046,
+        "std_mae": 68.4069374218527,
+        "rmse": 6789.446495666018,
+        "r2": 0.9104468732633979,
+        "mape": 43.10908,
+        "wape": 21.218519999999998
+      },
+      "random_forest": {
+        "mae": 2476.2007278613573,
+        "std_mae": 53.92685084001982,
+        "rmse": 4395.368325939013,
+        "r2": 0.9624646300171751,
+        "mape": 16.960459999999998,
+        "wape": 11.876
+      },
+      "xgboost": {
+        "mae": 2617.013258713786,
+        "std_mae": 60.86101698819526,
+        "rmse": 4465.955549202337,
+        "r2": 0.9612468545598822,
+        "mape": 18.16162,
+        "wape": 12.550659999999999
+      },
+      "lightgbm": {
+        "mae": 2546.721348476997,
+        "std_mae": 52.92252238044855,
+        "rmse": 4375.768758979296,
+        "r2": 0.962798048353901,
+        "mape": 17.92006,
+        "wape": 12.213780000000002
+      }
+    },
+    "group_kfold": {
+      "linear_regression": {
+        "mae": 10270.748253497535,
+        "std_mae": 6102.664411580008,
+        "rmse": 12882.669723250909,
+        "r2": 0.5793010750039975,
+        "mape": 133.52378000000002,
+        "wape": 50.09934
+      },
+      "random_forest": {
+        "mae": 3318.2259947495063,
+        "std_mae": 170.28781137882368,
+        "rmse": 5664.296695613041,
+        "r2": 0.9369646359635775,
+        "mape": 21.5293,
+        "wape": 15.948319999999999
+      },
+      "xgboost": {
+        "mae": 3321.179126597647,
+        "std_mae": 210.50113045685654,
+        "rmse": 5579.839869702328,
+        "r2": 0.9390682819007317,
+        "mape": 23.40678,
+        "wape": 15.945880000000002
+      },
+      "lightgbm": {
+        "mae": 3287.7607923601254,
+        "std_mae": 219.67465813341056,
+        "rmse": 5570.668016243054,
+        "r2": 0.9391793655766737,
+        "mape": 22.54458,
+        "wape": 15.78616
+      }
+    }
+  },
+  "stockout_audit": {
+    "test_count": 563,
+    "actual_stockout_count": 53,
+    "predicted_stockout_count": 22,
+    "confusion_matrix": {
+      "tn": 509,
+      "fp": 1,
+      "fn": 32,
+      "tp": 21
+    },
+    "precision": 0.9545,
+    "recall": 0.3962,
+    "f1": 0.56
+  },
+  "demand_panel_audit": {
+    "raw_event_count": 5000,
+    "panel_row_count": 10569,
+    "unique_destinations": 10,
+    "inventory_types": [
+      "FLIGHT",
+      "HOTEL"
+    ],
+    "date_min": "2025-09-12 00:00:00",
+    "date_max": "2027-05-04 00:00:00",
+    "current_zero_demand_pct": 63.91,
+    "target_zero_demand_pct": 63.82,
+    "forecast_horizon_days": 7,
+    "embargo_gap_days": 0
+  },
+  "artifact_verification": {
+    "hotel_cancellation": {
+      "model_name": "lightgbm_tuned",
+      "estimator_type": "LGBMClassifier",
+      "has_preprocessor": true,
+      "feature_count": 47,
+      "saved_timestamp": "2026-11-23T08:45:26.483184+00:00"
+    },
+    "flight_price": {
+      "model_name": "lightgbm_tuned",
+      "estimator_type": "LGBMRegressor",
+      "has_preprocessor": true,
+      "feature_count": 17,
+      "saved_timestamp": "2026-11-23T08:45:44.752294+00:00"
+    },
+    "demand_forecasting": {
+      "model_name": "naive",
+      "estimator_type": "NaiveForecaster",
+      "has_preprocessor": true,
+      "feature_count": 15,
+      "saved_timestamp": "2026-11-23T08:45:51.151818+00:00"
+    },
+    "inventory_forecasting": {
+      "model_name": "lightgbm",
+      "estimator_type": "LGBMRegressor",
+      "has_preprocessor": true,
+      "feature_count": 25,
+      "saved_timestamp": "2026-11-23T08:45:58.403879+00:00"
+    }
+  }
+}

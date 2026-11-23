@@ -1,0 +1,32 @@
+task_name: demand_forecasting
+dataset_name: customer_demand_features
+task_type: time_series_regression
+target_column: future_search_volume_7d
+validation_strategy: time_series_split
+n_splits: 5
+forecast_horizon: 7
+primary_metric: mae
+secondary_metrics:
+  - rmse
+  - wape
+  - smape
+candidate_models:
+  - naive
+  - seasonal_naive
+  - linear_regression
+  - random_forest
+  - xgboost
+  - lightgbm
+group_columns:
+  - destination_id
+  - inventory_type
+excluded_columns:
+  - clicked
+  - booking_completed
+  - has_funnel_anomaly
+  - currency
+business_params:
+  forecast_horizon_days: 7
+  seasonal_period_days: 7
+  embargo_gap_days: 7
+description: Forecasts destination search demand volume 7 days ahead.

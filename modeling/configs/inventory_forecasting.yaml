@@ -1,0 +1,28 @@
+task_name: inventory_forecasting
+dataset_name: inventory_features
+task_type: time_series_regression
+target_column: future_available_quantity
+validation_strategy: time_series_split
+n_splits: 5
+forecast_horizon: 1
+primary_metric: mae
+secondary_metrics:
+  - rmse
+  - wape
+  - stockout_recall
+candidate_models:
+  - naive
+  - linear_regression
+  - random_forest
+  - xgboost
+  - lightgbm
+group_columns:
+  - inventory_id
+  - travel_date
+excluded_columns:
+  - snapshot_id
+  - inventory_sold_out_indicator
+business_params:
+  stockout_threshold_units: 5.0
+  evaluate_stockout_recall: true
+description: Forecasts future available inventory quantity and predicts critical stockouts.

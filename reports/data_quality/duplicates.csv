@@ -1,0 +1,10 @@
+dataset_name,total_rows,exact_duplicates,exact_dup_percentage,primary_key,pk_duplicates,business_entity_rule,business_duplicates
+market_seasonal_signals,5000,0,0.0,signal_id,0,None,0
+inventory_availability,5000,0,0.0,snapshot_id,0,"Duplicate snapshot for same inventory_id, travel_date, snapshot_date",0
+supplier_offers,5000,0,0.0,offer_id,0,"Duplicate offer for same supplier_id, inventory_id, travel_date",0
+customer_search_events,5000,0,0.0,search_id,0,Repeated user search event with identical search parameters,0
+airlines,14,0,0.0,IATA_CODE,0,None,0
+airports,322,0,0.0,IATA_CODE,0,None,0
+flights,1000,0,0.0,YEAR+MONTH+DAY+AIRLINE+FLIGHT_NUMBER+ORIGIN_AIRPORT+DESTINATION_AIRPORT+SCHEDULED_DEPARTURE,0,None,0
+flight_prices,300153,0,0.0,price_record_id,0,None,0
+hotel_bookings,119390,31994,26.7979,None,0,Exact duplicate reservation rows,31994

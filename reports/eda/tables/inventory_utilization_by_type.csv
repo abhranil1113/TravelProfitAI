@@ -1,0 +1,3 @@
+inventory_type,items,capacity,booked,available,utilization_pct
+FLIGHT,586,117884,91533,26351,77.65
+HOTEL,664,79514,63257,16257,79.55

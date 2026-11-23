@@ -1,0 +1,49 @@
+# TBO InventoryIQ – Executive Business Insights & Procurement Intelligence
+**Project:** TBO InventoryIQ – AI-Powered Travel Inventory & Profit Optimization Platform  
+**Phase:** Phase 2 – Business Intelligence Synthesis  
+**Author:** Team Sabuj Sangha
+
+---
+
+## 1. Executive Summary & Core Procurement Questions
+
+TBO InventoryIQ addresses key strategic questions for travel inventory procurement:
+
+1. **Which inventory should we procure?**
+   - High demand-to-supply ratio destinations: `[]`.
+   - High-reliability airlines with on-time performance >80% to minimize missed connections.
+2. **Which destinations have high demand vs supply deficits?**
+   - Destinations where search volumes drastically outstrip available contracted inventory. Immediate procurement required.
+3. **Which suppliers offer the best margins and reliability?**
+   - Top-margin partner: `SUP001` with `23.07%` average gross margin.
+4. **How much inventory should we buy?**
+   - Maintain baseline capacity at 75% utilization with a **14.8% overbooking buffer** to offset expected hotel cancellations.
+5. **How can the platform maximize profit under a limited budget?**
+   - Allocate 65% of budget to high-velocity, supply-constrained core destinations and 35% to high-margin seasonal event buffers.
+
+![Cross Domain Demand vs Supply](figures/cross_domain_demand_vs_supply_gap.png)
+
+---
+
+## 2. Demand vs Supply Gap Analysis by Destination
+| destination_id | search_volume | clicks | bookings | avg_searched_price_inr | inventory_items | total_capacity | booked_units | available_units | supplier_offers_count | avg_purchase_cost_inr | avg_supplier_selling_inr | avg_margin_pct | demand_to_supply_ratio | procurement_priority |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| DEST001 | 686 | 372 | 118 | 15657.357303206996 | 125 | 17719 | 13866 | 3853 | 501 | 6083.259680638723 | 7862.19249500998 | 22.40129740518962 | 0.18 | Low Demand - Over-Supplied (Hold/Discount) |
+| DEST005 | 638 | 338 | 139 | 10849.191081504703 | 135 | 21839 | 16261 | 5578 | 489 | 7360.593926380368 | 9487.022924335379 | 22.22204498977505 | 0.11 | Low Demand - Over-Supplied (Hold/Discount) |
+| DEST006 | 560 | 303 | 120 | 10055.121089285714 | 121 | 18990 | 15168 | 3822 | 494 | 6841.248360323886 | 8873.495 | 22.64253036437247 | 0.15 | Low Demand - Over-Supplied (Hold/Discount) |
+| DEST009 | 543 | 287 | 107 | 53389.92639042358 | 109 | 16016 | 13104 | 2912 | 492 | 19199.816097560975 | 24868.798414634148 | 22.62971544715447 | 0.19 | Low Demand - Over-Supplied (Hold/Discount) |
+| DEST007 | 530 | 279 | 108 | 9759.167018867924 | 133 | 21871 | 17274 | 4597 | 507 | 6795.058224852071 | 8793.735877712032 | 22.58923076923077 | 0.12 | Low Demand - Over-Supplied (Hold/Discount) |
+| DEST002 | 458 | 252 | 87 | 14426.839432314411 | 123 | 19981 | 15642 | 4339 | 519 | 5549.314354527938 | 7190.50944123314 | 22.577938342967247 | 0.11 | Low Demand - Over-Supplied (Hold/Discount) |
+| DEST010 | 418 | 214 | 72 | 39792.29009569378 | 126 | 21144 | 16120 | 5024 | 495 | 14115.025555555556 | 18237.38888888889 | 22.41957575757576 | 0.08 | Low Demand - Over-Supplied (Hold/Discount) |
+| DEST003 | 415 | 234 | 87 | 16177.922578313253 | 124 | 22145 | 17228 | 4917 | 497 | 5840.1880885311875 | 7558.675311871227 | 22.507102615694166 | 0.08 | Low Demand - Over-Supplied (Hold/Discount) |
+| DEST004 | 393 | 214 | 74 | 15356.184860050891 | 143 | 21587 | 17323 | 4264 | 516 | 6311.622073643412 | 8198.362945736435 | 22.786492248062014 | 0.09 | Low Demand - Over-Supplied (Hold/Discount) |
+| DEST008 | 359 | 212 | 100 | 19065.07844011142 | 111 | 16106 | 12804 | 3302 | 490 | 7765.810755102041 | 10047.040163265305 | 22.56677551020408 | 0.11 | Low Demand - Over-Supplied (Hold/Discount) |
+
+---
+
+## 3. Actionable Procurement Playbook
+
+- **Rule 1 (Supply Deficit):** When `demand_to_supply_ratio > 1.2`, automatically trigger procurement requests for additional supplier allocations.
+- **Rule 2 (Margin Protection):** Automatically flag and block supplier offers with negative unit margins.
+- **Rule 3 (Advance Booking Window):** Secure flight block capacity 35–45 days ahead of travel dates to avoid the dynamic price surge.
+- **Rule 4 (Cancellation Protection):** Require suppliers to provide minimum 7-day cancellation windows for group and advance bookings.

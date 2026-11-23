@@ -1,0 +1,84 @@
+{
+  "task_name": "hotel_cancellation",
+  "model_name": "lightgbm_tuned",
+  "test_records_count": 3750,
+  "inference_duration_seconds": 0.0405,
+  "metrics": {
+    "accuracy": 0.8653,
+    "precision": 0.846,
+    "recall": 0.7784,
+    "f1_score": 0.8108,
+    "roc_auc": 0.937,
+    "pr_auc": 0.9106,
+    "log_loss": 0.3004
+  },
+  "confusion_matrix": [
+    [
+      2163,
+      197
+    ],
+    [
+      308,
+      1082
+    ]
+  ],
+  "classification_report": {
+    "0": {
+      "precision": 0.8753541076487252,
+      "recall": 0.9165254237288135,
+      "f1-score": 0.8954667770647899,
+      "support": 2360.0
+    },
+    "1": {
+      "precision": 0.8459734167318217,
+      "recall": 0.7784172661870503,
+      "f1-score": 0.8107905582615211,
+      "support": 1390.0
+    },
+    "accuracy": 0.8653333333333333,
+    "macro avg": {
+      "precision": 0.8606637621902735,
+      "recall": 0.8474713449579319,
+      "f1-score": 0.8531286676631555,
+      "support": 3750.0
+    },
+    "weighted avg": {
+      "precision": 0.8644636648821931,
+      "recall": 0.8653333333333333,
+      "f1-score": 0.8640801252950449,
+      "support": 3750.0
+    }
+  },
+  "threshold_sensitivity": [
+    {
+      "threshold": 0.3,
+      "f1_score": 0.8073,
+      "precision": 0.7457,
+      "recall": 0.8799
+    },
+    {
+      "threshold": 0.4,
+      "f1_score": 0.8169,
+      "precision": 0.8046,
+      "recall": 0.8295
+    },
+    {
+      "threshold": 0.5,
+      "f1_score": 0.8108,
+      "precision": 0.846,
+      "recall": 0.7784
+    },
+    {
+      "threshold": 0.6,
+      "f1_score": 0.7895,
+      "precision": 0.8812,
+      "recall": 0.7151
+    },
+    {
+      "threshold": 0.7,
+      "f1_score": 0.7496,
+      "precision": 0.9097,
+      "recall": 0.6374
+    }
+  ]
+}

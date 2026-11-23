@@ -1,0 +1,73 @@
+{
+  "task_name": "flight_price",
+  "task_type": "regression",
+  "dataset_name": "flight_price_features",
+  "model_name": "lightgbm_tuned",
+  "target_column": "price",
+  "feature_names": [
+    "days_left",
+    "days_left_bucket",
+    "days_left_log",
+    "is_immediate_departure",
+    "duration_hours",
+    "duration_minutes",
+    "duration_bucket",
+    "class",
+    "is_business_class",
+    "stops_count",
+    "is_direct_flight",
+    "airline",
+    "source_city",
+    "destination_city",
+    "route",
+    "departure_time",
+    "arrival_time"
+  ],
+  "feature_count": 17,
+  "saved_timestamp": "2026-11-23T08:45:44.752294+00:00",
+  "random_seed": 42,
+  "packages": {
+    "sklearn": "1.7.2",
+    "xgboost": "3.2.0",
+    "lightgbm": "4.7.0",
+    "joblib": "1.6.0"
+  },
+  "fit_time_seconds": 0.4217,
+  "cv_summary": {
+    "task_name": "flight_price",
+    "model_name": "lightgbm_tuned",
+    "n_splits": 5,
+    "mean_fit_time_sec": 0.3429,
+    "mean_inference_time_sec": 0.03797,
+    "total_duration_sec": 1.96,
+    "mean_mae": 2277.6012,
+    "std_mae": 32.8044,
+    "mean_rmse": 3948.0152,
+    "std_rmse": 19.145,
+    "mean_r2": 0.9698,
+    "std_r2": 0.0006,
+    "mean_mape": 16.6277,
+    "std_mape": 0.3671,
+    "mean_wape": 10.8686,
+    "std_wape": 0.173,
+    "mean_smape": 15.7385,
+    "std_smape": 0.2102,
+    "mean_forecast_bias": 8.6029,
+    "std_forecast_bias": 49.9047
+  },
+  "test_metrics": {
+    "mae": 2239.3554,
+    "rmse": 3863.384,
+    "r2": 0.9709,
+    "mape": 16.4162,
+    "wape": 10.8037,
+    "smape": 15.5904,
+    "forecast_bias": -28.9059
+  },
+  "selection_rationale": "Selected 'lightgbm_tuned' achieving best mean mae=2277.6012 (improvement of 2213.9287 / 49.29% over linear_regression mae=4491.5299).",
+  "business_params": {
+    "horizon_evaluation": true
+  },
+  "estimator_artifact": "estimator.joblib",
+  "preprocessor_artifact": "preprocessor.joblib"
+}

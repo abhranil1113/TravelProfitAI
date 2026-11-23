@@ -1,0 +1,11 @@
+source_dataset,foreign_key_column,target_dataset,target_key_column,source_unique_ids,target_unique_ids,unmatched_id_count,unmatched_sample,status,notes
+inventory_availability,destination_id,market_seasonal_signals,destination_id,10,10,0,[],CONSISTENT,Verified across synthetic travel destination catalog (DEST001-DEST010)
+supplier_offers,destination_id,market_seasonal_signals,destination_id,10,10,0,[],CONSISTENT,Verified across synthetic travel destination catalog (DEST001-DEST010)
+customer_search_events,destination_id,market_seasonal_signals,destination_id,10,10,0,[],CONSISTENT,Verified across synthetic travel destination catalog (DEST001-DEST010)
+supplier_offers,origin_id,inventory_availability,origin_id,8,8,0,[],CONSISTENT,Verified across origin network (ORIG001-ORIG008)
+customer_search_events,origin_id,inventory_availability,origin_id,8,8,0,[],CONSISTENT,Verified across origin network (ORIG001-ORIG008)
+supplier_offers,supplier_id,inventory_availability,supplier_id,20,20,0,[],CONSISTENT,Verified supplier ecosystem (SUP001-SUP020)
+supplier_offers,inventory_id,inventory_availability,inventory_id,157,157,0,[],CONSISTENT,All 157 hotel and flight inventory units match across offers and availability
+flights,AIRLINE,airlines,IATA_CODE,14,14,0,[],CONSISTENT,100% of airlines in flight records match airlines.csv master
+flights,ORIGIN_AIRPORT,airports,IATA_CODE,221,322,0,[],FORMAT_INCONSISTENCY,"0 codes use US DOT 5-digit FAA numeric identifiers (e.g., 10135) instead of 3-letter IATA codes (October-December 2015 reporting change)"
+flights,DESTINATION_AIRPORT,airports,IATA_CODE,74,322,0,[],FORMAT_INCONSISTENCY,0 codes use US DOT 5-digit FAA numeric identifiers instead of 3-letter IATA codes

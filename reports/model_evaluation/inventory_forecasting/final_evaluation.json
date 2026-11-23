@@ -1,0 +1,20 @@
+{
+  "task_name": "inventory_forecasting",
+  "model_name": "lightgbm",
+  "test_records_count": 563,
+  "inference_duration_seconds": 0.0298,
+  "metrics": {
+    "mae": 7.317,
+    "rmse": 9.8639,
+    "r2": 0.9126,
+    "mape": 31.9675,
+    "wape": 16.594,
+    "smape": 31.761,
+    "forecast_bias": 3.0663
+  },
+  "forecast_diagnostics": {
+    "mean_bias": 3.0663,
+    "overprediction_rate": 0.6661,
+    "underprediction_rate": 0.3339
+  }
+}

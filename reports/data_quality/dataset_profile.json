@@ -1,0 +1,1156 @@
+{
+  "market_seasonal_signals": {
+    "total_rows": 5000,
+    "total_columns": 11,
+    "memory_usage_mb": 1.39,
+    "exact_duplicates": 0,
+    "columns": {
+      "signal_id": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 5000
+      },
+      "destination_id": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 10
+      },
+      "travel_date": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 500
+      },
+      "month": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 12,
+        "min": 1.0,
+        "max": 12.0,
+        "mean": 5.51,
+        "std": 3.45
+      },
+      "season_type": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 3
+      },
+      "holiday_indicator": {
+        "dtype": "bool",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 2,
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.04,
+        "std": 0.2
+      },
+      "festival_indicator": {
+        "dtype": "bool",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 2,
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.05,
+        "std": 0.22
+      },
+      "event_indicator": {
+        "dtype": "bool",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 2,
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.06,
+        "std": 0.25
+      },
+      "temperature": {
+        "dtype": "float64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 404,
+        "min": -2.7,
+        "max": 45.2,
+        "mean": 25.56,
+        "std": 7.36
+      },
+      "rainfall_mm": {
+        "dtype": "float64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 498,
+        "min": 0.0,
+        "max": 326.8,
+        "mean": 6.7,
+        "std": 16.27
+      },
+      "demand_index": {
+        "dtype": "float64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 94,
+        "min": 0.06,
+        "max": 0.99,
+        "mean": 0.62,
+        "std": 0.21
+      }
+    }
+  },
+  "inventory_availability": {
+    "total_rows": 5000,
+    "total_columns": 13,
+    "memory_usage_mb": 2.8,
+    "exact_duplicates": 0,
+    "columns": {
+      "snapshot_id": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 5000
+      },
+      "inventory_id": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 157
+      },
+      "inventory_type": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 2
+      },
+      "supplier_id": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 20
+      },
+      "origin_id": {
+        "dtype": "object",
+        "null_count": 2656,
+        "null_pct": 53.12,
+        "unique_values": 8
+      },
+      "destination_id": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 10
+      },
+      "travel_date": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 437
+      },
+      "snapshot_date": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 546
+      },
+      "total_capacity": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 66,
+        "min": 41.0,
+        "max": 250.0,
+        "mean": 157.92,
+        "std": 63.99
+      },
+      "booked_quantity": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 239,
+        "min": 4.0,
+        "max": 250.0,
+        "mean": 81.22,
+        "std": 54.5
+      },
+      "available_quantity": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 230,
+        "min": 0.0,
+        "max": 231.0,
+        "mean": 76.7,
+        "std": 53.53
+      },
+      "sold_out": {
+        "dtype": "bool",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 2,
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.04,
+        "std": 0.18
+      },
+      "unit_type": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 2
+      }
+    }
+  },
+  "supplier_offers": {
+    "total_rows": 5000,
+    "total_columns": 13,
+    "memory_usage_mb": 2.53,
+    "exact_duplicates": 0,
+    "columns": {
+      "offer_id": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 5000
+      },
+      "supplier_id": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 20
+      },
+      "inventory_type": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 2
+      },
+      "inventory_id": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 157
+      },
+      "origin_id": {
+        "dtype": "object",
+        "null_count": 2750,
+        "null_pct": 55.0,
+        "unique_values": 8
+      },
+      "destination_id": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 10
+      },
+      "travel_date": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 500
+      },
+      "purchase_cost": {
+        "dtype": "float64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 4987,
+        "min": 1978.31,
+        "max": 34045.59,
+        "mean": 8549.93,
+        "std": 5176.88
+      },
+      "selling_price": {
+        "dtype": "float64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 4986,
+        "min": 2379.53,
+        "max": 46375.11,
+        "mean": 11064.99,
+        "std": 6742.12
+      },
+      "available_quantity": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 203,
+        "min": 10.0,
+        "max": 212.0,
+        "mean": 83.87,
+        "std": 44.53
+      },
+      "minimum_purchase_qty": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 21,
+        "min": 5.0,
+        "max": 25.0,
+        "mean": 14.39,
+        "std": 6.8
+      },
+      "refundable": {
+        "dtype": "bool",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 2,
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.42,
+        "std": 0.49
+      },
+      "offer_valid_until": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 532
+      }
+    }
+  },
+  "customer_search_events": {
+    "total_rows": 5000,
+    "total_columns": 12,
+    "memory_usage_mb": 2.29,
+    "exact_duplicates": 0,
+    "columns": {
+      "search_id": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 5000
+      },
+      "user_id": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 1179
+      },
+      "search_date": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 560
+      },
+      "travel_date": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 499
+      },
+      "destination_id": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 10
+      },
+      "origin_id": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 8
+      },
+      "inventory_type": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 2
+      },
+      "travellers_count": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 6,
+        "min": 1.0,
+        "max": 6.0,
+        "mean": 2.24,
+        "std": 1.28
+      },
+      "rooms_count": {
+        "dtype": "float64",
+        "null_count": 2279,
+        "null_pct": 45.58,
+        "unique_values": 4,
+        "min": 1.0,
+        "max": 4.0,
+        "mean": 1.42,
+        "std": 0.71
+      },
+      "search_price": {
+        "dtype": "float64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 4996,
+        "min": 2996.24,
+        "max": 228839.74,
+        "mean": 20058.11,
+        "std": 22148.75
+      },
+      "clicked": {
+        "dtype": "bool",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 2,
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.54,
+        "std": 0.5
+      },
+      "booking_completed": {
+        "dtype": "bool",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 2,
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.2,
+        "std": 0.4
+      }
+    }
+  },
+  "airlines": {
+    "total_rows": 14,
+    "total_columns": 2,
+    "memory_usage_mb": 0.0,
+    "exact_duplicates": 0,
+    "columns": {
+      "IATA_CODE": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 14
+      },
+      "AIRLINE": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 14
+      }
+    }
+  },
+  "airports": {
+    "total_rows": 322,
+    "total_columns": 7,
+    "memory_usage_mb": 0.11,
+    "exact_duplicates": 0,
+    "columns": {
+      "IATA_CODE": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 322
+      },
+      "AIRPORT": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 322
+      },
+      "CITY": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 308
+      },
+      "STATE": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 54
+      },
+      "COUNTRY": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 1
+      },
+      "LATITUDE": {
+        "dtype": "float64",
+        "null_count": 3,
+        "null_pct": 0.9317,
+        "unique_values": 319,
+        "min": 13.48,
+        "max": 71.29,
+        "mean": 38.98,
+        "std": 8.62
+      },
+      "LONGITUDE": {
+        "dtype": "float64",
+        "null_count": 3,
+        "null_pct": 0.9317,
+        "unique_values": 319,
+        "min": -176.65,
+        "max": -64.8,
+        "mean": -98.38,
+        "std": 21.52
+      }
+    }
+  },
+  "flights": {
+    "total_rows": 1000,
+    "total_columns": 31,
+    "memory_usage_mb": 0.51,
+    "exact_duplicates": 0,
+    "columns": {
+      "YEAR": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 1,
+        "min": 2015.0,
+        "max": 2015.0,
+        "mean": 2015.0,
+        "std": 0.0
+      },
+      "MONTH": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 1,
+        "min": 1.0,
+        "max": 1.0,
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "DAY": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 1,
+        "min": 1.0,
+        "max": 1.0,
+        "mean": 1.0,
+        "std": 0.0
+      },
+      "DAY_OF_WEEK": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 1,
+        "min": 4.0,
+        "max": 4.0,
+        "mean": 4.0,
+        "std": 0.0
+      },
+      "AIRLINE": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 14
+      },
+      "FLIGHT_NUMBER": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 911
+      },
+      "TAIL_NUMBER": {
+        "dtype": "object",
+        "null_count": 2,
+        "null_pct": 0.2,
+        "unique_values": 965
+      },
+      "ORIGIN_AIRPORT": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 221
+      },
+      "DESTINATION_AIRPORT": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 74
+      },
+      "SCHEDULED_DEPARTURE": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 120,
+        "min": 5.0,
+        "max": 705.0,
+        "mean": 597.31,
+        "std": 124.77
+      },
+      "DEPARTURE_TIME": {
+        "dtype": "float64",
+        "null_count": 84,
+        "null_pct": 8.4,
+        "unique_values": 210,
+        "min": 2.0,
+        "max": 2354.0,
+        "mean": 596.63,
+        "std": 146.45
+      },
+      "DEPARTURE_DELAY": {
+        "dtype": "float64",
+        "null_count": 84,
+        "null_pct": 8.4,
+        "unique_values": 92,
+        "min": -18.0,
+        "max": 364.0,
+        "mean": 3.97,
+        "std": 28.18
+      },
+      "TAXI_OUT": {
+        "dtype": "float64",
+        "null_count": 84,
+        "null_pct": 8.4,
+        "unique_values": 46,
+        "min": 3.0,
+        "max": 62.0,
+        "mean": 16.83,
+        "std": 7.83
+      },
+      "WHEELS_OFF": {
+        "dtype": "float64",
+        "null_count": 84,
+        "null_pct": 8.4,
+        "unique_values": 214,
+        "min": 14.0,
+        "max": 1246.0,
+        "mean": 627.17,
+        "std": 138.07
+      },
+      "SCHEDULED_TIME": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 261,
+        "min": 32.0,
+        "max": 404.0,
+        "mean": 155.08,
+        "std": 73.35
+      },
+      "ELAPSED_TIME": {
+        "dtype": "float64",
+        "null_count": 85,
+        "null_pct": 8.5,
+        "unique_values": 265,
+        "min": 30.0,
+        "max": 412.0,
+        "mean": 153.43,
+        "std": 74.04
+      },
+      "AIR_TIME": {
+        "dtype": "float64",
+        "null_count": 85,
+        "null_pct": 8.5,
+        "unique_values": 265,
+        "min": 15.0,
+        "max": 390.0,
+        "mean": 128.8,
+        "std": 74.09
+      },
+      "DISTANCE": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 598,
+        "min": 67.0,
+        "max": 2762.0,
+        "mean": 914.86,
+        "std": 602.52
+      },
+      "WHEELS_ON": {
+        "dtype": "float64",
+        "null_count": 84,
+        "null_pct": 8.4,
+        "unique_values": 364,
+        "min": 254.0,
+        "max": 1547.0,
+        "mean": 859.57,
+        "std": 186.33
+      },
+      "TAXI_IN": {
+        "dtype": "float64",
+        "null_count": 84,
+        "null_pct": 8.4,
+        "unique_values": 35,
+        "min": 1.0,
+        "max": 80.0,
+        "mean": 7.81,
+        "std": 5.57
+      },
+      "SCHEDULED_ARRIVAL": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 334,
+        "min": 320.0,
+        "max": 1534.0,
+        "mean": 868.53,
+        "std": 179.69
+      },
+      "ARRIVAL_TIME": {
+        "dtype": "float64",
+        "null_count": 84,
+        "null_pct": 8.4,
+        "unique_values": 358,
+        "min": 259.0,
+        "max": 1554.0,
+        "mean": 872.48,
+        "std": 186.93
+      },
+      "ARRIVAL_DELAY": {
+        "dtype": "float64",
+        "null_count": 85,
+        "null_pct": 8.5,
+        "unique_values": 121,
+        "min": -51.0,
+        "max": 376.0,
+        "mean": -0.68,
+        "std": 31.1
+      },
+      "DIVERTED": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 2,
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.0,
+        "std": 0.03
+      },
+      "CANCELLED": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 2,
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.08,
+        "std": 0.28
+      },
+      "CANCELLATION_REASON": {
+        "dtype": "object",
+        "null_count": 916,
+        "null_pct": 91.6,
+        "unique_values": 3
+      },
+      "AIR_SYSTEM_DELAY": {
+        "dtype": "float64",
+        "null_count": 886,
+        "null_pct": 88.6,
+        "unique_values": 38,
+        "min": 0.0,
+        "max": 97.0,
+        "mean": 13.46,
+        "std": 17.45
+      },
+      "SECURITY_DELAY": {
+        "dtype": "float64",
+        "null_count": 886,
+        "null_pct": 88.6,
+        "unique_values": 2,
+        "min": 0.0,
+        "max": 46.0,
+        "mean": 0.4,
+        "std": 4.31
+      },
+      "AIRLINE_DELAY": {
+        "dtype": "float64",
+        "null_count": 886,
+        "null_pct": 88.6,
+        "unique_values": 45,
+        "min": 0.0,
+        "max": 364.0,
+        "mean": 24.47,
+        "std": 45.51
+      },
+      "LATE_AIRCRAFT_DELAY": {
+        "dtype": "float64",
+        "null_count": 886,
+        "null_pct": 88.6,
+        "unique_values": 5,
+        "min": 0.0,
+        "max": 306.0,
+        "mean": 3.75,
+        "std": 29.86
+      },
+      "WEATHER_DELAY": {
+        "dtype": "float64",
+        "null_count": 886,
+        "null_pct": 88.6,
+        "unique_values": 20,
+        "min": 0.0,
+        "max": 213.0,
+        "mean": 13.8,
+        "std": 38.2
+      }
+    }
+  },
+  "flight_prices": {
+    "total_rows": 300153,
+    "total_columns": 12,
+    "memory_usage_mb": 171.91,
+    "exact_duplicates": 0,
+    "columns": {
+      "airline": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 6
+      },
+      "flight": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 1561
+      },
+      "source_city": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 6
+      },
+      "departure_time": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 6
+      },
+      "stops": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 3
+      },
+      "arrival_time": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 6
+      },
+      "destination_city": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 6
+      },
+      "class": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 2
+      },
+      "duration": {
+        "dtype": "float64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 476,
+        "min": 0.83,
+        "max": 49.83,
+        "mean": 12.22,
+        "std": 7.19
+      },
+      "days_left": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 49,
+        "min": 1.0,
+        "max": 49.0,
+        "mean": 26.0,
+        "std": 13.56
+      },
+      "price": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 12157,
+        "min": 1105.0,
+        "max": 123071.0,
+        "mean": 20889.66,
+        "std": 22697.77
+      },
+      "price_record_id": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 300153
+      }
+    }
+  },
+  "hotel_bookings": {
+    "total_rows": 119390,
+    "total_columns": 32,
+    "memory_usage_mb": 104.83,
+    "exact_duplicates": 31994,
+    "columns": {
+      "hotel": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 2
+      },
+      "is_canceled": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 2,
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.37,
+        "std": 0.48
+      },
+      "lead_time": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 479,
+        "min": 0.0,
+        "max": 737.0,
+        "mean": 104.01,
+        "std": 106.86
+      },
+      "arrival_date_year": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 3,
+        "min": 2015.0,
+        "max": 2017.0,
+        "mean": 2016.16,
+        "std": 0.71
+      },
+      "arrival_date_month": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 12
+      },
+      "arrival_date_week_number": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 53,
+        "min": 1.0,
+        "max": 53.0,
+        "mean": 27.17,
+        "std": 13.61
+      },
+      "arrival_date_day_of_month": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 31,
+        "min": 1.0,
+        "max": 31.0,
+        "mean": 15.8,
+        "std": 8.78
+      },
+      "stays_in_weekend_nights": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 17,
+        "min": 0.0,
+        "max": 19.0,
+        "mean": 0.93,
+        "std": 1.0
+      },
+      "stays_in_week_nights": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 35,
+        "min": 0.0,
+        "max": 50.0,
+        "mean": 2.5,
+        "std": 1.91
+      },
+      "adults": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 14,
+        "min": 0.0,
+        "max": 55.0,
+        "mean": 1.86,
+        "std": 0.58
+      },
+      "children": {
+        "dtype": "float64",
+        "null_count": 4,
+        "null_pct": 0.0034,
+        "unique_values": 5,
+        "min": 0.0,
+        "max": 10.0,
+        "mean": 0.1,
+        "std": 0.4
+      },
+      "babies": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 5,
+        "min": 0.0,
+        "max": 10.0,
+        "mean": 0.01,
+        "std": 0.1
+      },
+      "meal": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 5
+      },
+      "country": {
+        "dtype": "object",
+        "null_count": 488,
+        "null_pct": 0.4087,
+        "unique_values": 177
+      },
+      "market_segment": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 8
+      },
+      "distribution_channel": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 5
+      },
+      "is_repeated_guest": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 2,
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.03,
+        "std": 0.18
+      },
+      "previous_cancellations": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 15,
+        "min": 0.0,
+        "max": 26.0,
+        "mean": 0.09,
+        "std": 0.84
+      },
+      "previous_bookings_not_canceled": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 73,
+        "min": 0.0,
+        "max": 72.0,
+        "mean": 0.14,
+        "std": 1.5
+      },
+      "reserved_room_type": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 10
+      },
+      "assigned_room_type": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 12
+      },
+      "booking_changes": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 21,
+        "min": 0.0,
+        "max": 21.0,
+        "mean": 0.22,
+        "std": 0.65
+      },
+      "deposit_type": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 3
+      },
+      "agent": {
+        "dtype": "float64",
+        "null_count": 16340,
+        "null_pct": 13.6862,
+        "unique_values": 333,
+        "min": 1.0,
+        "max": 535.0,
+        "mean": 86.69,
+        "std": 110.77
+      },
+      "company": {
+        "dtype": "float64",
+        "null_count": 112593,
+        "null_pct": 94.3069,
+        "unique_values": 352,
+        "min": 6.0,
+        "max": 543.0,
+        "mean": 189.27,
+        "std": 131.66
+      },
+      "days_in_waiting_list": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 128,
+        "min": 0.0,
+        "max": 391.0,
+        "mean": 2.32,
+        "std": 17.59
+      },
+      "customer_type": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 4
+      },
+      "adr": {
+        "dtype": "float64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 8879,
+        "min": -6.38,
+        "max": 5400.0,
+        "mean": 101.83,
+        "std": 50.54
+      },
+      "required_car_parking_spaces": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 5,
+        "min": 0.0,
+        "max": 8.0,
+        "mean": 0.06,
+        "std": 0.25
+      },
+      "total_of_special_requests": {
+        "dtype": "int64",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 6,
+        "min": 0.0,
+        "max": 5.0,
+        "mean": 0.57,
+        "std": 0.79
+      },
+      "reservation_status": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 3
+      },
+      "reservation_status_date": {
+        "dtype": "object",
+        "null_count": 0,
+        "null_pct": 0.0,
+        "unique_values": 926
+      }
+    }
+  }
+}

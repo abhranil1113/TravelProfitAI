@@ -1,0 +1,296 @@
+stage,dataset_name,column_name,total_rows,missing_count,missing_percentage,is_optional_field,is_excessive_missing,missing_status,business_justification
+raw,market_seasonal_signals,signal_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,market_seasonal_signals,destination_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,market_seasonal_signals,travel_date,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,market_seasonal_signals,month,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,market_seasonal_signals,season_type,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,market_seasonal_signals,holiday_indicator,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,market_seasonal_signals,festival_indicator,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,market_seasonal_signals,event_indicator,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,market_seasonal_signals,temperature,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,market_seasonal_signals,rainfall_mm,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,market_seasonal_signals,demand_index,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,inventory_availability,snapshot_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,inventory_availability,inventory_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,inventory_availability,inventory_type,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,inventory_availability,supplier_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,inventory_availability,origin_id,5000,2656,53.12,True,True,Legitimate Nullable,Hotels are stationary destination-only inventory and do not possess an origin location.
+raw,inventory_availability,destination_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,inventory_availability,travel_date,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,inventory_availability,snapshot_date,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,inventory_availability,total_capacity,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,inventory_availability,booked_quantity,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,inventory_availability,available_quantity,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,inventory_availability,sold_out,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,inventory_availability,unit_type,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,supplier_offers,offer_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,supplier_offers,supplier_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,supplier_offers,inventory_type,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,supplier_offers,inventory_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,supplier_offers,origin_id,5000,2750,55.0,True,True,Legitimate Nullable,Hotel supply offers apply to destination properties and do not have an origin.
+raw,supplier_offers,destination_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,supplier_offers,travel_date,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,supplier_offers,purchase_cost,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,supplier_offers,selling_price,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,supplier_offers,available_quantity,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,supplier_offers,minimum_purchase_qty,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,supplier_offers,refundable,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,supplier_offers,offer_valid_until,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,customer_search_events,search_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,customer_search_events,user_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,customer_search_events,search_date,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,customer_search_events,travel_date,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,customer_search_events,destination_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,customer_search_events,origin_id,5000,0,0.0,True,False,Clean,N/A - Fully Populated
+raw,customer_search_events,inventory_type,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,customer_search_events,travellers_count,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,customer_search_events,rooms_count,5000,2279,45.58,True,False,Legitimate Nullable,Flight searches do not require or specify hotel room counts.
+raw,customer_search_events,search_price,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,customer_search_events,clicked,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,customer_search_events,booking_completed,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,airlines,IATA_CODE,14,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,airlines,AIRLINE,14,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,airports,IATA_CODE,322,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,airports,AIRPORT,322,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,airports,CITY,322,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,airports,STATE,322,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,airports,COUNTRY,322,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,airports,LATITUDE,322,3,0.9317,True,False,Legitimate Nullable,Geographical coordinates unrecorded for select remote landing strips.
+raw,airports,LONGITUDE,322,3,0.9317,True,False,Legitimate Nullable,Geographical coordinates unrecorded for select remote landing strips.
+raw,flights,YEAR,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flights,MONTH,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flights,DAY,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flights,DAY_OF_WEEK,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flights,AIRLINE,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flights,FLIGHT_NUMBER,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flights,TAIL_NUMBER,1000,2,0.2,True,False,Legitimate Nullable,Unassigned tail number for cancelled flights.
+raw,flights,ORIGIN_AIRPORT,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flights,DESTINATION_AIRPORT,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flights,SCHEDULED_DEPARTURE,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flights,DEPARTURE_TIME,1000,84,8.4,True,False,Legitimate Nullable,Flight cancelled before pushback.
+raw,flights,DEPARTURE_DELAY,1000,84,8.4,True,False,Legitimate Nullable,Flight cancelled before departure.
+raw,flights,TAXI_OUT,1000,84,8.4,True,False,Legitimate Nullable,Flight cancelled before taxiing.
+raw,flights,WHEELS_OFF,1000,84,8.4,True,False,Legitimate Nullable,Flight cancelled prior to takeoff.
+raw,flights,SCHEDULED_TIME,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flights,ELAPSED_TIME,1000,85,8.5,True,False,Legitimate Nullable,Flight cancelled or diverted before completion.
+raw,flights,AIR_TIME,1000,85,8.5,True,False,Legitimate Nullable,Flight cancelled or diverted.
+raw,flights,DISTANCE,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flights,WHEELS_ON,1000,84,8.4,True,False,Legitimate Nullable,Flight cancelled or diverted.
+raw,flights,TAXI_IN,1000,84,8.4,True,False,Legitimate Nullable,Flight cancelled or diverted.
+raw,flights,SCHEDULED_ARRIVAL,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flights,ARRIVAL_TIME,1000,84,8.4,True,False,Legitimate Nullable,Flight cancelled or diverted.
+raw,flights,ARRIVAL_DELAY,1000,85,8.5,True,False,Legitimate Nullable,Flight cancelled or diverted.
+raw,flights,DIVERTED,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flights,CANCELLED,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flights,CANCELLATION_REASON,1000,916,91.6,True,True,Legitimate Nullable,Not cancelled (flight operated normally).
+raw,flights,AIR_SYSTEM_DELAY,1000,886,88.6,True,True,Legitimate Nullable,Flight arrived on time or with delay < 15 minutes.
+raw,flights,SECURITY_DELAY,1000,886,88.6,True,True,Legitimate Nullable,Flight arrived on time or with delay < 15 minutes.
+raw,flights,AIRLINE_DELAY,1000,886,88.6,True,True,Legitimate Nullable,Flight arrived on time or with delay < 15 minutes.
+raw,flights,LATE_AIRCRAFT_DELAY,1000,886,88.6,True,True,Legitimate Nullable,Flight arrived on time or with delay < 15 minutes.
+raw,flights,WEATHER_DELAY,1000,886,88.6,True,True,Legitimate Nullable,Flight arrived on time or with delay < 15 minutes.
+raw,flight_prices,airline,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flight_prices,flight,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flight_prices,source_city,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flight_prices,departure_time,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flight_prices,stops,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flight_prices,arrival_time,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flight_prices,destination_city,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flight_prices,class,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flight_prices,duration,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flight_prices,days_left,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flight_prices,price,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,flight_prices,price_record_id,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,hotel,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,is_canceled,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,lead_time,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,arrival_date_year,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,arrival_date_month,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,arrival_date_week_number,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,arrival_date_day_of_month,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,stays_in_weekend_nights,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,stays_in_week_nights,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,adults,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,children,119390,4,0.0034,True,False,Legitimate Nullable,Default zero children if not entered.
+raw,hotel_bookings,babies,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,meal,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,country,119390,488,0.4087,True,False,Legitimate Nullable,Guest country of origin omitted or not captured during reservation.
+raw,hotel_bookings,market_segment,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,distribution_channel,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,is_repeated_guest,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,previous_cancellations,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,previous_bookings_not_canceled,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,reserved_room_type,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,assigned_room_type,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,booking_changes,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,deposit_type,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,agent,119390,16340,13.6862,True,False,Legitimate Nullable,Bookings placed directly by guests without travel agency intermediary.
+raw,hotel_bookings,company,119390,112593,94.3069,True,True,Legitimate Nullable,Non-corporate individual leisure bookings without company sponsor.
+raw,hotel_bookings,days_in_waiting_list,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,customer_type,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,adr,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,required_car_parking_spaces,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,total_of_special_requests,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,reservation_status,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+raw,hotel_bookings,reservation_status_date,119390,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,market_seasonal_signals,signal_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,market_seasonal_signals,destination_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,market_seasonal_signals,travel_date,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,market_seasonal_signals,month,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,market_seasonal_signals,season_type,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,market_seasonal_signals,holiday_indicator,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,market_seasonal_signals,festival_indicator,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,market_seasonal_signals,event_indicator,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,market_seasonal_signals,temperature,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,market_seasonal_signals,rainfall_mm,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,market_seasonal_signals,demand_index,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,market_seasonal_signals,is_duplicate_record,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,market_seasonal_signals,is_demand_index_out_of_bounds,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,inventory_availability,snapshot_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,inventory_availability,inventory_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,inventory_availability,inventory_type,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,inventory_availability,supplier_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,inventory_availability,origin_id,5000,2656,53.12,True,True,Legitimate Nullable,Hotels are stationary destination-only inventory and do not possess an origin location.
+processed,inventory_availability,destination_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,inventory_availability,travel_date,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,inventory_availability,snapshot_date,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,inventory_availability,total_capacity,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,inventory_availability,booked_quantity,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,inventory_availability,available_quantity,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,inventory_availability,sold_out,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,inventory_availability,unit_type,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,inventory_availability,is_duplicate_record,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,inventory_availability,has_capacity_mismatch,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,supplier_offers,offer_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,supplier_offers,supplier_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,supplier_offers,inventory_type,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,supplier_offers,inventory_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,supplier_offers,origin_id,5000,2750,55.0,True,True,Legitimate Nullable,Hotel supply offers apply to destination properties and do not have an origin.
+processed,supplier_offers,destination_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,supplier_offers,travel_date,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,supplier_offers,purchase_cost,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,supplier_offers,selling_price,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,supplier_offers,available_quantity,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,supplier_offers,minimum_purchase_qty,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,supplier_offers,refundable,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,supplier_offers,offer_valid_until,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,supplier_offers,is_duplicate_record,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,supplier_offers,currency,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,supplier_offers,unit_margin,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,supplier_offers,margin_percentage,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,supplier_offers,is_negative_margin,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,customer_search_events,search_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,customer_search_events,user_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,customer_search_events,search_date,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,customer_search_events,travel_date,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,customer_search_events,destination_id,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,customer_search_events,origin_id,5000,0,0.0,True,False,Clean,N/A - Fully Populated
+processed,customer_search_events,inventory_type,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,customer_search_events,travellers_count,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,customer_search_events,rooms_count,5000,2279,45.58,True,False,Legitimate Nullable,Flight searches do not require or specify hotel room counts.
+processed,customer_search_events,search_price,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,customer_search_events,clicked,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,customer_search_events,booking_completed,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,customer_search_events,is_duplicate_record,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,customer_search_events,currency,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,customer_search_events,has_funnel_anomaly,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,customer_search_events,search_lead_days,5000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,airlines,IATA_CODE,14,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,airlines,AIRLINE,14,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,airports,IATA_CODE,322,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,airports,AIRPORT,322,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,airports,CITY,322,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,airports,STATE,322,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,airports,COUNTRY,322,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,airports,LATITUDE,322,3,0.9317,True,False,Legitimate Nullable,Geographical coordinates unrecorded for select remote landing strips.
+processed,airports,LONGITUDE,322,3,0.9317,True,False,Legitimate Nullable,Geographical coordinates unrecorded for select remote landing strips.
+processed,flights,YEAR,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flights,MONTH,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flights,DAY,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flights,DAY_OF_WEEK,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flights,AIRLINE,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flights,FLIGHT_NUMBER,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flights,TAIL_NUMBER,1000,0,0.0,True,False,Clean,N/A - Fully Populated
+processed,flights,ORIGIN_AIRPORT,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flights,DESTINATION_AIRPORT,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flights,SCHEDULED_DEPARTURE,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flights,DEPARTURE_TIME,1000,84,8.4,True,False,Legitimate Nullable,Flight cancelled before pushback.
+processed,flights,DEPARTURE_DELAY,1000,84,8.4,True,False,Legitimate Nullable,Flight cancelled before departure.
+processed,flights,TAXI_OUT,1000,84,8.4,True,False,Legitimate Nullable,Flight cancelled before taxiing.
+processed,flights,WHEELS_OFF,1000,84,8.4,True,False,Legitimate Nullable,Flight cancelled prior to takeoff.
+processed,flights,SCHEDULED_TIME,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flights,ELAPSED_TIME,1000,85,8.5,True,False,Legitimate Nullable,Flight cancelled or diverted before completion.
+processed,flights,AIR_TIME,1000,85,8.5,True,False,Legitimate Nullable,Flight cancelled or diverted.
+processed,flights,DISTANCE,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flights,WHEELS_ON,1000,84,8.4,True,False,Legitimate Nullable,Flight cancelled or diverted.
+processed,flights,TAXI_IN,1000,84,8.4,True,False,Legitimate Nullable,Flight cancelled or diverted.
+processed,flights,SCHEDULED_ARRIVAL,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flights,ARRIVAL_TIME,1000,84,8.4,True,False,Legitimate Nullable,Flight cancelled or diverted.
+processed,flights,ARRIVAL_DELAY,1000,85,8.5,True,False,Legitimate Nullable,Flight cancelled or diverted.
+processed,flights,DIVERTED,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flights,CANCELLED,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flights,CANCELLATION_REASON,1000,916,91.6,True,True,Legitimate Nullable,Not cancelled (flight operated normally).
+processed,flights,AIR_SYSTEM_DELAY,1000,886,88.6,True,True,Legitimate Nullable,Flight arrived on time or with delay < 15 minutes.
+processed,flights,SECURITY_DELAY,1000,886,88.6,True,True,Legitimate Nullable,Flight arrived on time or with delay < 15 minutes.
+processed,flights,AIRLINE_DELAY,1000,886,88.6,True,True,Legitimate Nullable,Flight arrived on time or with delay < 15 minutes.
+processed,flights,LATE_AIRCRAFT_DELAY,1000,886,88.6,True,True,Legitimate Nullable,Flight arrived on time or with delay < 15 minutes.
+processed,flights,WEATHER_DELAY,1000,886,88.6,True,True,Legitimate Nullable,Flight arrived on time or with delay < 15 minutes.
+processed,flights,FLIGHT_DATE,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flights,ROUTE,1000,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flight_prices,airline,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flight_prices,flight,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flight_prices,source_city,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flight_prices,departure_time,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flight_prices,stops,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flight_prices,arrival_time,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flight_prices,destination_city,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flight_prices,class,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flight_prices,duration,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flight_prices,days_left,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flight_prices,price,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flight_prices,price_record_id,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flight_prices,stops_count,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flight_prices,route,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flight_prices,currency,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,flight_prices,is_duplicate_feature_copy,300153,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,hotel,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,is_canceled,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,lead_time,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,arrival_date_year,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,arrival_date_month,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,arrival_date_week_number,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,arrival_date_day_of_month,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,stays_in_weekend_nights,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,stays_in_week_nights,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,adults,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,children,119208,0,0.0,True,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,babies,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,meal,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,country,119208,0,0.0,True,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,market_segment,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,distribution_channel,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,is_repeated_guest,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,previous_cancellations,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,previous_bookings_not_canceled,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,reserved_room_type,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,assigned_room_type,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,booking_changes,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,deposit_type,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,agent,119208,0,0.0,True,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,company,119208,0,0.0,True,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,days_in_waiting_list,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,customer_type,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,adr,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,required_car_parking_spaces,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,total_of_special_requests,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,reservation_status,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,reservation_status_date,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,is_duplicate_feature_copy,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,is_negative_adr,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,is_extreme_adr,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,is_zero_occupancy,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,is_agent_booking,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,is_company_booking,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,arrival_date,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,total_stay_nights,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,total_guests,119208,0,0.0,False,False,Clean,N/A - Fully Populated
+processed,hotel_bookings,currency,119208,0,0.0,False,False,Clean,N/A - Fully Populated

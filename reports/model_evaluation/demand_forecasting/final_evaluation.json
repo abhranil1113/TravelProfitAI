@@ -1,0 +1,20 @@
+{
+  "task_name": "demand_forecasting",
+  "model_name": "naive",
+  "test_records_count": 1586,
+  "inference_duration_seconds": 0.0087,
+  "metrics": {
+    "mae": 1.623,
+    "rmse": 1.7317,
+    "r2": -5.6635,
+    "mape": 77.4333,
+    "wape": 402.1875,
+    "smape": 153.451,
+    "forecast_bias": 1.5965
+  },
+  "forecast_diagnostics": {
+    "mean_bias": 1.5965,
+    "overprediction_rate": 0.925,
+    "underprediction_rate": 0.0101
+  }
+}

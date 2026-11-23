@@ -1,0 +1,57 @@
+{
+  "task_name": "supplier_lead_time_prediction",
+  "task_type": "regression",
+  "dataset_name": "supplier_lead_time_features",
+  "model_name": "dummy",
+  "target_column": "actual_lead_days",
+  "feature_names": [
+    "quote_amount",
+    "fill_rate",
+    "historical_reliability"
+  ],
+  "feature_count": 3,
+  "saved_timestamp": "2026-11-23T09:48:39.047446+00:00",
+  "random_seed": 42,
+  "packages": {
+    "sklearn": "1.7.2",
+    "xgboost": "3.2.0",
+    "lightgbm": "4.7.0",
+    "joblib": "1.6.0"
+  },
+  "fit_time_seconds": 0.0056,
+  "cv_summary": {
+    "task_name": "supplier_lead_time_prediction",
+    "model_name": "dummy",
+    "n_splits": 3,
+    "mean_fit_time_sec": 0.0059,
+    "mean_inference_time_sec": 0.003509,
+    "total_duration_sec": 0.04,
+    "mean_mae": 3.0416,
+    "std_mae": 0.0254,
+    "mean_rmse": 3.5462,
+    "std_rmse": 0.0341,
+    "mean_r2": -0.0049,
+    "std_r2": 0.0043,
+    "mean_mape": 70.1929,
+    "std_mape": 5.2088,
+    "mean_wape": 42.8156,
+    "std_wape": 1.5612,
+    "mean_smape": 46.4412,
+    "std_smape": 1.5625,
+    "mean_forecast_bias": 0.0007,
+    "std_forecast_bias": 0.3048
+  },
+  "test_metrics": {
+    "mae": 3.7079,
+    "rmse": 4.0227,
+    "r2": -0.0371,
+    "mape": 66.3522,
+    "wape": 47.1099,
+    "smape": 51.8877,
+    "forecast_bias": -0.7609
+  },
+  "selection_rationale": "Selected 'dummy' achieving best mean mae=3.0416 (improvement of 0.0000 / 0.00% over dummy mae=3.0416).",
+  "business_params": {},
+  "estimator_artifact": "estimator.joblib",
+  "preprocessor_artifact": "preprocessor.joblib"
+}

@@ -1,0 +1,7 @@
+task_name,model_name,fold,mae,rmse,r2,mape,wape,smape,forecast_bias
+supplier_lead_time_prediction,dummy,1,3.013,3.5398,-0.0094,67.4412,41.0663,44.9461,-0.3417
+supplier_lead_time_prediction,dummy,2,3.0503,3.5158,-0.0008,66.937,43.3129,46.3142,0.1013
+supplier_lead_time_prediction,dummy,3,3.0615,3.583,-0.0046,76.2004,44.0676,48.0633,0.2425
+supplier_lead_time_prediction,linear_regression,1,3.1715,3.6761,-0.0886,70.3898,43.2263,47.0398,-0.4379
+supplier_lead_time_prediction,linear_regression,2,3.052,3.5167,-0.0013,67.1905,43.3371,46.3192,0.1151
+supplier_lead_time_prediction,linear_regression,3,3.0894,3.6031,-0.0159,77.7632,44.4699,48.3571,0.2841

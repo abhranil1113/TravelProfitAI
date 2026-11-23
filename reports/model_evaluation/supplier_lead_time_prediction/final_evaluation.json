@@ -1,0 +1,20 @@
+{
+  "task_name": "supplier_lead_time_prediction",
+  "model_name": "dummy",
+  "test_records_count": 30,
+  "inference_duration_seconds": 0.004,
+  "metrics": {
+    "mae": 3.7079,
+    "rmse": 4.0227,
+    "r2": -0.0371,
+    "mape": 66.3522,
+    "wape": 47.1099,
+    "smape": 51.8877,
+    "forecast_bias": -0.7609
+  },
+  "residual_diagnostics": {
+    "mean_residual": -0.7609,
+    "std_residual": 3.9501,
+    "median_residual": -1.4162
+  }
+}

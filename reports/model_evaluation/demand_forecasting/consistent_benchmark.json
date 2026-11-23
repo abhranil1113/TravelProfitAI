@@ -1,0 +1,47 @@
+{
+  "naive": {
+    "mae": 0.4131,
+    "rmse": 0.7869,
+    "wape": 100.0,
+    "smape": 65.84,
+    "forecast_bias": -0.4131,
+    "fit_time_sec": 0.0165,
+    "infer_time_sec": 0.0045
+  },
+  "seasonal_naive": {
+    "mae": 0.5162,
+    "rmse": 0.8253,
+    "wape": 124.96,
+    "smape": 87.79,
+    "forecast_bias": -0.1271,
+    "fit_time_sec": 0.0158,
+    "infer_time_sec": 0.0065
+  },
+  "random_forest": {
+    "mae": 0.5736,
+    "rmse": 0.6808,
+    "wape": 138.88,
+    "smape": 161.02,
+    "forecast_bias": 0.0743,
+    "fit_time_sec": 0.4647,
+    "infer_time_sec": 0.054
+  },
+  "xgboost": {
+    "mae": 0.5658,
+    "rmse": 0.6761,
+    "wape": 136.99,
+    "smape": 161.27,
+    "forecast_bias": 0.0648,
+    "fit_time_sec": 0.148,
+    "infer_time_sec": 0.0111
+  },
+  "lightgbm": {
+    "mae": 0.5694,
+    "rmse": 0.6794,
+    "wape": 137.84,
+    "smape": 161.46,
+    "forecast_bias": 0.0666,
+    "fit_time_sec": 0.6732,
+    "infer_time_sec": 0.0155
+  }
+}

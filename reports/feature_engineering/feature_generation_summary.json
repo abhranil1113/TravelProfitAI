@@ -1,0 +1,78 @@
+{
+  "status": "COMPLETED",
+  "timestamp": "2026-11-23T15:18:36.379812",
+  "datasets": [
+    {
+      "dataset_name": "hotel_cancellation_features",
+      "row_count": 119208,
+      "column_count": 54,
+      "parquet_path": "C:\\Users\\AbhranilPal\\Programs\\Projects\\TBO-InventoryIQ\\data\\features\\hotel\\hotel_cancellation_features.parquet",
+      "csv_path": "C:\\Users\\AbhranilPal\\Programs\\Projects\\TBO-InventoryIQ\\data\\features\\hotel\\hotel_cancellation_features.csv",
+      "parquet_size_mb": 2.12,
+      "csv_size_mb": 29.65
+    },
+    {
+      "dataset_name": "flight_price_features",
+      "row_count": 300153,
+      "column_count": 21,
+      "parquet_path": "C:\\Users\\AbhranilPal\\Programs\\Projects\\TBO-InventoryIQ\\data\\features\\flight_prices\\flight_price_features.parquet",
+      "csv_path": "C:\\Users\\AbhranilPal\\Programs\\Projects\\TBO-InventoryIQ\\data\\features\\flight_prices\\flight_price_features.csv",
+      "parquet_size_mb": 3.23,
+      "csv_size_mb": 44.77
+    },
+    {
+      "dataset_name": "flight_operations_features",
+      "row_count": 1000,
+      "column_count": 22,
+      "parquet_path": "C:\\Users\\AbhranilPal\\Programs\\Projects\\TBO-InventoryIQ\\data\\features\\flights\\flight_operations_features.parquet",
+      "csv_path": "C:\\Users\\AbhranilPal\\Programs\\Projects\\TBO-InventoryIQ\\data\\features\\flights\\flight_operations_features.csv",
+      "parquet_size_mb": 0.04,
+      "csv_size_mb": 0.09
+    },
+    {
+      "dataset_name": "customer_demand_features",
+      "row_count": 5000,
+      "column_count": 39,
+      "parquet_path": "C:\\Users\\AbhranilPal\\Programs\\Projects\\TBO-InventoryIQ\\data\\features\\customer_demand\\customer_demand_features.parquet",
+      "csv_path": "C:\\Users\\AbhranilPal\\Programs\\Projects\\TBO-InventoryIQ\\data\\features\\customer_demand\\customer_demand_features.csv",
+      "parquet_size_mb": 0.22,
+      "csv_size_mb": 0.93
+    },
+    {
+      "dataset_name": "inventory_features",
+      "row_count": 5000,
+      "column_count": 27,
+      "parquet_path": "C:\\Users\\AbhranilPal\\Programs\\Projects\\TBO-InventoryIQ\\data\\features\\inventory\\inventory_features.parquet",
+      "csv_path": "C:\\Users\\AbhranilPal\\Programs\\Projects\\TBO-InventoryIQ\\data\\features\\inventory\\inventory_features.csv",
+      "parquet_size_mb": 0.19,
+      "csv_size_mb": 0.8
+    },
+    {
+      "dataset_name": "supplier_profitability_features",
+      "row_count": 5000,
+      "column_count": 28,
+      "parquet_path": "C:\\Users\\AbhranilPal\\Programs\\Projects\\TBO-InventoryIQ\\data\\features\\supplier\\supplier_profitability_features.parquet",
+      "csv_path": "C:\\Users\\AbhranilPal\\Programs\\Projects\\TBO-InventoryIQ\\data\\features\\supplier\\supplier_profitability_features.csv",
+      "parquet_size_mb": 0.45,
+      "csv_size_mb": 0.96
+    },
+    {
+      "dataset_name": "market_demand_features",
+      "row_count": 5000,
+      "column_count": 26,
+      "parquet_path": "C:\\Users\\AbhranilPal\\Programs\\Projects\\TBO-InventoryIQ\\data\\features\\market\\market_demand_features.parquet",
+      "csv_path": "C:\\Users\\AbhranilPal\\Programs\\Projects\\TBO-InventoryIQ\\data\\features\\market\\market_demand_features.csv",
+      "parquet_size_mb": 0.08,
+      "csv_size_mb": 0.67
+    },
+    {
+      "dataset_name": "destination_demand_supply_features",
+      "row_count": 20,
+      "column_count": 17,
+      "parquet_path": "C:\\Users\\AbhranilPal\\Programs\\Projects\\TBO-InventoryIQ\\data\\features\\market\\destination_demand_supply_features.parquet",
+      "csv_path": "C:\\Users\\AbhranilPal\\Programs\\Projects\\TBO-InventoryIQ\\data\\features\\market\\destination_demand_supply_features.csv",
+      "parquet_size_mb": 0.01,
+      "csv_size_mb": 0.0
+    }
+  ]
+}

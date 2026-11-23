@@ -1,0 +1,72 @@
+{
+  "cost_weights": {
+    "cost_false_negative_inr": 3000.0,
+    "cost_false_positive_inr": 600.0
+  },
+  "validation_records": 638,
+  "actual_stockout_count": 54,
+  "threshold_evaluations": [
+    {
+      "threshold_units": 5,
+      "precision": 96.97,
+      "recall": 59.26,
+      "f1": 73.56,
+      "specificity": 99.83,
+      "false_positives": 1,
+      "false_negatives": 22,
+      "true_positives": 32,
+      "true_negatives": 583,
+      "total_business_cost_inr": 66600.0
+    },
+    {
+      "threshold_units": 7,
+      "precision": 86.67,
+      "recall": 72.22,
+      "f1": 78.79,
+      "specificity": 98.97,
+      "false_positives": 6,
+      "false_negatives": 15,
+      "true_positives": 39,
+      "true_negatives": 578,
+      "total_business_cost_inr": 48600.0
+    },
+    {
+      "threshold_units": 10,
+      "precision": 72.58,
+      "recall": 83.33,
+      "f1": 77.59,
+      "specificity": 97.09,
+      "false_positives": 17,
+      "false_negatives": 9,
+      "true_positives": 45,
+      "true_negatives": 567,
+      "total_business_cost_inr": 37200.0
+    },
+    {
+      "threshold_units": 12,
+      "precision": 62.82,
+      "recall": 90.74,
+      "f1": 74.24,
+      "specificity": 95.03,
+      "false_positives": 29,
+      "false_negatives": 5,
+      "true_positives": 49,
+      "true_negatives": 555,
+      "total_business_cost_inr": 32400.0
+    },
+    {
+      "threshold_units": 15,
+      "precision": 48.6,
+      "recall": 96.3,
+      "f1": 64.6,
+      "specificity": 90.58,
+      "false_positives": 55,
+      "false_negatives": 2,
+      "true_positives": 52,
+      "true_negatives": 529,
+      "total_business_cost_inr": 39000.0
+    }
+  ],
+  "optimal_threshold_units": 12,
+  "baseline_threshold_units": 5
+}

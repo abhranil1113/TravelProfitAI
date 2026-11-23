@@ -1,0 +1,28 @@
+task_name: flight_price
+dataset_name: flight_price_features
+task_type: regression
+target_column: price
+validation_strategy: kfold
+n_splits: 5
+primary_metric: mae
+secondary_metrics:
+  - rmse
+  - r2
+  - mape
+candidate_models:
+  - dummy
+  - linear_regression
+  - random_forest
+  - xgboost
+  - lightgbm
+excluded_columns:
+  - price_log
+  - price_record_id
+  - currency
+business_params:
+  evaluate_booking_horizons: true
+  horizon_buckets:
+    - [1, 7]
+    - [8, 14]
+    - [15, 49]
+description: Predicts dynamic flight prices across booking horizons.

@@ -1,0 +1,54 @@
+{
+  "task_name": "demand_forecasting",
+  "task_type": "time_series_regression",
+  "dataset_name": "customer_demand_features",
+  "model_name": "naive",
+  "target_column": "future_search_volume_7d",
+  "feature_names": [
+    "destination_id",
+    "inventory_type",
+    "search_volume",
+    "total_travellers",
+    "avg_search_price",
+    "lag_1",
+    "lag_7",
+    "lag_14",
+    "rolling_mean_7",
+    "rolling_mean_14",
+    "rolling_std_7",
+    "day_of_week",
+    "is_weekend",
+    "month",
+    "quarter"
+  ],
+  "feature_count": 15,
+  "saved_timestamp": "2026-11-23T09:22:45.006068+00:00",
+  "random_seed": 42,
+  "packages": {
+    "sklearn": "1.7.2",
+    "xgboost": "3.2.0",
+    "lightgbm": "4.7.0",
+    "joblib": "1.6.0"
+  },
+  "fit_time_seconds": 0.0164,
+  "cv_summary": {
+    "validation_strategy": "global_chronological_7d_embargo",
+    "best_model": "naive"
+  },
+  "test_metrics": {
+    "mae": 0.4131,
+    "rmse": 0.7869,
+    "wape": 100.0,
+    "smape": 65.84,
+    "forecast_bias": -0.4131,
+    "fit_time_sec": 0.0165,
+    "infer_time_sec": 0.0045
+  },
+  "selection_rationale": "Selected 'naive' achieving best comparable MAE=0.4131 under consistent 7-day embargo.",
+  "business_params": {
+    "horizon_days": 7,
+    "seasonal_period": 7
+  },
+  "estimator_artifact": "estimator.joblib",
+  "preprocessor_artifact": "preprocessor.joblib"
+}
