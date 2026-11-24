@@ -15,6 +15,12 @@ from backend.app.core.exceptions import (
     ConflictException,
     NotFoundException,
 )
+from backend.app.core.notification_events import (
+    EventTypes,
+    NotificationCategory,
+    RoleNames,
+)
+from backend.app.services.notification_service import NotificationService
 from backend.app.models.schema import (
     ApprovalStatus,
     AuditLog,
@@ -230,6 +236,23 @@ class OptimizationService:
         db.add(audit)
         db.commit()
         db.refresh(run)
+
+        # Trigger real-time notification for optimization completion
+        NotificationService.notify_sync(
+            event_type=EventTypes.OPTIMIZATION_COMPLETED,
+            title="Optimization Completed",
+            message=f"Optimization run {run.run_id} solved successfully with expected profit INR {run.expected_net_profit_inr:,.2f}.",
+            recipient_ids=[user_id],
+            roles=[RoleNames.ANALYST, RoleNames.PROCUREMENT_MANAGER, RoleNames.EXECUTIVE],
+            category=NotificationCategory.OPTIMIZATION.value,
+            severity="SUCCESS",
+            entity_type="optimization_run",
+            entity_id=run.run_id,
+            source_module="optimization",
+            actor_id=user_id,
+            db=db,
+        )
+
         return run
 
     @staticmethod
@@ -291,6 +314,23 @@ class OptimizationService:
         db.add(audit)
         db.commit()
         db.refresh(run)
+
+        # Trigger real-time notification for optimization cancellation
+        NotificationService.notify_sync(
+            event_type=EventTypes.OPTIMIZATION_FAILED,
+            title="Optimization Cancelled",
+            message=f"Optimization run {run.run_id} has been cancelled.",
+            recipient_ids=[user_id],
+            roles=[RoleNames.ANALYST, RoleNames.ADMIN],
+            category=NotificationCategory.OPTIMIZATION.value,
+            severity="WARNING",
+            entity_type="optimization_run",
+            entity_id=run.run_id,
+            source_module="optimization",
+            actor_id=user_id,
+            db=db,
+        )
+
         return run
 
     @staticmethod
@@ -348,6 +388,23 @@ class OptimizationService:
         db.add(audit)
         db.commit()
         db.refresh(run)
+
+        # Trigger real-time notification for optimization cancellation
+        NotificationService.notify_sync(
+            event_type=EventTypes.OPTIMIZATION_FAILED,
+            title="Optimization Cancelled",
+            message=f"Optimization run {run.run_id} has been cancelled.",
+            recipient_ids=[user_id],
+            roles=[RoleNames.ANALYST, RoleNames.ADMIN],
+            category=NotificationCategory.OPTIMIZATION.value,
+            severity="WARNING",
+            entity_type="optimization_run",
+            entity_id=run.run_id,
+            source_module="optimization",
+            actor_id=user_id,
+            db=db,
+        )
+
         return run
 
     @staticmethod
@@ -383,6 +440,23 @@ class OptimizationService:
         db.add(audit)
         db.commit()
         db.refresh(run)
+
+        # Trigger real-time notification for optimization cancellation
+        NotificationService.notify_sync(
+            event_type=EventTypes.OPTIMIZATION_FAILED,
+            title="Optimization Cancelled",
+            message=f"Optimization run {run.run_id} has been cancelled.",
+            recipient_ids=[user_id],
+            roles=[RoleNames.ANALYST, RoleNames.ADMIN],
+            category=NotificationCategory.OPTIMIZATION.value,
+            severity="WARNING",
+            entity_type="optimization_run",
+            entity_id=run.run_id,
+            source_module="optimization",
+            actor_id=user_id,
+            db=db,
+        )
+
         return run
 
     @staticmethod

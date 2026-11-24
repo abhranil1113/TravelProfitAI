@@ -65,3 +65,48 @@ class NotificationDeliveryResponse(BaseModel):
 class NotificationDeliveryListResponse(BaseModel):
     items: List[NotificationDeliveryResponse]
     total: int
+
+
+class NotificationCreateRequest(BaseModel):
+    event_type: str = Field(..., max_length=128)
+    title: str = Field(..., max_length=200)
+    message: str = Field(..., max_length=2000)
+    recipient_ids: Optional[List[int]] = None
+    roles: Optional[List[str]] = None
+    category: Optional[str] = None
+    severity: str = Field("INFO", max_length=20)
+    entity_type: Optional[str] = Field(None, max_length=64)
+    entity_id: Optional[str] = Field(None, max_length=64)
+    source_module: Optional[str] = Field(None, max_length=64)
+    metadata: Optional[Dict[str, Any]] = None
+    idempotency_key: Optional[str] = Field(None, max_length=128)
+
+
+class NotificationDispatchResult(BaseModel):
+    event_type: str
+    persisted_count: int
+    emitted_count: int
+    targeted_recipients: List[int]
+    skipped_recipients: List[int] = Field(default_factory=list)
+    delivery_status: str
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    details: Dict[str, Any] = Field(default_factory=dict)
+
+
+class NotificationSocketPayload(BaseModel):
+    id: Optional[int] = None
+    notification_id: Optional[int] = None
+    event_type: str
+    title: str
+    message: str
+    category: str
+    severity: str
+    recipient_id: int
+    actor_id: Optional[int] = None
+    source_module: Optional[str] = None
+    entity_type: Optional[str] = None
+    entity_id: Optional[str] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    created_at: str
+    is_read: bool = False
+

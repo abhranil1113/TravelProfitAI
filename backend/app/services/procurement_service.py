@@ -15,6 +15,12 @@ from backend.app.core.exceptions import (
     ConflictException,
     NotFoundException,
 )
+from backend.app.core.notification_events import (
+    EventTypes,
+    NotificationCategory,
+    RoleNames,
+)
+from backend.app.services.notification_service import NotificationService
 from backend.app.models.schema import (
     AuditLog,
     BudgetLedgerEntry,
@@ -176,6 +182,23 @@ class ProcurementService:
         db.add(audit)
         db.commit()
         db.refresh(po)
+
+        # Trigger business notification for PO creation
+        NotificationService.notify_sync(
+            event_type=EventTypes.PROCUREMENT_PO_CREATED,
+            title="Purchase Order Created",
+            message=f"Purchase Order {po.po_number} for INR {po.total_committed_spend_inr:,.2f} has been created.",
+            recipient_ids=[user_id],
+            roles=[RoleNames.PROCUREMENT_MANAGER, RoleNames.FINANCE_USER],
+            category=NotificationCategory.PROCUREMENT.value,
+            severity="INFO",
+            entity_type="purchase_order",
+            entity_id=po.po_number,
+            source_module="procurement",
+            actor_id=user_id,
+            db=db,
+        )
+
         return po
 
     @staticmethod
@@ -232,6 +255,23 @@ class ProcurementService:
         db.add(audit)
         db.commit()
         db.refresh(po)
+
+        # Trigger business notification for PO confirmation
+        NotificationService.notify_sync(
+            event_type=EventTypes.PROCUREMENT_PO_APPROVED,
+            title="Purchase Order Confirmed",
+            message=f"Purchase Order {po.po_number} has been confirmed.",
+            recipient_ids=[user_id],
+            roles=[RoleNames.PROCUREMENT_MANAGER, RoleNames.FINANCE_USER],
+            category=NotificationCategory.PROCUREMENT.value,
+            severity="SUCCESS",
+            entity_type="purchase_order",
+            entity_id=po.po_number,
+            source_module="procurement",
+            actor_id=user_id,
+            db=db,
+        )
+
         return po
 
     @staticmethod
@@ -277,6 +317,23 @@ class ProcurementService:
         db.add(audit)
         db.commit()
         db.refresh(po)
+
+        # Trigger business notification for PO cancellation
+        NotificationService.notify_sync(
+            event_type=EventTypes.PROCUREMENT_PO_REJECTED,
+            title="Purchase Order Cancelled",
+            message=f"Purchase Order {po.po_number} has been cancelled: {req.reason}.",
+            recipient_ids=[user_id],
+            roles=[RoleNames.PROCUREMENT_MANAGER],
+            category=NotificationCategory.PROCUREMENT.value,
+            severity="WARNING",
+            entity_type="purchase_order",
+            entity_id=po.po_number,
+            source_module="procurement",
+            actor_id=user_id,
+            db=db,
+        )
+
         return po
 
     @staticmethod

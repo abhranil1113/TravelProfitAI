@@ -101,6 +101,23 @@ def mark_notification_read(
     return NotificationResponse.model_validate(notif)
 
 
+@notifications_router.post(
+    "/{id}/acknowledge",
+    response_model=NotificationDeliveryResponse,
+)
+def acknowledge_notification(
+    id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Client acknowledgement confirming notification receipt without marking read."""
+    from backend.app.core.exceptions import NotFoundException
+    delivery = NotificationService.acknowledge_notification(db, id, current_user.id)
+    if not delivery:
+        raise NotFoundException(f"Delivery record for notification {id} not found")
+    return NotificationDeliveryResponse.model_validate(delivery)
+
+
 @notifications_router.delete(
     "/{id}",
     status_code=status.HTTP_204_NO_CONTENT,

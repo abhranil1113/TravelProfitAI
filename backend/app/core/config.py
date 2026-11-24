@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import os
-from typing import List, Optional
+from typing import Any, List, Optional
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -35,6 +36,28 @@ class Settings(BaseSettings):
     
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = ["*"]
+    
+    # Socket.IO Configuration
+    SOCKET_IO_ENABLED: bool = True
+    SOCKET_IO_PATH: str = "/socket.io"
+    SOCKET_IO_PING_INTERVAL: int = 25
+    SOCKET_IO_PING_TIMEOUT: int = 20
+    SOCKET_IO_CORS_ORIGINS: Any = ["http://localhost:3000", "http://localhost:5173"]
+
+    @field_validator("SOCKET_IO_CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_socket_cors(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            if v.strip() == "*":
+                return "*"
+            if v.startswith("[") and v.endswith("]"):
+                import json
+                try:
+                    return json.loads(v)
+                except Exception:
+                    pass
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
     
     model_config = SettingsConfigDict(
         env_file=".env",

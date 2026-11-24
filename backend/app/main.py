@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from backend.app.api.router import api_router
 from backend.app.core.config import get_settings
 from backend.app.core.exceptions import AppBaseException
+from backend.app.core.socket_manager import socket_manager
 
 settings = get_settings()
 logger = logging.getLogger("tbo_inventoryiq")
@@ -52,3 +53,15 @@ def root_health():
 
 # Include API v1 router
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# Socket.IO Real-Time Engine Mount
+if settings.SOCKET_IO_ENABLED:
+    app.mount(settings.SOCKET_IO_PATH, socket_manager.asgi_app)
+    logger.info("Socket.IO real-time engine mounted at %s", settings.SOCKET_IO_PATH)
+
+
+@app.on_event("shutdown")
+async def shutdown_socket_manager():
+    if settings.SOCKET_IO_ENABLED:
+        await socket_manager.shutdown()
+
