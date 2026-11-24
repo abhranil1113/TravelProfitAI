@@ -74,7 +74,7 @@ class UserService:
             action="USER_CREATED_BY_ADMIN",
             entity_type="users",
             entity_id=str(user.id),
-            details_json={"email": email, "role": payload.role.value},
+            new_value_json={"email": email, "role": payload.role.value},
         ))
         db.commit()
         db.refresh(user)
@@ -115,7 +115,7 @@ class UserService:
             action="USER_UPDATED",
             entity_type="users",
             entity_id=str(user.id),
-            details_json=updated_fields,
+            new_value_json=updated_fields,
         ))
         db.commit()
         db.refresh(user)
@@ -218,7 +218,7 @@ class UserService:
             action="USER_HARD_DELETED",
             entity_type="users",
             entity_id=str(user.id),
-            details_json={"email": user.email},
+            new_value_json={"email": user.email},
         ))
         db.delete(user)
         db.commit()

@@ -11,7 +11,7 @@ def test_reports_and_schedules(client, admin_headers, pm_headers):
         headers=pm_headers,
         json={
             "title": "Monthly Procurement Audit Report",
-            "report_type": "EXECUTIVE_SUMMARY",
+            "report_type": "OPTIMIZATION_SUMMARY",
             "report_format": "PDF",
         }
     )
@@ -43,7 +43,7 @@ def test_reports_and_schedules(client, admin_headers, pm_headers):
         "/api/v1/report-schedules",
         headers=admin_headers,
         json={
-            "report_type": "WEEKLY_EXECUTIVE_SUMMARY",
+            "report_type": "OPTIMIZATION_SUMMARY",
             "report_format": "PDF",
             "cron_expression": "0 8 * * 1",
             "is_enabled": True,

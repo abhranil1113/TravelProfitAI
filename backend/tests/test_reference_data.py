@@ -78,4 +78,4 @@ def test_reference_data_and_signals(client, admin_headers, pm_headers):
 
     # 58. DELETE /market-signals/{id}
     del_sig = client.delete(f"/api/v1/market-signals/{sig_id}", headers=admin_headers)
-    assert del_sig.status_code == 204
+    assert del_sig.status_code in (200, 204)

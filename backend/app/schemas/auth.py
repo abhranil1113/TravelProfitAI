@@ -68,3 +68,5 @@ class AuthMessageResponse(BaseModel):
     message: str
     detail: Optional[str] = None
     action_token: Optional[str] = None  # Returned in dev/test or when simulated
+    is_active: Optional[bool] = None
+    status: Optional[str] = None

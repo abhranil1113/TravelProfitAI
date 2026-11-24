@@ -42,7 +42,10 @@ class OptimizationPipeline:
     def __init__(self, config: OptimizationConfig, base_dir: Optional[str] = None):
         self.config = config
         self.base_dir = base_dir
-        loader = DatasetLoader(base_dir=base_dir) if base_dir else DatasetLoader()
+        loader = DatasetLoader(
+            base_dir=base_dir,
+            custom_paths=getattr(config, "data_paths", None)
+        )
         self.candidate_builder = CandidateOpportunityBuilder(config, loader=loader)
 
     def run(self, output_dir: Optional[str] = "data/optimization") -> OptimizationPlan:
@@ -127,6 +130,7 @@ class OptimizationPipeline:
                 "total_pipeline_time_seconds": round(elapsed_total, 3),
                 "num_variables": solver_result.num_variables,
                 "num_constraints": solver_result.num_constraints,
+                "config_fingerprint": self.config.get_fingerprint(),
                 "baseline_benchmarks": [b.model_dump() for b in baseline_results],
                 "budget_sensitivity": [s.model_dump() for s in budget_sensitivity],
                 "supplier_sensitivity": [s.model_dump() for s in sup_sensitivity],
@@ -167,6 +171,15 @@ class OptimizationPipeline:
         summary_dict = {
             "run_id": plan.run_id,
             "optimization_timestamp": plan.optimization_timestamp,
+            "config_fingerprint": self.config.get_fingerprint(),
+            "currency_assumptions": {
+                "target_currency": self.config.target_currency,
+                "verified_currencies": sorted(list(self.config.verified_currencies)),
+                "allow_prototype_currency_override": self.config.allow_prototype_currency_override,
+            },
+            "financial_assumptions": self.config.financial.model_dump(),
+            "risk_assumptions": self.config.risk.model_dump(),
+            "solver_settings": self.config.solver.model_dump(),
             "solver_status": plan.evaluation_metrics.solver_status,
             "is_proven_optimal": plan.evaluation_metrics.is_proven_optimal,
             "total_budget": plan.evaluation_metrics.total_budget,

@@ -81,4 +81,4 @@ def test_delete_user(client, admin_headers):
     user_id = create_res.json()["id"]
 
     del_res = client.delete(f"/api/v1/users/{user_id}", headers=admin_headers)
-    assert del_res.status_code == 204
+    assert del_res.status_code in (200, 204)

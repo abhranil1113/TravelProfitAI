@@ -37,5 +37,6 @@ class InventoryForecastingService:
             pred = float(self.estimator.predict(X_trans)[0])
             return max(0.0, pred)
         except Exception:
-            # Fallback to current available quantity
-            return float(snapshot_record.get("available_quantity", 10.0))
+            # Fallback to current available quantity or configured default
+            default_inv = getattr(self.config, "default_available_inventory", 10.0)
+            return float(snapshot_record.get("available_quantity", default_inv))

@@ -66,6 +66,10 @@ class CandidateOpportunityBuilder:
         demand_service = DemandService(
             searches_prior_df=prior_searches,
             assumed_stay_duration=self.config.financial.hotel_assumed_stay_duration,
+            demand_scenario_multiplier=self.config.financial.demand_scenario_multiplier,
+            default_conversion_rate=self.config.financial.default_search_conversion_rate,
+            default_travellers=self.config.financial.default_travellers_per_booking,
+            default_rooms=self.config.financial.default_rooms_per_booking,
         )
         demand_forecast_service = DemandForecastingService(
             self.registry, self.config, raw_searches

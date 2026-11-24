@@ -69,7 +69,7 @@ class DestinationService:
             action="DESTINATION_CREATED",
             entity_type="destinations",
             entity_id=dest_id,
-            details_json={"name": dest.name, "country": dest.country},
+            new_value_json={"name": dest.name, "country": dest.country},
         ))
         db.commit()
         db.refresh(dest)
@@ -111,7 +111,7 @@ class DestinationService:
             action="DESTINATION_UPDATED",
             entity_type="destinations",
             entity_id=dest_id,
-            details_json=updates,
+            new_value_json=updates,
         ))
         db.commit()
         db.refresh(dest)

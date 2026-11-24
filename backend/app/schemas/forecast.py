@@ -17,8 +17,8 @@ class OfferPredictionListResponse(BaseModel):
 
 class PredictionGenerateRequest(BaseModel):
     as_of_date: Optional[date] = None
-    offer_ids: Optional[List[str]] = None
-    destination_ids: Optional[List[str]] = None
+    offer_ids: Optional[List[Any]] = None
+    destination_ids: Optional[List[Any]] = None
     force_recompute: bool = False
 
 

@@ -39,7 +39,7 @@ class FlightEconomicsCalculator:
         else:
             theta_adj = theta_0
 
-        return max(0.05, min(0.99, theta_adj))
+        return max(self.assumptions.flight_min_sell_through, min(self.assumptions.flight_max_sell_through, theta_adj))
 
     def calculate_expected_contribution(self,
                                         purchase_cost: float,

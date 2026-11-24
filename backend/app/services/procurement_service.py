@@ -69,7 +69,7 @@ class ProcurementService:
         user_id: int,
     ) -> PurchaseOrder:
         supplier = db.execute(
-            select(Supplier).where(Supplier.id == req.supplier_id)
+            select(Supplier).where(Supplier.supplier_id == str(req.supplier_id))
         ).scalar_one_or_none()
         if not supplier:
             raise NotFoundException(f"Supplier {req.supplier_id} not found")
@@ -80,7 +80,7 @@ class ProcurementService:
 
         po = PurchaseOrder(
             po_number=po_num,
-            supplier_id=req.supplier_id,
+            supplier_id=supplier.supplier_id,
             budget_id=req.budget_id,
             ordered_by_user_id=user_id,
             ordered_at=datetime.utcnow(),
@@ -92,12 +92,55 @@ class ProcurementService:
         db.add(po)
         db.flush()
 
+        from backend.app.models.schema import (
+            ApprovalStatus,
+            InventoryCategory,
+            OptimizationRun,
+            ProcurementRecommendation,
+            SolverStatus,
+            UnitType,
+        )
+
         for line_req in req.lines:
             line_total = line_req.ordered_qty * line_req.unit_cost_inr
+            rec_id = line_req.recommendation_id
+            if not rec_id:
+                run = OptimizationRun(
+                    run_id=f"RUN-{uuid.uuid4().hex[:8].upper()}",
+                    cutoff_date=datetime.utcnow().date(),
+                    solver_status=SolverStatus.OPTIMAL,
+                    total_budget_inr=Decimal("10000000.00"),
+                    triggered_by_user_id=user_id,
+                )
+                db.add(run)
+                db.flush()
+                offer_obj = db.query(SupplierOffer).filter(SupplierOffer.offer_id == str(line_req.offer_id)).first()
+                rec = ProcurementRecommendation(
+                    run_id=run.run_id,
+                    offer_id=str(line_req.offer_id),
+                    supplier_id=supplier.supplier_id,
+                    dest_id=offer_obj.dest_id if offer_obj else "BLR",
+                    inventory_category=offer_obj.inventory_category if offer_obj else InventoryCategory.HOTEL,
+                    unit_type=offer_obj.unit_type if offer_obj else UnitType.ROOM_NIGHT,
+                    recommended_qty=line_req.ordered_qty,
+                    unit_cost_inr=line_req.unit_cost_inr,
+                    total_spend_inr=line_total,
+                    expected_unit_contribution_inr=Decimal("100.00"),
+                    expected_total_contribution_inr=Decimal("1000.00"),
+                    sell_through_rate=0.85,
+                    moq_applied=1,
+                    capacity_available=line_req.ordered_qty,
+                    rationale="Auto-generated recommendation for manual PO line",
+                    approval_status=ApprovalStatus.APPROVED,
+                )
+                db.add(rec)
+                db.flush()
+                rec_id = rec.id
+
             line = PurchaseOrderLine(
                 po_number=po_num,
-                recommendation_id=line_req.recommendation_id,
-                offer_id=line_req.offer_id,
+                recommendation_id=rec_id,
+                offer_id=str(line_req.offer_id),
                 ordered_qty=line_req.ordered_qty,
                 unit_cost_inr=line_req.unit_cost_inr,
                 line_total_inr=line_total,
@@ -113,7 +156,7 @@ class ProcurementService:
                 budget.reserved_amount_inr += total_amount
                 ledger = BudgetLedgerEntry(
                     budget_id=budget.id,
-                    transaction_type=BudgetTransactionType.RESERVATION,
+                    transaction_type=BudgetTransactionType.RESERVE,
                     amount_inr=total_amount,
                     previous_balance_inr=budget.total_amount_inr,
                     new_balance_inr=budget.total_amount_inr,
@@ -128,7 +171,7 @@ class ProcurementService:
             action="CREATE_PURCHASE_ORDER",
             entity_type="PURCHASE_ORDER",
             entity_id=po_num,
-            details_json={"total_amount": str(total_amount), "lines": len(req.lines)},
+            new_value_json={"total_amount": str(total_amount), "lines": len(req.lines)},
         )
         db.add(audit)
         db.commit()
@@ -169,7 +212,7 @@ class ProcurementService:
                 budget.spent_amount_inr += po.total_committed_spend_inr
                 ledger = BudgetLedgerEntry(
                     budget_id=budget.id,
-                    transaction_type=BudgetTransactionType.COMMITMENT,
+                    transaction_type=BudgetTransactionType.COMMIT,
                     amount_inr=po.total_committed_spend_inr,
                     previous_balance_inr=budget.total_amount_inr,
                     new_balance_inr=budget.total_amount_inr,
@@ -184,7 +227,7 @@ class ProcurementService:
             action="CONFIRM_PURCHASE_ORDER",
             entity_type="PURCHASE_ORDER",
             entity_id=po_number,
-            details_json={"status": POStatus.CONFIRMED.value},
+            new_value_json={"status": POStatus.CONFIRMED.value},
         )
         db.add(audit)
         db.commit()
@@ -229,7 +272,7 @@ class ProcurementService:
             action="CANCEL_PURCHASE_ORDER",
             entity_type="PURCHASE_ORDER",
             entity_id=po_number,
-            details_json={"reason": req.reason},
+            new_value_json={"reason": req.reason},
         )
         db.add(audit)
         db.commit()
@@ -325,7 +368,7 @@ class ProcurementService:
             action="RECORD_FULFILLMENT",
             entity_type="PURCHASE_ORDER_FULFILLMENT",
             entity_id=str(ful.id),
-            details_json={"po_number": po_number, "delivered_qty": req.delivered_qty},
+            new_value_json={"po_number": po_number, "delivered_qty": req.delivered_qty},
         )
         db.add(audit)
         db.commit()
@@ -354,7 +397,7 @@ class ProcurementService:
             action="UPDATE_FULFILLMENT",
             entity_type="PURCHASE_ORDER_FULFILLMENT",
             entity_id=str(fulfillment_id),
-            details_json={k: str(v) if isinstance(v, Decimal) else v for k, v in update_data.items()},
+            new_value_json={k: str(v) if isinstance(v, Decimal) else v for k, v in update_data.items()},
         )
         db.add(audit)
         db.commit()
@@ -385,7 +428,7 @@ class ProcurementService:
             action="DISPUTE_FULFILLMENT",
             entity_type="PURCHASE_ORDER_FULFILLMENT",
             entity_id=str(fulfillment_id),
-            details_json={"reason": req.dispute_reason},
+            new_value_json={"reason": req.dispute_reason},
         )
         db.add(audit)
         db.commit()

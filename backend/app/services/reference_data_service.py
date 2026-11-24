@@ -38,24 +38,27 @@ class ReferenceDataService:
         if signal_type:
             query = query.filter(MarketSignal.signal_type.ilike(f"%{signal_type.strip()}%"))
         if start_date:
-            query = query.filter(MarketSignal.end_date >= start_date)
+            query = query.filter(MarketSignal.signal_date >= start_date)
         if end_date:
-            query = query.filter(MarketSignal.start_date <= end_date)
+            query = query.filter(MarketSignal.signal_date <= end_date)
 
         total = query.count()
-        signals = query.order_by(MarketSignal.start_date.desc()).offset((page - 1) * page_size).limit(page_size).all()
+        signals = query.order_by(MarketSignal.signal_date.desc()).offset((page - 1) * page_size).limit(page_size).all()
         return signals, total
 
     @staticmethod
     def create_market_signal(db: Session, payload: MarketSignalCreateRequest, user_id: int) -> MarketSignal:
+        sig_date = payload.signal_date or payload.start_date or date.today()
+        ev_name = payload.event_name or payload.headline or payload.description or f"{payload.signal_type} Event"
+        multiplier = payload.demand_multiplier or payload.signal_value or payload.demand_impact_multiplier or 1.0
+
         signal = MarketSignal(
             dest_id=payload.dest_id.upper(),
+            signal_date=sig_date,
             signal_type=payload.signal_type.strip(),
-            start_date=payload.start_date,
-            end_date=payload.end_date,
-            severity=payload.severity.upper(),
-            demand_impact_multiplier=payload.demand_impact_multiplier,
-            description=payload.description,
+            event_name=ev_name[:120],
+            demand_multiplier=float(multiplier),
+            is_peak_season=payload.is_peak_season or (payload.severity == "HIGH"),
         )
         db.add(signal)
         db.add(AuditLog(
@@ -63,7 +66,7 @@ class ReferenceDataService:
             action="MARKET_SIGNAL_CREATED",
             entity_type="market_signals",
             entity_id=payload.dest_id.upper(),
-            details_json={"signal_type": signal.signal_type, "multiplier": signal.demand_impact_multiplier},
+            new_value_json={"signal_type": signal.signal_type, "multiplier": signal.demand_multiplier},
         ))
         db.commit()
         db.refresh(signal)
@@ -77,16 +80,22 @@ class ReferenceDataService:
 
         if payload.signal_type is not None:
             signal.signal_type = payload.signal_type.strip()
-        if payload.start_date is not None:
-            signal.start_date = payload.start_date
-        if payload.end_date is not None:
-            signal.end_date = payload.end_date
-        if payload.severity is not None:
-            signal.severity = payload.severity.upper()
-        if payload.demand_impact_multiplier is not None:
-            signal.demand_impact_multiplier = payload.demand_impact_multiplier
-        if payload.description is not None:
-            signal.description = payload.description
+        if payload.demand_multiplier is not None:
+            signal.demand_multiplier = payload.demand_multiplier
+        elif payload.demand_impact_multiplier is not None:
+            signal.demand_multiplier = payload.demand_impact_multiplier
+        elif payload.signal_value is not None:
+            signal.demand_multiplier = payload.signal_value
+        if payload.event_name is not None:
+            signal.event_name = payload.event_name[:120]
+        elif payload.headline is not None:
+            signal.event_name = payload.headline[:120]
+        elif payload.description is not None:
+            signal.event_name = payload.description[:120]
+        if payload.signal_date is not None:
+            signal.signal_date = payload.signal_date
+        elif payload.start_date is not None:
+            signal.signal_date = payload.start_date
 
         db.add(AuditLog(
             user_id=user_id,
@@ -123,7 +132,11 @@ class ReferenceDataService:
     ) -> tuple[list[ExchangeRate], int]:
         query = db.query(ExchangeRate)
         if currency_pair:
-            query = query.filter(ExchangeRate.currency_pair == currency_pair.upper())
+            parts = currency_pair.upper().split("/")
+            if len(parts) == 2:
+                query = query.filter(ExchangeRate.from_currency == parts[0], ExchangeRate.to_currency == parts[1])
+            else:
+                query = query.filter(ExchangeRate.from_currency == currency_pair.upper())
         if as_of_date:
             query = query.filter(ExchangeRate.as_of_date == as_of_date)
 
@@ -133,11 +146,16 @@ class ReferenceDataService:
 
     @staticmethod
     def create_exchange_rate(db: Session, payload: ExchangeRateCreateRequest) -> ExchangeRate:
+        pair = (payload.currency_pair or "").upper()
+        parts = pair.split("/") if "/" in pair else [pair, "INR"]
+        from_curr = payload.source_currency.upper() if payload.source_currency else (parts[0] if len(parts) > 0 and parts[0] else "USD")
+        to_curr = payload.target_currency.upper() if payload.target_currency else (parts[1] if len(parts) > 1 and parts[1] else "INR")
         rate = ExchangeRate(
-            currency_pair=payload.currency_pair.upper(),
-            as_of_date=payload.as_of_date,
+            from_currency=from_curr,
+            to_currency=to_curr,
+            as_of_date=payload.as_of_date or payload.rate_date or date.today(),
             rate=payload.rate,
-            source=payload.source,
+            source=payload.source or "MANUAL",
         )
         db.add(rate)
         db.commit()
@@ -146,11 +164,12 @@ class ReferenceDataService:
 
     @staticmethod
     def get_latest_rates(db: Session) -> list[ExchangeRate]:
-        pairs = db.query(ExchangeRate.currency_pair).distinct().all()
+        pairs = db.query(ExchangeRate.from_currency, ExchangeRate.to_currency).distinct().all()
         latest_rates = []
-        for (p,) in pairs:
+        for (f_curr, t_curr) in pairs:
             r = db.query(ExchangeRate).filter(
-                ExchangeRate.currency_pair == p
+                ExchangeRate.from_currency == f_curr,
+                ExchangeRate.to_currency == t_curr,
             ).order_by(ExchangeRate.as_of_date.desc()).first()
             if r:
                 latest_rates.append(r)
@@ -172,10 +191,11 @@ class ReferenceDataService:
         if not seg:
             seg = MarketSegmentBaseline(
                 segment_name=segment_name.strip(),
-                baseline_adr_inr=payload.baseline_adr_inr,
-                baseline_cancellation_rate=payload.baseline_cancellation_rate,
-                baseline_lead_time_days=payload.baseline_lead_time_days,
-                notes=payload.notes,
+                baseline_adr_inr=payload.baseline_adr_inr or Decimal("5000.00"),
+                baseline_cancellation_rate=payload.baseline_cancellation_rate or 0.15,
+                baseline_lead_time_days=payload.baseline_lead_time_days or 14.0,
+                booking_count_sample=100,
+                as_of_date=date.today(),
             )
             db.add(seg)
         else:

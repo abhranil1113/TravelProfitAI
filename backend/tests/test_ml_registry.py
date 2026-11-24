@@ -69,8 +69,10 @@ def test_ml_registry_and_training(client, admin_headers, analyst_headers):
     assert models_res.status_code == 200
 
     # If any models exist, test detail, promote, retire
-    if models_res.json()["total"] > 0:
-        mid = models_res.json()["items"][0]["id"]
+    models_data = models_res.json()
+    models_list = models_data["items"] if isinstance(models_data, dict) else models_data
+    if len(models_list) > 0:
+        mid = models_list[0]["id"]
         # 75. GET /ml/models/{id}
         m_get = client.get(f"/api/v1/ml/models/{mid}", headers=analyst_headers)
         assert m_get.status_code == 200

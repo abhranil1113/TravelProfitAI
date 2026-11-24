@@ -3,20 +3,20 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from backend.app.models.schema import FulfillmentStatus, POStatus
 
 
 class PurchaseOrderCreateLine(BaseModel):
-    offer_id: int
+    offer_id: Any
     ordered_qty: int = Field(..., gt=0)
     unit_cost_inr: Decimal = Field(..., gt=0)
     recommendation_id: Optional[int] = None
 
 
 class PurchaseOrderCreateRequest(BaseModel):
-    supplier_id: int
+    supplier_id: Any
     budget_id: Optional[int] = None
     lines: List[PurchaseOrderCreateLine] = Field(..., min_length=1)
     notes: Optional[str] = None
@@ -28,7 +28,7 @@ class PurchaseOrderLineResponse(BaseModel):
     id: int
     po_number: str
     recommendation_id: Optional[int] = None
-    offer_id: int
+    offer_id: Any
     ordered_qty: int
     unit_cost_inr: Decimal
     line_total_inr: Decimal
@@ -40,7 +40,7 @@ class PurchaseOrderResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     po_number: str
-    supplier_id: int
+    supplier_id: Any
     budget_id: Optional[int] = None
     ordered_by_user_id: Optional[int] = None
     ordered_at: datetime
@@ -99,19 +99,19 @@ class FulfillmentResponse(BaseModel):
     id: int
     po_line_id: int
     delivered_qty: int
-    delivered_at: datetime
+    delivered_at: Optional[datetime] = None
     actual_unit_cost_inr: Optional[Decimal] = None
     actual_total_cost_inr: Optional[Decimal] = None
-    spoilage_units: int
-    salvaged_units: int
-    fulfilled_units: int
-    cancelled_units: int
-    resold_units: int
-    unsold_units: int
-    supplier_refund_received_inr: Decimal
+    spoilage_units: int = 0
+    salvaged_units: int = 0
+    fulfilled_units: int = 0
+    cancelled_units: int = 0
+    resold_units: int = 0
+    unsold_units: int = 0
+    supplier_refund_received_inr: Decimal = Decimal("0.00")
     actual_revenue_inr: Optional[Decimal] = None
     actual_net_profit_inr: Optional[Decimal] = None
-    status: FulfillmentStatus
+    status: Any = None
     notes: Optional[str] = None
     dispute_reason: Optional[str] = None
     dispute_status: Optional[str] = None
@@ -121,6 +121,15 @@ class FulfillmentResponse(BaseModel):
     dispute_resolution_notes: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+    @model_validator(mode="before")
+    @classmethod
+    def check_dispute(cls, data):
+        if hasattr(data, "dispute_status") and getattr(data, "dispute_status") == "OPEN":
+            d = {c.name: getattr(data, c.name) for c in data.__table__.columns}
+            d["status"] = "DISPUTED"
+            return d
+        return data
 
 
 class FulfillmentListResponse(BaseModel):

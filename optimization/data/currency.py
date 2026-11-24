@@ -53,7 +53,8 @@ class CurrencyValidator:
                 f"Offer currency '{currency}' does not match target configured currency '{self.config.target_currency}'."
             )
 
-        if currency in self.VERIFIED_PRODUCTION_CURRENCIES:
+        verified_set = getattr(self.config, "verified_currencies", self.VERIFIED_PRODUCTION_CURRENCIES)
+        if currency in verified_set:
             tier = CurrencyTier.VERIFIED_COMMERCIAL
         else:
             if not self.config.allow_prototype_currency_override:

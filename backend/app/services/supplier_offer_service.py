@@ -56,9 +56,9 @@ class SupplierOfferService:
         if end_travel_date:
             query = query.filter(SupplierOffer.travel_date <= end_travel_date)
         if min_price is not None:
-            query = query.filter(SupplierOffer.cost_per_unit_inr >= min_price)
+            query = query.filter(SupplierOffer.unit_cost_inr >= min_price)
         if max_price is not None:
-            query = query.filter(SupplierOffer.cost_per_unit_inr <= max_price)
+            query = query.filter(SupplierOffer.unit_cost_inr <= max_price)
 
         total = query.count()
         offers = query.order_by(SupplierOffer.travel_date.asc()).offset((page - 1) * page_size).limit(page_size).all()
@@ -70,27 +70,58 @@ class SupplierOfferService:
         if db.query(SupplierOffer).filter(SupplierOffer.offer_id == offer_id).first():
             raise ConflictError(f"Supplier offer with ID '{offer_id}' already exists.")
 
+        from datetime import timedelta
+        val_from = payload.valid_from.date() if isinstance(payload.valid_from, datetime) else (payload.valid_from or date.today())
+        val_until = payload.valid_until.date() if isinstance(payload.valid_until, datetime) else (payload.valid_until or (date.today() + timedelta(days=30)))
+        if val_until < val_from:
+            val_until = val_from
+        trav_date = payload.travel_date or val_until
+        if trav_date < val_until:
+            trav_date = val_until
+
+        inv_id = payload.inventory_id.strip() if payload.inventory_id else None
+        dest_code = payload.dest_id.upper() if payload.dest_id else "BLR"
+        from backend.app.models.schema import Destination, InventoryItem
+        if inv_id:
+            inv = db.query(InventoryItem).filter(InventoryItem.inventory_id == inv_id).first()
+            if inv:
+                dest_code = inv.dest_id
+
+        # Verify destination exists or fallback
+        if not db.query(Destination).filter(Destination.dest_id == dest_code).first():
+            existing_dest = db.query(Destination).first()
+            if existing_dest:
+                dest_code = existing_dest.dest_id
+            else:
+                new_dest = Destination(
+                    dest_id=dest_code,
+                    name=dest_code,
+                    city=dest_code,
+                    country="India",
+                    airport_code=dest_code[:3],
+                )
+                db.add(new_dest)
+                db.flush()
+
         offer = SupplierOffer(
             offer_id=offer_id,
             supplier_id=payload.supplier_id.upper(),
-            inventory_id=payload.inventory_id.strip(),
-            dest_id=payload.dest_id.upper(),
+            inventory_id=inv_id,
+            dest_id=dest_code,
             origin_dest_id=payload.origin_dest_id.upper() if payload.origin_dest_id else None,
             inventory_category=payload.inventory_category,
             unit_type=payload.unit_type,
-            available_qty=payload.available_qty,
+            unit_cost_inr=payload.cost_per_unit_inr,
+            list_price_inr=payload.cost_per_unit_inr * Decimal("1.20"),
+            currency_code=payload.currency,
+            original_unit_cost=payload.original_cost,
             moq=payload.moq,
-            cost_per_unit_inr=payload.cost_per_unit_inr,
-            currency=payload.currency,
-            original_cost=payload.original_cost,
-            original_currency=payload.original_currency,
-            travel_date=payload.travel_date,
-            valid_from=payload.valid_from,
-            valid_until=payload.valid_until,
-            cancellation_deadline=payload.cancellation_deadline,
-            refundable=payload.refundable,
-            refund_penalty_pct=payload.refund_penalty_pct,
+            max_capacity=payload.available_qty,
+            valid_from=val_from,
+            valid_until=val_until,
+            travel_date=trav_date,
             status=payload.status,
+            customer_refund_rate_rc=payload.refund_penalty_pct if payload.refundable else 0.0,
         )
         db.add(offer)
         db.add(AuditLog(
@@ -98,10 +129,10 @@ class SupplierOfferService:
             action="SUPPLIER_OFFER_CREATED",
             entity_type="supplier_offers",
             entity_id=offer_id,
-            details_json={
+            new_value_json={
                 "supplier_id": offer.supplier_id,
-                "cost_inr": str(offer.cost_per_unit_inr),
-                "qty": offer.available_qty,
+                "cost_inr": str(offer.unit_cost_inr),
+                "qty": offer.max_capacity,
             },
         ))
         db.commit()
@@ -120,7 +151,7 @@ class SupplierOfferService:
 
         latest_snapshot = db.query(InventorySnapshot).filter(
             InventorySnapshot.inventory_id == offer.inventory_id
-        ).order_by(InventorySnapshot.snapshot_date.desc()).first()
+        ).order_by(InventorySnapshot.snapshot_at.desc()).first()
 
         return offer, latest_prediction, latest_snapshot
 
@@ -130,26 +161,18 @@ class SupplierOfferService:
         updates = {}
 
         if payload.available_qty is not None:
-            offer.available_qty = payload.available_qty
-            updates["available_qty"] = offer.available_qty
+            offer.max_capacity = payload.available_qty
+            updates["max_capacity"] = offer.max_capacity
         if payload.moq is not None:
             offer.moq = payload.moq
             updates["moq"] = offer.moq
         if payload.cost_per_unit_inr is not None:
-            offer.cost_per_unit_inr = payload.cost_per_unit_inr
-            updates["cost_per_unit_inr"] = str(offer.cost_per_unit_inr)
+            offer.unit_cost_inr = payload.cost_per_unit_inr
+            offer.list_price_inr = payload.cost_per_unit_inr * Decimal("1.20")
+            updates["cost_per_unit_inr"] = str(offer.unit_cost_inr)
         if payload.valid_until is not None:
-            offer.valid_until = payload.valid_until
+            offer.valid_until = payload.valid_until.date() if isinstance(payload.valid_until, datetime) else payload.valid_until
             updates["valid_until"] = offer.valid_until.isoformat()
-        if payload.cancellation_deadline is not None:
-            offer.cancellation_deadline = payload.cancellation_deadline
-            updates["cancellation_deadline"] = offer.cancellation_deadline.isoformat()
-        if payload.refundable is not None:
-            offer.refundable = payload.refundable
-            updates["refundable"] = offer.refundable
-        if payload.refund_penalty_pct is not None:
-            offer.refund_penalty_pct = payload.refund_penalty_pct
-            updates["refund_penalty_pct"] = offer.refund_penalty_pct
         if payload.status is not None:
             offer.status = payload.status
             updates["status"] = offer.status.value
@@ -159,7 +182,7 @@ class SupplierOfferService:
             action="SUPPLIER_OFFER_UPDATED",
             entity_type="supplier_offers",
             entity_id=offer_id,
-            details_json=updates,
+            new_value_json=updates,
         ))
         db.commit()
         db.refresh(offer)
@@ -206,6 +229,10 @@ class SupplierOfferService:
                 offer_id = row["offer_id"].strip()
                 existing = db.query(SupplierOffer).filter(SupplierOffer.offer_id == offer_id).first()
                 if not existing:
+                    v_until = datetime.fromisoformat(row["valid_until"].strip()).date() if "T" in row["valid_until"] else datetime.strptime(row["valid_until"].strip(), "%Y-%m-%d").date()
+                    t_date = datetime.strptime(row["travel_date"].strip(), "%Y-%m-%d").date()
+                    if t_date < v_until:
+                        t_date = v_until
                     new_offer = SupplierOffer(
                         offer_id=offer_id,
                         supplier_id=row["supplier_id"].strip().upper(),
@@ -214,20 +241,22 @@ class SupplierOfferService:
                         origin_dest_id=row.get("origin_dest_id", "").strip().upper() or None,
                         inventory_category=InventoryCategory(row["inventory_category"].strip().upper()),
                         unit_type=UnitType(row["unit_type"].strip().upper()),
-                        available_qty=int(row["available_qty"]),
+                        max_capacity=int(row["available_qty"]),
                         moq=int(row.get("moq", 1)),
-                        cost_per_unit_inr=Decimal(row["cost_per_unit_inr"]),
-                        currency=row.get("currency", "INR").strip().upper(),
-                        travel_date=datetime.strptime(row["travel_date"].strip(), "%Y-%m-%d").date(),
-                        valid_until=datetime.fromisoformat(row["valid_until"].strip()),
-                        refundable=row.get("refundable", "false").lower() in ("true", "1", "yes"),
+                        unit_cost_inr=Decimal(row["cost_per_unit_inr"]),
+                        list_price_inr=Decimal(row["cost_per_unit_inr"]) * Decimal("1.20"),
+                        currency_code=row.get("currency", "INR").strip().upper(),
+                        valid_from=date.today(),
+                        valid_until=v_until,
+                        travel_date=t_date,
                         status=OfferStatus.ACTIVE,
                     )
                     db.add(new_offer)
                     rows_imported += 1
                 else:
-                    existing.available_qty = int(row["available_qty"])
-                    existing.cost_per_unit_inr = Decimal(row["cost_per_unit_inr"])
+                    existing.max_capacity = int(row["available_qty"])
+                    existing.unit_cost_inr = Decimal(row["cost_per_unit_inr"])
+                    existing.list_price_inr = Decimal(row["cost_per_unit_inr"]) * Decimal("1.20")
                     rows_imported += 1
             except Exception:
                 rows_failed += 1
@@ -245,6 +274,24 @@ class SupplierOfferService:
             rows_imported=rows_imported,
             rows_failed=rows_failed,
             status=batch.status.value,
+        )
+
+    @staticmethod
+    def bulk_import_json(db: Session, offers_data: list, user_id: int) -> BulkImportResponse:
+        batch_uid = f"BATCH-OFFERS-{uuid.uuid4().hex[:10].upper()}"
+        imported = 0
+        for item in offers_data:
+            req = SupplierOfferCreateRequest.model_validate(item)
+            SupplierOfferService.create_offer(db, req, user_id=user_id)
+            imported += 1
+        return BulkImportResponse(
+            batch_uid=batch_uid,
+            rows_received=len(offers_data),
+            rows_valid=imported,
+            rows_imported=imported,
+            rows_failed=0,
+            status="SUCCESS",
+            imported_count=imported,
         )
 
     @staticmethod

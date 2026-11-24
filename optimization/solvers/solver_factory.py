@@ -31,8 +31,13 @@ class SolverFactory:
         if solver_config.fallback_backend and solver_config.fallback_backend != solver_config.backend:
             backend_order.append(solver_config.fallback_backend)
         
-        # Ensure standard fallbacks are included
-        for candidate in [SolverBackend.SCIP, SolverBackend.CBC, SolverBackend.HIGHS, SolverBackend.SAT]:
+        # Ensure configured fallback backends are included
+        fallback_candidates = getattr(
+            solver_config,
+            "fallback_order",
+            [SolverBackend.SCIP, SolverBackend.CBC, SolverBackend.HIGHS, SolverBackend.SAT]
+        )
+        for candidate in fallback_candidates:
             if candidate not in backend_order:
                 backend_order.append(candidate)
 

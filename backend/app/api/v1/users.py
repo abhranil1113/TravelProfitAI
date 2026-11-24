@@ -140,7 +140,7 @@ def deactivate_user(
 ):
     """Soft-disable user account and revoke all active refresh tokens."""
     user = UserService.deactivate_user(db, id, admin_id=current_admin.id)
-    return AuthMessageResponse(message=f"User {user.email} deactivated successfully.")
+    return AuthMessageResponse(message=f"User {user.email} deactivated successfully.", is_active=user.is_active)
 
 
 @router.post("/{id}/reactivate", response_model=AuthMessageResponse)
@@ -151,7 +151,7 @@ def reactivate_user(
 ):
     """Re-enable user account."""
     user = UserService.reactivate_user(db, id, admin_id=current_admin.id)
-    return AuthMessageResponse(message=f"User {user.email} reactivated successfully.")
+    return AuthMessageResponse(message=f"User {user.email} reactivated successfully.", is_active=user.is_active)
 
 
 @router.post("/{id}/unlock", response_model=AuthMessageResponse)

@@ -53,7 +53,7 @@ class PipelineService:
             dataset_name=payload.dataset_name.strip(),
             source_uri=payload.source_uri.strip(),
             batch_date=payload.batch_date or date.today(),
-            status=PipelineStatus.RUNNING,
+            status=PipelineStatus.PENDING,
             celery_task_id=celery_task,
             triggered_by_user_id=user_id,
             processing_started_at=datetime.now(timezone.utc),
@@ -64,7 +64,7 @@ class PipelineService:
             action="DATA_INGESTION_BATCH_TRIGGERED",
             entity_type="ingestion_batches",
             entity_id=batch_uid,
-            details_json={"dataset": batch.dataset_name, "celery_task_id": celery_task},
+            new_value_json={"dataset": batch.dataset_name, "celery_task_id": celery_task},
         ))
         db.commit()
         db.refresh(batch)
@@ -99,7 +99,7 @@ class PipelineService:
             action="DATA_INGESTION_BATCH_RETRIED",
             entity_type="ingestion_batches",
             entity_id=batch_uid,
-            details_json={"retry_count": batch.retry_count},
+            new_value_json={"retry_count": batch.retry_count},
         ))
         db.commit()
         db.refresh(batch)

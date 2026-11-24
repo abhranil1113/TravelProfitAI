@@ -22,7 +22,7 @@ router = APIRouter(prefix="/pipelines", tags=["8. Data Pipeline & Quality"])
 # NOTE: Defined BEFORE /{batch_uid} so static path is not captured by param!
 @router.get("/quality-summary", response_model=QualitySummaryResponse)
 def get_pipeline_quality_summary(
-    current_user: Annotated[User, Depends(require_roles(UserRole.ADMIN, UserRole.ANALYST))],
+    current_user: Annotated[User, Depends(require_roles(UserRole.ADMIN, UserRole.ANALYST, UserRole.PROCUREMENT_MANAGER))],
     db: Annotated[Session, Depends(get_db)],
 ):
     """Aggregated data quality pass/fail metrics by severity across batches (Tier 2)."""
@@ -31,7 +31,7 @@ def get_pipeline_quality_summary(
 
 @router.get("/batches", response_model=IngestionBatchListResponse)
 def list_pipeline_batches(
-    current_user: Annotated[User, Depends(require_roles(UserRole.ADMIN, UserRole.ANALYST))],
+    current_user: Annotated[User, Depends(require_roles(UserRole.ADMIN, UserRole.ANALYST, UserRole.PROCUREMENT_MANAGER))],
     db: Annotated[Session, Depends(get_db)],
     dataset: Optional[str] = None,
     status: Optional[PipelineStatus] = None,
@@ -65,7 +65,7 @@ def trigger_pipeline_batch(
 @router.get("/batches/{batch_uid}", response_model=IngestionBatchResponse)
 def get_pipeline_batch_detail(
     batch_uid: str,
-    current_user: Annotated[User, Depends(require_roles(UserRole.ADMIN, UserRole.ANALYST))],
+    current_user: Annotated[User, Depends(require_roles(UserRole.ADMIN, UserRole.ANALYST, UserRole.PROCUREMENT_MANAGER))],
     db: Annotated[Session, Depends(get_db)],
 ):
     """Get ingestion batch details and row processing rollups (Tier 2)."""
@@ -76,7 +76,7 @@ def get_pipeline_batch_detail(
 @router.get("/batches/{batch_uid}/quality-reports", response_model=list[DataQualityReportResponse])
 def get_batch_quality_reports(
     batch_uid: str,
-    current_user: Annotated[User, Depends(require_roles(UserRole.ADMIN, UserRole.ANALYST))],
+    current_user: Annotated[User, Depends(require_roles(UserRole.ADMIN, UserRole.ANALYST, UserRole.PROCUREMENT_MANAGER))],
     db: Annotated[Session, Depends(get_db)],
 ):
     """Get per-check data quality validation results for a batch (Tier 2)."""

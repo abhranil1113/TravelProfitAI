@@ -4,7 +4,7 @@ import csv
 import io
 import json
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 from sqlalchemy import func, select
@@ -20,6 +20,7 @@ from backend.app.models.schema import (
     AuditLog,
     BudgetLedgerEntry,
     BudgetTransactionType,
+    ConstraintType,
     OptimizationConstraint,
     OptimizationMode,
     OptimizationRun,
@@ -91,7 +92,7 @@ class OptimizationService:
             budget_id=req.budget_id,
             config_profile_id=req.config_profile_id,
             config_template_id=req.config_template_id,
-            cutoff_date=req.cutoff_date,
+            cutoff_date=req.cutoff_date or date.today(),
             total_budget_inr=budget_amount,
             solver_backend=req.solver_backend,
             salvage_assumption_pct=req.salvage_assumption_pct,
@@ -166,7 +167,7 @@ class OptimizationService:
         # Add initial constraint records
         c1 = OptimizationConstraint(
             run_id=run_id,
-            constraint_type="TOTAL_BUDGET",
+            constraint_type=ConstraintType.BUDGET,
             threshold_value=budget_amount,
             threshold_unit="INR",
             is_binding=True,
@@ -175,7 +176,7 @@ class OptimizationService:
         )
         c2 = OptimizationConstraint(
             run_id=run_id,
-            constraint_type="MAX_SUPPLIER_SHARE",
+            constraint_type=ConstraintType.SUPPLIER_CAP,
             threshold_value=req.max_supplier_share,
             threshold_unit="FRACTION",
             is_binding=False,
@@ -224,7 +225,7 @@ class OptimizationService:
             action="TRIGGER_OPTIMIZATION",
             entity_type="OPTIMIZATION_RUN",
             entity_id=run_id,
-            details_json={"mode": req.optimization_mode.value, "budget": str(budget_amount)},
+            new_value_json={"mode": req.optimization_mode.value, "budget": str(budget_amount)},
         )
         db.add(audit)
         db.commit()
@@ -285,7 +286,7 @@ class OptimizationService:
             action="CANCEL_OPTIMIZATION",
             entity_type="OPTIMIZATION_RUN",
             entity_id=run_id,
-            details_json={"status": PipelineStatus.CANCELLED.value},
+            new_value_json={"status": PipelineStatus.CANCELLED.value},
         )
         db.add(audit)
         db.commit()
@@ -342,7 +343,7 @@ class OptimizationService:
             action="APPROVE_PLAN",
             entity_type="OPTIMIZATION_RUN",
             entity_id=run_id,
-            details_json={"approved_count": len(recs), "notes": notes},
+            new_value_json={"approved_count": len(recs), "notes": notes},
         )
         db.add(audit)
         db.commit()
@@ -377,7 +378,7 @@ class OptimizationService:
             action="REJECT_PLAN",
             entity_type="OPTIMIZATION_RUN",
             entity_id=run_id,
-            details_json={"rejected_count": len(recs), "notes": notes},
+            new_value_json={"rejected_count": len(recs), "notes": notes},
         )
         db.add(audit)
         db.commit()
@@ -592,7 +593,7 @@ class OptimizationService:
             action="GENERATE_PURCHASE_ORDERS",
             entity_type="OPTIMIZATION_RUN",
             entity_id=run_id,
-            details_json={"po_count": len(created_pos), "total_amount": str(total_amount)},
+            new_value_json={"po_count": len(created_pos), "total_amount": str(total_amount)},
         )
         db.add(audit)
         db.commit()

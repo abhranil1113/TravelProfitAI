@@ -37,7 +37,7 @@ class CancellationPricingAnalyticsResponse(BaseModel):
 
 
 class SupplierScorecardItem(BaseModel):
-    supplier_id: int
+    supplier_id: str
     supplier_name: str
     supplier_type: str
     total_spend_inr: Decimal

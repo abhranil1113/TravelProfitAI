@@ -89,7 +89,7 @@ def delete_supplier(
 ):
     """Soft-disable supplier profile (Admin only, Tier 2)."""
     sup = SupplierService.delete_supplier(db, supplier_id, user_id=current_admin.id)
-    return AuthMessageResponse(message=f"Supplier {sup.supplier_id} soft-disabled successfully.")
+    return AuthMessageResponse(message=f"Supplier {sup.supplier_id} soft-disabled successfully.", status="INACTIVE", is_active=False)
 
 
 @router.get("/{supplier_id}/performance-snapshots", response_model=list[SupplierPerformanceSnapshotResponse])

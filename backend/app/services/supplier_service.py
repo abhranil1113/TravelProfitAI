@@ -53,9 +53,8 @@ class SupplierService:
             supplier_type=payload.supplier_type,
             fulfillment_rate=payload.fulfillment_rate,
             avg_lead_time_days=payload.avg_lead_time_days,
-            cancellation_lead_time_days=payload.cancellation_lead_time_days,
-            flight_salvage_rate=payload.flight_salvage_rate,
-            max_portfolio_share=payload.max_portfolio_share,
+            default_salvage_rate=payload.flight_salvage_rate,
+            max_spend_share_cap=payload.max_portfolio_share,
             is_active=payload.is_active,
         )
         db.add(supplier)
@@ -64,7 +63,7 @@ class SupplierService:
             action="SUPPLIER_CREATED",
             entity_type="suppliers",
             entity_id=supplier_id,
-            details_json={"name": supplier.name, "type": supplier.supplier_type.value},
+            new_value_json={"name": supplier.name, "type": supplier.supplier_type.value},
         ))
         db.commit()
         db.refresh(supplier)
@@ -94,15 +93,12 @@ class SupplierService:
         if payload.avg_lead_time_days is not None:
             supplier.avg_lead_time_days = payload.avg_lead_time_days
             updates["avg_lead_time_days"] = supplier.avg_lead_time_days
-        if payload.cancellation_lead_time_days is not None:
-            supplier.cancellation_lead_time_days = payload.cancellation_lead_time_days
-            updates["cancellation_lead_time_days"] = supplier.cancellation_lead_time_days
         if payload.flight_salvage_rate is not None:
-            supplier.flight_salvage_rate = payload.flight_salvage_rate
-            updates["flight_salvage_rate"] = supplier.flight_salvage_rate
+            supplier.default_salvage_rate = payload.flight_salvage_rate
+            updates["flight_salvage_rate"] = supplier.default_salvage_rate
         if payload.max_portfolio_share is not None:
-            supplier.max_portfolio_share = payload.max_portfolio_share
-            updates["max_portfolio_share"] = supplier.max_portfolio_share
+            supplier.max_spend_share_cap = payload.max_portfolio_share
+            updates["max_portfolio_share"] = supplier.max_spend_share_cap
         if payload.is_active is not None:
             supplier.is_active = payload.is_active
             updates["is_active"] = supplier.is_active
@@ -112,7 +108,7 @@ class SupplierService:
             action="SUPPLIER_UPDATED",
             entity_type="suppliers",
             entity_id=supplier_id,
-            details_json=updates,
+            new_value_json=updates,
         ))
         db.commit()
         db.refresh(supplier)
@@ -137,7 +133,7 @@ class SupplierService:
         SupplierService.get_supplier(db, supplier_id)
         return db.query(SupplierPerformanceSnapshot).filter(
             SupplierPerformanceSnapshot.supplier_id == supplier_id.upper()
-        ).order_by(SupplierPerformanceSnapshot.snapshot_date.desc()).all()
+        ).order_by(SupplierPerformanceSnapshot.as_of_date.desc()).all()
 
     @staticmethod
     def get_active_offers(db: Session, supplier_id: str) -> list[SupplierOffer]:

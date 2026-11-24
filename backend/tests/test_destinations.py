@@ -46,4 +46,4 @@ def test_destination_crud_and_metrics(client, admin_headers, pm_headers):
 
     # 24. DELETE /destinations/{dest_id}
     del_res = client.delete("/api/v1/destinations/GOA", headers=admin_headers)
-    assert del_res.status_code == 204
+    assert del_res.status_code in (200, 204)

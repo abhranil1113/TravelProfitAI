@@ -85,7 +85,7 @@ class RecommendationService:
             action="APPROVE_RECOMMENDATION",
             entity_type="PROCUREMENT_RECOMMENDATION",
             entity_id=str(rec_id),
-            details_json={"notes": notes},
+            new_value_json={"notes": notes},
         )
         db.add(audit)
         db.commit()
@@ -110,7 +110,7 @@ class RecommendationService:
             action="REJECT_RECOMMENDATION",
             entity_type="PROCUREMENT_RECOMMENDATION",
             entity_id=str(rec_id),
-            details_json={"notes": notes},
+            new_value_json={"notes": notes},
         )
         db.add(audit)
         db.commit()
@@ -145,7 +145,7 @@ class RecommendationService:
             action="BULK_APPROVE_RECOMMENDATIONS",
             entity_type="OPTIMIZATION_RUN",
             entity_id=run_id,
-            details_json={"count": len(recs), "ids": rec_ids},
+            new_value_json={"count": len(recs), "ids": rec_ids},
         )
         db.add(audit)
         db.commit()
@@ -179,7 +179,7 @@ class RecommendationService:
             action="BULK_REJECT_RECOMMENDATIONS",
             entity_type="OPTIMIZATION_RUN",
             entity_id=run_id,
-            details_json={"count": len(recs), "ids": rec_ids},
+            new_value_json={"count": len(recs), "ids": rec_ids},
         )
         db.add(audit)
         db.commit()

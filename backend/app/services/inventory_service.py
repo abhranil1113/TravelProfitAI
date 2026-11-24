@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date, datetime
 from typing import Optional
 from sqlalchemy.orm import Session
 
@@ -30,14 +31,14 @@ class InventoryService:
     ) -> tuple[list[InventoryItem], int]:
         query = db.query(InventoryItem)
         if category:
-            query = query.filter(InventoryItem.category == category)
+            query = query.filter(InventoryItem.inventory_category == category)
         if dest_id:
             query = query.filter(InventoryItem.dest_id == dest_id.upper())
         if is_active is not None:
             query = query.filter(InventoryItem.is_active == is_active)
 
         total = query.count()
-        items = query.order_by(InventoryItem.name.asc()).offset((page - 1) * page_size).limit(page_size).all()
+        items = query.order_by(InventoryItem.inventory_id.asc()).offset((page - 1) * page_size).limit(page_size).all()
         return items, total
 
     @staticmethod
@@ -48,14 +49,11 @@ class InventoryService:
 
         item = InventoryItem(
             inventory_id=inv_id,
-            category=payload.category,
+            inventory_category=payload.category,
             unit_type=payload.unit_type,
             dest_id=payload.dest_id.upper(),
             origin_dest_id=payload.origin_dest_id.upper() if payload.origin_dest_id else None,
-            name=payload.name.strip(),
-            reference_code=payload.reference_code,
-            star_rating=payload.star_rating,
-            total_capacity=payload.total_capacity,
+            external_reference=(payload.name or payload.reference_code or inv_id)[:64],
             is_active=payload.is_active,
         )
         db.add(item)
@@ -64,7 +62,7 @@ class InventoryService:
             action="INVENTORY_ITEM_CREATED",
             entity_type="inventory_items",
             entity_id=inv_id,
-            details_json={"name": item.name, "category": item.category.value},
+            new_value_json={"category": payload.category.value},
         ))
         db.commit()
         db.refresh(item)
@@ -77,7 +75,7 @@ class InventoryService:
             raise EntityNotFoundError("InventoryItem", inventory_id)
         latest_snapshot = db.query(InventorySnapshot).filter(
             InventorySnapshot.inventory_id == inventory_id
-        ).order_by(InventorySnapshot.snapshot_date.desc()).first()
+        ).order_by(InventorySnapshot.snapshot_at.desc()).first()
         return item, latest_snapshot
 
     @staticmethod
@@ -88,17 +86,11 @@ class InventoryService:
         updates = {}
 
         if payload.name is not None:
-            item.name = payload.name.strip()
-            updates["name"] = item.name
+            item.external_reference = payload.name.strip()[:64]
+            updates["name"] = payload.name.strip()
         if payload.reference_code is not None:
-            item.reference_code = payload.reference_code
-            updates["reference_code"] = item.reference_code
-        if payload.star_rating is not None:
-            item.star_rating = payload.star_rating
-            updates["star_rating"] = item.star_rating
-        if payload.total_capacity is not None:
-            item.total_capacity = payload.total_capacity
-            updates["total_capacity"] = item.total_capacity
+            item.external_reference = payload.reference_code[:64]
+            updates["reference_code"] = item.external_reference
         if payload.is_active is not None:
             item.is_active = payload.is_active
             updates["is_active"] = item.is_active
@@ -108,7 +100,7 @@ class InventoryService:
             action="INVENTORY_ITEM_UPDATED",
             entity_type="inventory_items",
             entity_id=inventory_id,
-            details_json=updates,
+            new_value_json=updates,
         ))
         db.commit()
         db.refresh(item)
@@ -119,7 +111,7 @@ class InventoryService:
         InventoryService.get_inventory_item(db, inventory_id)
         return db.query(InventorySnapshot).filter(
             InventorySnapshot.inventory_id == inventory_id
-        ).order_by(InventorySnapshot.snapshot_date.desc()).limit(limit).all()
+        ).order_by(InventorySnapshot.snapshot_at.desc()).limit(limit).all()
 
     @staticmethod
     def get_offers_for_item(db: Session, inventory_id: str) -> list[SupplierOffer]:
@@ -130,13 +122,21 @@ class InventoryService:
 
     @staticmethod
     def create_snapshot(db: Session, payload: InventorySnapshotCreateRequest) -> InventorySnapshot:
+        item = db.query(InventoryItem).filter(InventoryItem.inventory_id == payload.inventory_id).first()
+        cat = item.inventory_category if item else InventoryCategory.HOTEL
+        snap_dt = datetime.combine(payload.snapshot_date, datetime.min.time()) if isinstance(payload.snapshot_date, date) and not isinstance(payload.snapshot_date, datetime) else (payload.snapshot_date or datetime.utcnow())
+        trav_dt = payload.snapshot_date if isinstance(payload.snapshot_date, date) else date.today()
+        tot_units = payload.available_units + (getattr(payload, "booked_units", 0) or 0)
+
         snapshot = InventorySnapshot(
             inventory_id=payload.inventory_id,
-            snapshot_date=payload.snapshot_date,
+            inventory_category=cat,
+            travel_date=trav_dt,
+            snapshot_at=snap_dt,
+            total_units=tot_units,
             available_units=payload.available_units,
-            depletion_velocity=payload.depletion_velocity,
-            avg_selling_price_inr=payload.avg_selling_price_inr,
-            historical_cancellation_rate=payload.historical_cancellation_rate,
+            booked_units=getattr(payload, "booked_units", 0) or 0,
+            depletion_velocity_per_day=payload.depletion_velocity,
         )
         db.add(snapshot)
         db.commit()
@@ -145,17 +145,25 @@ class InventoryService:
 
     @staticmethod
     def bulk_create_snapshots(db: Session, snapshots_data: list[InventorySnapshotCreateRequest]) -> int:
-        records = [
-            InventorySnapshot(
-                inventory_id=p.inventory_id,
-                snapshot_date=p.snapshot_date,
-                available_units=p.available_units,
-                depletion_velocity=p.depletion_velocity,
-                avg_selling_price_inr=p.avg_selling_price_inr,
-                historical_cancellation_rate=p.historical_cancellation_rate,
+        records = []
+        for p in snapshots_data:
+            item = db.query(InventoryItem).filter(InventoryItem.inventory_id == p.inventory_id).first()
+            cat = item.inventory_category if item else InventoryCategory.HOTEL
+            snap_dt = datetime.combine(p.snapshot_date, datetime.min.time()) if isinstance(p.snapshot_date, date) and not isinstance(p.snapshot_date, datetime) else (p.snapshot_date or datetime.utcnow())
+            trav_dt = p.snapshot_date if isinstance(p.snapshot_date, date) else date.today()
+            tot_units = p.available_units + (getattr(p, "booked_units", 0) or 0)
+            records.append(
+                InventorySnapshot(
+                    inventory_id=p.inventory_id,
+                    inventory_category=cat,
+                    travel_date=trav_dt,
+                    snapshot_at=snap_dt,
+                    total_units=tot_units,
+                    available_units=p.available_units,
+                    booked_units=getattr(p, "booked_units", 0) or 0,
+                    depletion_velocity_per_day=p.depletion_velocity,
+                )
             )
-            for p in snapshots_data
-        ]
         db.bulk_save_objects(records)
         db.commit()
         return len(records)

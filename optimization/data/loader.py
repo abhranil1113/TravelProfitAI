@@ -20,35 +20,38 @@ class DatasetLoader:
         "market_signals": "data/processed/market_signals/cleaned_market_seasonal_signals.parquet",
     }
 
-    def __init__(self, base_dir: Optional[str] = None):
+    def __init__(self, base_dir: Optional[str] = None, custom_paths: Optional[Dict[str, str]] = None):
         self.base_dir = base_dir or "."
+        self.paths = dict(self.DEFAULT_PATHS)
+        if custom_paths:
+            self.paths.update(custom_paths)
 
     def _resolve_path(self, relative_path: str) -> str:
         return os.path.join(self.base_dir, relative_path)
 
     def load_supplier_offers(self) -> pd.DataFrame:
-        path = self._resolve_path(self.DEFAULT_PATHS["supplier_offers"])
+        path = self._resolve_path(self.paths["supplier_offers"])
         if not os.path.exists(path):
             raise OptimizationError(f"Missing supplier offers dataset at {path}")
         df = pd.read_parquet(path)
         return df
 
     def load_inventory_availability(self) -> pd.DataFrame:
-        path = self._resolve_path(self.DEFAULT_PATHS["inventory_availability"])
+        path = self._resolve_path(self.paths["inventory_availability"])
         if not os.path.exists(path):
             raise OptimizationError(f"Missing inventory availability dataset at {path}")
         df = pd.read_parquet(path)
         return df
 
     def load_customer_searches(self) -> pd.DataFrame:
-        path = self._resolve_path(self.DEFAULT_PATHS["customer_searches"])
+        path = self._resolve_path(self.paths["customer_searches"])
         if not os.path.exists(path):
             raise OptimizationError(f"Missing customer search events dataset at {path}")
         df = pd.read_parquet(path)
         return df
 
     def load_market_signals(self) -> pd.DataFrame:
-        path = self._resolve_path(self.DEFAULT_PATHS["market_signals"])
+        path = self._resolve_path(self.paths["market_signals"])
         if not os.path.exists(path):
             raise OptimizationError(f"Missing market seasonal signals dataset at {path}")
         df = pd.read_parquet(path)

@@ -116,4 +116,6 @@ class HotelCancellationService:
         lam = self.config.risk.bayesian_shrinkage_lambda
         prior = self.config.risk.hotel_default_cancellation_prior
         calibrated_prob = float(lam * prob_raw + (1.0 - lam) * prior)
-        return float(np.clip(calibrated_prob, 0.01, 0.99))
+        min_p = getattr(self.config.risk, "min_cancellation_prob", 0.01)
+        max_p = getattr(self.config.risk, "max_cancellation_prob", 0.99)
+        return float(np.clip(calibrated_prob, min_p, max_p))

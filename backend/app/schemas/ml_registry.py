@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from backend.app.models.schema import MLModelType, TrainingStatus
 
@@ -27,14 +27,37 @@ class FeatureSetResponse(BaseModel):
     id: int
     name: str
     version: str
-    model_type: MLModelType
+    model_type: Any
     parquet_path: str
     num_rows: int
     num_features: int
     column_names_json: List[str]
     split_type: Optional[str] = None
     cutoff_date: Optional[date] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def extract_from_orm(cls, data):
+        if hasattr(data, "entity_type"):
+            mtype = data.entity_type
+            if hasattr(mtype, "value"):
+                mtype = mtype.value
+            cols = data.feature_columns_json if isinstance(data.feature_columns_json, list) else []
+            return {
+                "id": data.id,
+                "name": data.name,
+                "version": data.version,
+                "model_type": mtype,
+                "parquet_path": data.parquet_path,
+                "num_rows": data.row_count,
+                "num_features": len(cols) if cols else 10,
+                "column_names_json": cols,
+                "split_type": "TEMPORAL",
+                "cutoff_date": data.temporal_split_cutoff,
+                "created_at": getattr(data, "created_at", None),
+            }
+        return data
 
 
 class MLModelResponse(BaseModel):

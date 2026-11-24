@@ -78,7 +78,7 @@ class ReportService:
             action="CREATE_REPORT",
             entity_type="REPORT",
             entity_id=rep_id,
-            details_json={"title": req.title, "report_type": req.report_type},
+            new_value_json={"title": req.title, "report_type": req.report_type},
         )
         db.add(audit)
         db.commit()
@@ -135,7 +135,7 @@ class ReportService:
             action="REGENERATE_REPORT",
             entity_type="REPORT",
             entity_id=report_id,
-            details_json={"status": ReportStatus.COMPLETED.value},
+            new_value_json={"status": ReportStatus.COMPLETED.value},
         )
         db.add(audit)
         db.commit()
@@ -151,7 +151,7 @@ class ReportService:
             action="DELETE_REPORT",
             entity_type="REPORT",
             entity_id=report_id,
-            details_json={"title": report.title},
+            new_value_json={"title": report.title},
         )
         db.add(audit)
         db.commit()
@@ -185,7 +185,7 @@ class ReportService:
             action="CREATE_REPORT_SCHEDULE",
             entity_type="REPORT_SCHEDULE",
             entity_id=str(sched.id),
-            details_json={"report_type": req.report_type, "cron": req.cron_expression},
+            new_value_json={"report_type": req.report_type, "cron": req.cron_expression},
         )
         db.add(audit)
         db.commit()
@@ -214,7 +214,7 @@ class ReportService:
             action="UPDATE_REPORT_SCHEDULE",
             entity_type="REPORT_SCHEDULE",
             entity_id=str(schedule_id),
-            details_json=update_data,
+            new_value_json=update_data,
         )
         db.add(audit)
         db.commit()
@@ -235,7 +235,7 @@ class ReportService:
             action="TOGGLE_REPORT_SCHEDULE",
             entity_type="REPORT_SCHEDULE",
             entity_id=str(schedule_id),
-            details_json={"is_enabled": sched.is_enabled},
+            new_value_json={"is_enabled": sched.is_enabled},
         )
         db.add(audit)
         db.commit()
@@ -256,7 +256,7 @@ class ReportService:
             action="DELETE_REPORT_SCHEDULE",
             entity_type="REPORT_SCHEDULE",
             entity_id=str(schedule_id),
-            details_json={"report_type": sched.report_type},
+            new_value_json={"report_type": sched.report_type},
         )
         db.add(audit)
         db.commit()

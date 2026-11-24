@@ -17,10 +17,16 @@ class DemandService:
     def __init__(self,
                  searches_prior_df: pd.DataFrame,
                  assumed_stay_duration: float = 2.0,
-                 demand_scenario_multiplier: float = 1.0):
+                 demand_scenario_multiplier: float = 1.0,
+                 default_conversion_rate: float = 0.15,
+                 default_travellers: float = 2.0,
+                 default_rooms: float = 1.0):
         self.searches_prior_df = searches_prior_df
         self.assumed_stay_duration = assumed_stay_duration
         self.demand_scenario_multiplier = demand_scenario_multiplier
+        self.default_conversion_rate = default_conversion_rate
+        self.default_travellers = default_travellers
+        self.default_rooms = default_rooms
         self.funnel_metrics = self._calculate_historical_funnel_metrics()
 
     def _calculate_historical_funnel_metrics(self) -> Dict[Tuple[str, str], Dict[str, float]]:
@@ -41,8 +47,8 @@ class DemandService:
             rooms_series = group["rooms_count"].dropna() if "rooms_count" in group.columns else pd.Series(dtype=float)
             travellers_series = group["travellers_count"].dropna() if "travellers_count" in group.columns else pd.Series(dtype=float)
 
-            avg_travellers = float(travellers_series.mean()) if not travellers_series.empty else 2.0
-            avg_rooms = float(rooms_series.mean()) if not rooms_series.empty else 1.0
+            avg_travellers = float(travellers_series.mean()) if not travellers_series.empty else self.default_travellers
+            avg_rooms = float(rooms_series.mean()) if not rooms_series.empty else self.default_rooms
 
             metrics[(dest, itype)] = {
                 "conversion_rate": conversion_rate,
@@ -71,9 +77,9 @@ class DemandService:
         
         if not funnel:
             # Fallback if this destination had 0 prior searches
-            conversion_rate = 0.15
-            avg_travellers = 2.0
-            avg_rooms = 1.0
+            conversion_rate = self.default_conversion_rate
+            avg_travellers = self.default_travellers
+            avg_rooms = self.default_rooms
         else:
             conversion_rate = funnel["conversion_rate"]
             avg_travellers = funnel["avg_travellers"]

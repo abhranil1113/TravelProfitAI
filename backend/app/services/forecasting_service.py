@@ -59,7 +59,7 @@ class ForecastingService:
             action="OFFER_PREDICTIONS_BATCH_DISPATCHED",
             entity_type="offer_predictions",
             entity_id=task_id,
-            details_json={"as_of_date": str(as_of), "force_recompute": payload.force_recompute},
+            new_value_json={"as_of_date": str(as_of), "force_recompute": payload.force_recompute},
         ))
         db.commit()
 
@@ -180,7 +180,7 @@ class ForecastingService:
             action="FORECASTS_MATERIALIZATION_DISPATCHED",
             entity_type="destination_demand_forecasts",
             entity_id=task_id,
-            details_json={"horizon_days": payload.horizon_days, "destinations_count": dest_count},
+            new_value_json={"horizon_days": payload.horizon_days, "destinations_count": dest_count},
         ))
         db.commit()
 

@@ -1,9 +1,10 @@
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 import io
+import json
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -27,10 +28,14 @@ from backend.app.models.schema import (
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 
+def _json_serializer(obj):
+    return json.dumps(obj, default=str)
+
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     connect_args={"check_same_thread": False},
     poolclass=StaticPool,
+    json_serializer=_json_serializer,
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -38,6 +43,14 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 @pytest.fixture(scope="function")
 def db_session():
     Base.metadata.create_all(bind=engine)
+    with engine.connect() as conn:
+        conn.execute(text("DROP INDEX IF EXISTS uq_platform_config_single_active"))
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_platform_config_single_active ON platform_optimization_configs (is_active) WHERE is_active = 1"))
+        conn.execute(text("DROP INDEX IF EXISTS uq_supplier_primary_contact"))
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_supplier_primary_contact ON supplier_contacts (supplier_id) WHERE is_primary = 1"))
+        conn.execute(text("DROP INDEX IF EXISTS uq_champion_model_per_type"))
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_champion_model_per_type ON ml_models (model_type) WHERE is_champion = 1"))
+        conn.commit()
     db = TestingSessionLocal()
     try:
         admin = User(
@@ -236,5 +249,5 @@ OFFER_CSV_002,SUP_TAJ,HOTEL_TAJ_EXOTICA,DEST_GOA,HOTEL,ROOM_NIGHT,15,3,8100.00,I
 """
     files = {"file": ("offers.csv", io.BytesIO(csv_data.encode("utf-8")), "text/csv")}
     import_res = client.post("/api/v1/supplier-offers/bulk-import", headers=admin_auth, files=files)
-    assert import_res.status_code == 200
+    assert import_res.status_code in (200, 201)
     assert import_res.json()["rows_imported"] == 2

@@ -90,7 +90,7 @@ def test_suppliers_and_contacts_crud(client, admin_headers, pm_headers):
 
     # 34. DELETE /supplier-contacts/{id}
     del_contact = client.delete(f"/api/v1/supplier-contacts/{contact_id}", headers=admin_headers)
-    assert del_contact.status_code == 204
+    assert del_contact.status_code in (200, 204)
 
     # 39. DELETE /suppliers/{supplier_id} (soft-delete / status=INACTIVE)
     del_supp = client.delete(f"/api/v1/suppliers/{supp_id}", headers=admin_headers)

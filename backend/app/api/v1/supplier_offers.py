@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 from typing import Annotated, Optional
-from fastapi import APIRouter, Depends, File, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Query, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
 from backend.app.core.exceptions import AppBaseException
@@ -68,22 +68,30 @@ def create_supplier_offer(
 
 
 # NOTE: Defined BEFORE /{offer_id} so static path is not captured by param!
-@router.post("/bulk-import", response_model=BulkImportResponse)
+@router.post("/bulk-import", response_model=BulkImportResponse, status_code=status.HTTP_201_CREATED)
 async def bulk_import_offers(
-    file: UploadFile = File(...),
-    current_admin: Annotated[User, Depends(require_roles(UserRole.ADMIN))] = None,
-    db: Annotated[Session, Depends(get_db)] = None,
+    request: Request,
+    current_admin: Annotated[User, Depends(require_roles(UserRole.ADMIN))],
+    db: Annotated[Session, Depends(get_db)],
 ):
-    """CSV upload for asynchronous / bulk offer creation & updates (Tier 2)."""
-    if not file.filename.endswith(".csv"):
-        raise AppBaseException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only CSV files (.csv) are accepted for bulk offer import.",
-            error_code="INVALID_FILE_TYPE",
-        )
-    content = await file.read()
-    csv_text = content.decode("utf-8")
-    return SupplierOfferService.bulk_import_csv(db, csv_text, user_id=current_admin.id)
+    """CSV upload or JSON bulk import for offer creation & updates (Tier 2)."""
+    content_type = request.headers.get("content-type", "")
+    if "multipart/form-data" in content_type:
+        form = await request.form()
+        file = form.get("file")
+        if not file or not getattr(file, "filename", "").endswith(".csv"):
+            raise AppBaseException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only CSV files (.csv) are accepted for bulk offer import.",
+                error_code="INVALID_FILE_TYPE",
+            )
+        content = await file.read()
+        csv_text = content.decode("utf-8")
+        return SupplierOfferService.bulk_import_csv(db, csv_text, user_id=current_admin.id)
+    else:
+        body = await request.json()
+        offers_data = body.get("offers", []) if isinstance(body, dict) else body
+        return SupplierOfferService.bulk_import_json(db, offers_data, user_id=current_admin.id)
 
 
 @router.get("/{offer_id}", response_model=SupplierOfferResponse)

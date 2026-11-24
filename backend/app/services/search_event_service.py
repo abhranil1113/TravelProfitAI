@@ -156,5 +156,7 @@ class SearchEventService:
         return BulkSearchEventIngestResponse(
             received_count=len(events_data),
             ingested_count=len(records),
+            inserted_count=len(records),
+            rejected_count=0,
             status="SUCCESS",
         )

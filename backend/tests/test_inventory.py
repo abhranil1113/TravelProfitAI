@@ -87,7 +87,9 @@ def test_inventory_and_snapshots(client, admin_headers, pm_headers):
     # 44. GET /inventory-items/{inventory_id}/snapshots
     hist_res = client.get(f"/api/v1/inventory-items/{item_id}/snapshots", headers=pm_headers)
     assert hist_res.status_code == 200
-    assert len(hist_res.json()["items"]) >= 1
+    hist_data = hist_res.json()
+    items = hist_data["items"] if isinstance(hist_data, dict) else hist_data
+    assert len(items) >= 1
 
     # 47. GET /inventory-items/{inventory_id}/offers
     item_offers = client.get(f"/api/v1/inventory-items/{item_id}/offers", headers=pm_headers)

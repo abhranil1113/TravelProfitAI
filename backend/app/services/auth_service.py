@@ -38,6 +38,14 @@ from backend.app.schemas.auth import (
 settings = get_settings()
 
 
+def _ensure_utc(dt: Optional[datetime]) -> Optional[datetime]:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 class AuthService:
     @staticmethod
     def register_user(
@@ -78,7 +86,7 @@ class AuthService:
             action="USER_REGISTERED",
             entity_type="users",
             entity_id=str(user.id),
-            details_json={"email": email, "role": payload.role.value},
+            new_value_json={"email": email, "role": payload.role.value},
         ))
         db.commit()
         db.refresh(user)
@@ -98,9 +106,10 @@ class AuthService:
 
         # Check account lockout
         now = datetime.now(timezone.utc)
-        if user.locked_until and user.locked_until > now:
+        locked = _ensure_utc(user.locked_until)
+        if locked and locked > now:
             raise PermissionDeniedError(
-                f"Account is temporarily locked until {user.locked_until.isoformat()} due to failed login attempts."
+                f"Account is temporarily locked until {locked.isoformat()} due to failed login attempts."
             )
 
         if not verify_password(payload.password, user.hashed_password):
@@ -112,7 +121,7 @@ class AuthService:
                     action="USER_LOCKED_OUT",
                     entity_type="users",
                     entity_id=str(user.id),
-                    details_json={"failed_attempts": user.failed_login_attempts},
+                    new_value_json={"failed_attempts": user.failed_login_attempts},
                     ip_address=ip_address,
                 ))
             db.commit()
@@ -185,13 +194,14 @@ class AuthService:
                 action="REFRESH_TOKEN_REUSE_DETECTED",
                 entity_type="refresh_tokens",
                 entity_id=str(token_record.id),
-                details_json={"token_family_id": token_record.token_family_id},
+                new_value_json={"token_family_id": token_record.token_family_id},
                 ip_address=ip_address,
             ))
             db.commit()
             raise AuthenticationError("Revoked refresh token presented. Security alert: entire session family terminated.")
 
-        if token_record.expires_at < now:
+        token_expires = _ensure_utc(token_record.expires_at)
+        if token_expires and token_expires < now:
             raise AuthenticationError("Refresh token has expired.")
 
         user = db.query(User).filter(User.id == token_record.user_id).first()
@@ -249,7 +259,7 @@ class AuthService:
             action="USER_LOGGED_OUT_ALL_SESSIONS",
             entity_type="users",
             entity_id=str(user_id),
-            details_json={"revoked_sessions": count},
+            new_value_json={"revoked_sessions": count},
         ))
         db.commit()
         return count
@@ -268,7 +278,8 @@ class AuthService:
         now = datetime.now(timezone.utc)
         if action_token.used_at is not None:
             raise ConflictError("Verification token has already been consumed.")
-        if action_token.expires_at < now:
+        action_expires = _ensure_utc(action_token.expires_at)
+        if action_expires and action_expires < now:
             raise AuthenticationError("Verification token has expired.")
 
         user = db.query(User).filter(User.id == action_token.user_id).first()
@@ -324,7 +335,8 @@ class AuthService:
         now = datetime.now(timezone.utc)
         if action_token.used_at is not None:
             raise ConflictError("Password reset token has already been consumed.")
-        if action_token.expires_at < now:
+        reset_expires = _ensure_utc(action_token.expires_at)
+        if reset_expires and reset_expires < now:
             raise AuthenticationError("Password reset token has expired.")
 
         user = db.query(User).filter(User.id == action_token.user_id).first()

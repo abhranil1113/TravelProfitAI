@@ -17,6 +17,13 @@ def test_forecasts_and_predictions(client, admin_headers, pm_headers):
     demand_res = client.get("/api/v1/forecasts/demand", headers=pm_headers)
     assert demand_res.status_code == 200
 
+    # Seed BOM destination
+    client.post(
+        "/api/v1/destinations",
+        headers=admin_headers,
+        json={"dest_id": "BOM", "name": "Mumbai", "city": "Mumbai", "country": "India"},
+    )
+
     # 85. GET /forecasts/demand/{dest_id}/chart
     chart_res = client.get("/api/v1/forecasts/demand/BOM/chart", headers=pm_headers)
     assert chart_res.status_code == 200

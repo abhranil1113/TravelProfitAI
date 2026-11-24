@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Optional
+from typing import Annotated, Optional, Union
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
@@ -8,6 +8,7 @@ from backend.app.dependencies import get_current_user, get_db, require_roles
 from backend.app.models.schema import InventoryCategory, User, UserRole
 from backend.app.schemas.auth import AuthMessageResponse
 from backend.app.schemas.inventory import (
+    BulkInventorySnapshotRequest,
     InventoryItemCreateRequest,
     InventoryItemListResponse,
     InventoryItemResponse,
@@ -107,12 +108,13 @@ def get_item_supplier_offers(
 
 @snapshots_router.post("/bulk", response_model=AuthMessageResponse, status_code=status.HTTP_201_CREATED)
 def bulk_upsert_snapshots(
-    snapshots: list[InventorySnapshotCreateRequest],
+    payload: Union[BulkInventorySnapshotRequest, list[InventorySnapshotCreateRequest]],
     current_admin: Annotated[User, Depends(require_roles(UserRole.ADMIN))],
     db: Annotated[Session, Depends(get_db)],
 ):
     """Bulk upsert inventory snapshots (Worker/Admin only, Tier 2)."""
-    count = InventoryService.bulk_create_snapshots(db, snapshots)
+    snapshots_list = payload.snapshots if isinstance(payload, BulkInventorySnapshotRequest) else payload
+    count = InventoryService.bulk_create_snapshots(db, snapshots_list)
     return AuthMessageResponse(message=f"Successfully ingested {count} inventory snapshots.")
 
 

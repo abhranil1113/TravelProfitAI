@@ -94,7 +94,7 @@ class BudgetService:
             action="CREATE",
             entity_type="PROCUREMENT_BUDGET",
             entity_id=str(budget.id),
-            details_json={"budget_code": budget.budget_code, "total_amount_inr": str(budget.total_amount_inr)},
+            new_value_json={"budget_code": budget.budget_code, "total_amount_inr": str(budget.total_amount_inr)},
         )
         db.add(audit)
         db.commit()
@@ -140,7 +140,7 @@ class BudgetService:
             action="UPDATE",
             entity_type="PROCUREMENT_BUDGET",
             entity_id=str(budget.id),
-            details_json={k: str(v) if isinstance(v, Decimal) else v for k, v in update_data.items()},
+            new_value_json={k: str(v) if isinstance(v, Decimal) else v for k, v in update_data.items()},
         )
         db.add(audit)
         db.commit()
@@ -165,7 +165,7 @@ class BudgetService:
         # Create initial allocation ledger entry
         ledger_entry = BudgetLedgerEntry(
             budget_id=budget.id,
-            transaction_type=BudgetTransactionType.ALLOCATION,
+            transaction_type=BudgetTransactionType.ADJUSTMENT,
             amount_inr=budget.total_amount_inr,
             previous_balance_inr=Decimal("0.00"),
             new_balance_inr=budget.total_amount_inr,
@@ -179,7 +179,7 @@ class BudgetService:
             action="ACTIVATE",
             entity_type="PROCUREMENT_BUDGET",
             entity_id=str(budget.id),
-            details_json={"status": BudgetStatus.ACTIVE.value},
+            new_value_json={"status": BudgetStatus.ACTIVE.value},
         )
         db.add(audit)
         db.commit()
@@ -210,7 +210,7 @@ class BudgetService:
             action="CLOSE",
             entity_type="PROCUREMENT_BUDGET",
             entity_id=str(budget.id),
-            details_json={"status": BudgetStatus.CLOSED.value},
+            new_value_json={"status": BudgetStatus.CLOSED.value},
         )
         db.add(audit)
         db.commit()
@@ -259,7 +259,7 @@ class BudgetService:
         ledger_entry = BudgetLedgerEntry(
             budget_id=budget.id,
             idempotency_key=req.idempotency_key,
-            transaction_type=BudgetTransactionType.MANUAL_ADJUSTMENT,
+            transaction_type=BudgetTransactionType.ADJUSTMENT,
             amount_inr=req.amount_inr,
             previous_balance_inr=prev_total,
             new_balance_inr=new_total,
@@ -273,7 +273,7 @@ class BudgetService:
             action="ADJUST",
             entity_type="PROCUREMENT_BUDGET",
             entity_id=str(budget.id),
-            details_json={
+            new_value_json={
                 "previous_total": str(prev_total),
                 "amount": str(req.amount_inr),
                 "new_total": str(new_total),

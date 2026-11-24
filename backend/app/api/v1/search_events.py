@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated, Optional
+from typing import Annotated, Optional, Union
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from backend.app.dependencies import get_current_user, get_db, require_roles, require_worker_token
 from backend.app.models.schema import InventoryCategory, User, UserRole
 from backend.app.schemas.search_event import (
+    BulkSearchEventIngestRequest,
     BulkSearchEventIngestResponse,
     CustomerSearchEventCreateRequest,
     CustomerSearchEventListResponse,
@@ -46,12 +47,13 @@ def get_search_velocity_analytics(
 
 @router.post("/bulk", response_model=BulkSearchEventIngestResponse, status_code=status.HTTP_201_CREATED)
 def bulk_ingest_search_events(
-    events: list[CustomerSearchEventCreateRequest],
+    payload: Union[BulkSearchEventIngestRequest, list[CustomerSearchEventCreateRequest]],
     worker_token: Annotated[str, Depends(require_worker_token)],
     db: Annotated[Session, Depends(get_db)],
 ):
     """High-throughput bulk ingestion of search events (Worker X-Worker-Token auth only, Tier 2)."""
-    return SearchEventService.bulk_ingest_search_events(db, events)
+    event_list = payload.events if isinstance(payload, BulkSearchEventIngestRequest) else payload
+    return SearchEventService.bulk_ingest_search_events(db, event_list)
 
 
 @router.get("", response_model=CustomerSearchEventListResponse)

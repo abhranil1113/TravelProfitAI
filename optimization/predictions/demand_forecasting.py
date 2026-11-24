@@ -37,25 +37,27 @@ class DemandForecastingService:
         if prior_df.empty:
             return cache
 
-        # Compute average 7-day search volume over the last 30 days prior to T_opt
-        recent_cutoff = opt_ts - pd.Timedelta(days=30)
+        # Compute average search volume over historical window prior to T_opt
+        window_days = getattr(self.config, "demand_history_window_days", 30)
+        recent_cutoff = opt_ts - pd.Timedelta(days=window_days)
         recent_df = prior_df[prior_df["search_dt"] >= recent_cutoff]
         if recent_df.empty:
             recent_df = prior_df
 
+        horizon_days = float(getattr(self.config, "demand_forecast_horizon_days", 7.0))
         grouped = recent_df.groupby(["destination_id", "inventory_type"]).size()
         for (dest, itype), count in grouped.items():
-            # Normalized to weekly rate
-            weekly_rate = float(count) * (7.0 / max(1.0, (opt_ts - recent_cutoff).days))
-            cache[(dest, itype)] = max(1.0, weekly_rate)
+            # Normalized to horizon rate
+            horizon_rate = float(count) * (horizon_days / max(1.0, (opt_ts - recent_cutoff).days))
+            cache[(dest, itype)] = max(1.0, horizon_rate)
 
         return cache
 
     def predict_future_search_volume(self, destination_id: str, inventory_type: str) -> float:
         """
-        Returns predicted 7-day search volume.
+        Returns predicted search volume.
         """
         key = (destination_id, inventory_type)
         if key in self._panel_cache:
             return self._panel_cache[key]
-        return 10.0  # Safe default baseline
+        return float(getattr(self.config, "default_search_volume", 10.0))

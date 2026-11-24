@@ -107,7 +107,7 @@ class AdminConfigService:
             action="CREATE",
             entity_type="PLATFORM_OPTIMIZATION_CONFIG",
             entity_id=str(new_config.id),
-            details_json={"version": new_config.version, "profile_name": new_config.profile_name},
+            new_value_json={"version": new_config.version, "profile_name": new_config.profile_name},
         )
         db.add(audit)
         db.commit()
@@ -141,7 +141,7 @@ class AdminConfigService:
             action="UPDATE",
             entity_type="PLATFORM_OPTIMIZATION_CONFIG",
             entity_id=str(config.id),
-            details_json=update_data,
+            new_value_json=update_data,
         )
         db.add(audit)
         db.commit()
@@ -177,7 +177,7 @@ class AdminConfigService:
             action="ACTIVATE",
             entity_type="PLATFORM_OPTIMIZATION_CONFIG",
             entity_id=str(target_config.id),
-            details_json={"version": target_config.version},
+            new_value_json={"version": target_config.version},
         )
         db.add(audit)
         db.commit()
@@ -218,7 +218,7 @@ class AdminConfigService:
             action="CREATE",
             entity_type="OPTIMIZATION_CONFIG_TEMPLATE",
             entity_id=str(template.id),
-            details_json={"template_name": template.template_name},
+            new_value_json={"template_name": template.template_name},
         )
         db.add(audit)
         db.commit()
@@ -248,7 +248,7 @@ class AdminConfigService:
             action="UPDATE",
             entity_type="OPTIMIZATION_CONFIG_TEMPLATE",
             entity_id=str(template.id),
-            details_json=update_data,
+            new_value_json=update_data,
         )
         db.add(audit)
         db.commit()
@@ -273,7 +273,7 @@ class AdminConfigService:
             action="DELETE",
             entity_type="OPTIMIZATION_CONFIG_TEMPLATE",
             entity_id=str(template_id),
-            details_json={"template_name": template.template_name},
+            new_value_json={"template_name": template.template_name},
         )
         db.add(audit)
         db.commit()

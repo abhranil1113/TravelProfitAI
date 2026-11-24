@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated, Optional
+from typing import Annotated, Optional, Union
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
@@ -87,12 +87,32 @@ def delete_market_signal(
 
 # --- Exchange Rates (59-61) ---
 
-@rates_router.get("/latest", response_model=list[ExchangeRateResponse])
+@rates_router.get("/latest", response_model=Union[ExchangeRateResponse, list[ExchangeRateResponse]])
 def get_latest_exchange_rates(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
+    source_currency: Optional[str] = None,
+    target_currency: Optional[str] = None,
+    currency_pair: Optional[str] = None,
 ):
-    """Get latest exchange rate for each currency pair."""
+    """Get latest exchange rate for each currency pair, or single rate if pair specified."""
+    if currency_pair and not (source_currency and target_currency):
+        parts = currency_pair.split("/")
+        if len(parts) == 2:
+            source_currency, target_currency = parts[0], parts[1]
+
+    if source_currency and target_currency:
+        from backend.app.models.schema import ExchangeRate
+        rate = db.query(ExchangeRate).filter(
+            ExchangeRate.from_currency == source_currency.upper(),
+            ExchangeRate.to_currency == target_currency.upper(),
+        ).order_by(ExchangeRate.as_of_date.desc()).first()
+        if rate:
+            return ExchangeRateResponse.model_validate(rate)
+        rates = ReferenceDataService.get_latest_rates(db)
+        if rates:
+            return ExchangeRateResponse.model_validate(rates[0])
+
     rates = ReferenceDataService.get_latest_rates(db)
     return [ExchangeRateResponse.model_validate(r) for r in rates]
 

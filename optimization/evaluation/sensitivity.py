@@ -9,7 +9,7 @@ Executes systematic sweeps over:
 - Supplier concentration limits
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 
 from optimization.config import OptimizationConfig
@@ -40,12 +40,15 @@ class SensitivityAnalyzer:
     def sweep_budget(
         candidates: List[CandidateOffer],
         base_config: OptimizationConfig,
-        budget_levels: List[float] = [50000.0, 100000.0, 250000.0, 500000.0, 1000000.0]
+        budget_levels: Optional[List[float]] = None
     ) -> List[SensitivityScenarioResult]:
         results = []
         optimizer = JointProcurementOptimizer()
+        levels = budget_levels if budget_levels is not None else getattr(
+            base_config, "sensitivity_budget_levels", [50000.0, 100000.0, 250000.0, 500000.0, 1000000.0]
+        )
 
-        for b in budget_levels:
+        for b in levels:
             cfg = base_config.model_copy(update={"total_budget": b, "hotel_budget_max": None, "flight_budget_max": None})
             sol = optimizer.solve(candidates, cfg)
 
@@ -77,12 +80,15 @@ class SensitivityAnalyzer:
     def sweep_supplier_concentration(
         candidates: List[CandidateOffer],
         base_config: OptimizationConfig,
-        concentration_limits: List[float] = [0.10, 0.20, 0.35, 0.50, 1.0]
+        concentration_limits: Optional[List[float]] = None
     ) -> List[SensitivityScenarioResult]:
         results = []
         optimizer = JointProcurementOptimizer()
+        limits = concentration_limits if concentration_limits is not None else getattr(
+            base_config, "sensitivity_supplier_limits", [0.10, 0.20, 0.35, 0.50, 1.0]
+        )
 
-        for cap in concentration_limits:
+        for cap in limits:
             cfg = base_config.model_copy(deep=True)
             cfg.risk.enable_supplier_concentration = (cap < 1.0)
             cfg.risk.supplier_concentration_limit = cap

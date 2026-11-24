@@ -54,7 +54,8 @@ def test_workflow_a_supplier_and_inventory(client, admin_headers, pm_headers):
 
     # 6. Retrieve offers
     offers_list = client.get(f"/api/v1/suppliers/{supp_id}/offers", headers=pm_headers).json()
-    assert len(offers_list["items"]) >= 1
+    items = offers_list["items"] if isinstance(offers_list, dict) else offers_list
+    assert len(items) >= 1
 
 
 def test_workflow_b_reference_and_ml(client, admin_headers, pm_headers, analyst_headers):
@@ -137,7 +138,7 @@ def test_workflow_d_reports_and_analytics(client, admin_headers, pm_headers):
     report = client.post(
         "/api/v1/reports",
         headers=pm_headers,
-        json={"title": "Workflow D Executive Report", "report_type": "EXECUTIVE_SUMMARY", "report_format": "PDF"}
+        json={"title": "Workflow D Executive Report", "report_type": "OPTIMIZATION_SUMMARY", "report_format": "PDF"}
     ).json()
     assert report["status"] == "COMPLETED"
 

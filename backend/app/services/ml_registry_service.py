@@ -47,13 +47,12 @@ class MLRegistryService:
         fs = FeatureSet(
             name=payload.name.strip(),
             version=payload.version.strip(),
-            model_type=payload.model_type,
+            entity_type=str(payload.model_type.value if hasattr(payload.model_type, "value") else payload.model_type),
             parquet_path=payload.parquet_path.strip(),
-            num_rows=payload.num_rows,
-            num_features=payload.num_features,
-            column_names_json=payload.column_names,
-            split_type=payload.split_type,
-            cutoff_date=payload.cutoff_date,
+            row_count=payload.num_rows,
+            feature_columns_json=payload.column_names,
+            temporal_split_cutoff=payload.cutoff_date,
+            is_active=True,
         )
         db.add(fs)
         db.add(AuditLog(
@@ -61,7 +60,7 @@ class MLRegistryService:
             action="FEATURE_SET_REGISTERED",
             entity_type="feature_sets",
             entity_id=fs.name,
-            details_json={"version": fs.version, "num_features": fs.num_features},
+            new_value_json={"version": fs.version},
         ))
         db.commit()
         db.refresh(fs)
@@ -112,7 +111,7 @@ class MLRegistryService:
             action="ML_MODEL_PROMOTED_CHAMPION",
             entity_type="ml_models",
             entity_id=str(model.id),
-            details_json={"model_type": model.model_type.value, "version": model.version},
+            new_value_json={"model_type": model.model_type.value, "version": model.version},
         ))
         db.commit()
         db.refresh(model)
@@ -173,7 +172,7 @@ class MLRegistryService:
             action="ML_TRAINING_RUN_TRIGGERED",
             entity_type="model_training_runs",
             entity_id=str(celery_task),
-            details_json={"model_type": payload.model_type.value, "algorithm": payload.algorithm},
+            new_value_json={"model_type": payload.model_type.value, "algorithm": payload.algorithm},
         ))
         db.commit()
         db.refresh(run)
@@ -189,7 +188,7 @@ class MLRegistryService:
     @staticmethod
     def cancel_training_run(db: Session, run_id: int, user_id: int) -> ModelTrainingRun:
         run = MLRegistryService.get_training_run(db, run_id)
-        if run.status in (TrainingStatus.SUCCESS, TrainingStatus.FAILED):
+        if run.status in (TrainingStatus.COMPLETED, TrainingStatus.FAILED, TrainingStatus.ABORTED):
             raise ConflictError(f"Cannot cancel run {run_id} in terminal state '{run.status.value}'.")
 
         run.status = TrainingStatus.FAILED

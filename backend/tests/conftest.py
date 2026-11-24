@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import json
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -17,10 +18,16 @@ settings = get_settings()
 # Isolated in-memory SQLite database for testing
 SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///:memory:"
 
+
+def _json_serializer(obj):
+    return json.dumps(obj, default=str)
+
+
 test_engine = create_engine(
     SQLALCHEMY_TEST_DATABASE_URL,
     connect_args={"check_same_thread": False},
     poolclass=StaticPool,
+    json_serializer=_json_serializer,
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
@@ -29,6 +36,14 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_
 def db():
     """Provides a clean, isolated in-memory database session for each test."""
     Base.metadata.create_all(bind=test_engine)
+    with test_engine.connect() as conn:
+        conn.execute(text("DROP INDEX IF EXISTS uq_platform_config_single_active"))
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_platform_config_single_active ON platform_optimization_configs (is_active) WHERE is_active = 1"))
+        conn.execute(text("DROP INDEX IF EXISTS uq_supplier_primary_contact"))
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_supplier_primary_contact ON supplier_contacts (supplier_id) WHERE is_primary = 1"))
+        conn.execute(text("DROP INDEX IF EXISTS uq_champion_model_per_type"))
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_champion_model_per_type ON ml_models (model_type) WHERE is_champion = 1"))
+        conn.commit()
     session: Session = TestingSessionLocal()
     try:
         # Seed test users

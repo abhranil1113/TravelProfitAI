@@ -13,6 +13,7 @@ from backend.app.models.schema import (
     POStatus,
     ProcurementBudget,
     ProcurementRecommendation,
+    PurchaseOrder,
     Supplier,
     SupplierOffer,
     SupplierPerformanceSnapshot,
@@ -51,7 +52,7 @@ class AnalyticsService:
         ).scalar_one()
 
         active_offers = db.execute(
-            select(func.count(SupplierOffer.id)).where(SupplierOffer.status == OfferStatus.ACTIVE)
+            select(func.count(SupplierOffer.offer_id)).where(SupplierOffer.status == OfferStatus.ACTIVE)
         ).scalar_one()
 
         recent_runs = db.execute(
@@ -59,7 +60,7 @@ class AnalyticsService:
         ).scalar_one()
 
         pending_pos = db.execute(
-            select(func.count(POStatus.SUBMITTED))
+            select(func.count(PurchaseOrder.po_number)).where(PurchaseOrder.status == POStatus.SUBMITTED)
         ).scalar_one()
 
         return DashboardMetricsResponse(
@@ -78,13 +79,13 @@ class AnalyticsService:
         # Group by destination
         dest_stmt = (
             select(
-                Destination.dest_code,
+                Destination.dest_id,
                 Destination.name,
                 func.coalesce(func.sum(ProcurementRecommendation.total_spend_inr), Decimal("0.00")),
                 func.coalesce(func.sum(ProcurementRecommendation.expected_total_contribution_inr), Decimal("0.00")),
             )
-            .join(Destination, ProcurementRecommendation.dest_id == Destination.id)
-            .group_by(Destination.dest_code, Destination.name)
+            .join(Destination, ProcurementRecommendation.dest_id == Destination.dest_id)
+            .group_by(Destination.dest_id, Destination.name)
         )
         dest_rows = db.execute(dest_stmt).all()
 
@@ -103,13 +104,13 @@ class AnalyticsService:
         # Group by supplier
         supp_stmt = (
             select(
-                Supplier.supplier_code,
+                Supplier.supplier_id,
                 Supplier.name,
                 func.coalesce(func.sum(ProcurementRecommendation.total_spend_inr), Decimal("0.00")),
                 func.coalesce(func.sum(ProcurementRecommendation.expected_total_contribution_inr), Decimal("0.00")),
             )
-            .join(Supplier, ProcurementRecommendation.supplier_id == Supplier.id)
-            .group_by(Supplier.supplier_code, Supplier.name)
+            .join(Supplier, ProcurementRecommendation.supplier_id == Supplier.supplier_id)
+            .group_by(Supplier.supplier_id, Supplier.name)
         )
         supp_rows = db.execute(supp_stmt).all()
 
@@ -149,26 +150,26 @@ class AnalyticsService:
 
     @staticmethod
     def get_supplier_scorecard(db: Session) -> SupplierScorecardResponse:
-        suppliers = db.execute(select(Supplier).order_by(Supplier.id)).scalars().all()
+        suppliers = db.execute(select(Supplier).order_by(Supplier.supplier_id)).scalars().all()
         items = []
         for s in suppliers:
             # Query latest performance snapshot
             snap = db.execute(
                 select(SupplierPerformanceSnapshot)
-                .where(SupplierPerformanceSnapshot.supplier_id == s.id)
-                .order_by(SupplierPerformanceSnapshot.snapshot_date.desc())
+                .where(SupplierPerformanceSnapshot.supplier_id == s.supplier_id)
+                .order_by(SupplierPerformanceSnapshot.as_of_date.desc())
             ).scalars().first()
 
             items.append(
                 SupplierScorecardItem(
-                    supplier_id=s.id,
+                    supplier_id=s.supplier_id,
                     supplier_name=s.name,
                     supplier_type=s.supplier_type.value,
-                    total_spend_inr=snap.total_spend_inr if snap else Decimal("0.00"),
-                    on_time_delivery_rate=snap.fulfillment_rate_pct if snap else Decimal("95.00"),
-                    fulfillment_accuracy_rate=snap.fulfillment_rate_pct if snap else Decimal("97.50"),
-                    quality_score=snap.average_lead_time_days if snap else Decimal("4.8"),
-                    status=s.status,
+                    total_spend_inr=Decimal("0.00"),
+                    on_time_delivery_rate=Decimal(str(round(snap.fulfillment_rate_30d * 100, 2))) if snap and snap.fulfillment_rate_30d is not None else Decimal("95.00"),
+                    fulfillment_accuracy_rate=Decimal(str(round(snap.fulfillment_rate_7d * 100, 2))) if snap and snap.fulfillment_rate_7d is not None else Decimal("97.50"),
+                    quality_score=Decimal(str(snap.avg_lead_time_days_30d)) if snap and snap.avg_lead_time_days_30d is not None else Decimal("4.8"),
+                    status="ACTIVE" if s.is_active else "INACTIVE",
                 )
             )
 
