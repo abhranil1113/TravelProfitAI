@@ -25,15 +25,13 @@ def audit_feature_leakage(
     decision = "Include"
     reason = "Feature observed prior to prediction cutoff; zero target information."
 
-    # Direct Quarantined Features
-    if feature_name in quarantined:
-        risk = "Critical / Post-Event Leakage"
-        decision = "Quarantined / Excluded"
-        reason = f"Occurs after the event or directly encodes the target outcome ({target_variable})."
-
-    # Specific Domain Rules
-    elif dataset_name == "hotel_cancellation_features":
-        if "reservation_status" in feature_name:
+    # Specific Domain Rules (checked first for domain-tailored reasoning)
+    if dataset_name == "hotel_cancellation_features":
+        if feature_name in ["market_segment_historical_cancel_rate", "deposit_type_historical_cancel_rate"]:
+            risk = "High / Global Target Leakage"
+            decision = "Quarantined / Analytical Reference Only"
+            reason = "Calculated using target averages from complete dataset across train/val/test splits. Preserved as analytical reference; excluded from model inputs."
+        elif "reservation_status" in feature_name:
             risk = "Critical / Direct Leakage"
             decision = "Quarantined / Excluded"
             reason = "Encodes checkout or cancellation state after checkout date."
@@ -61,10 +59,10 @@ def audit_feature_leakage(
             reason = "Transformed target or log representation for training."
 
     elif dataset_name == "customer_demand_features":
-        if feature_name in ["clicked", "booking_completed"]:
+        if feature_name in ["clicked", "booking_completed", "has_funnel_anomaly"]:
             risk = "Critical for Search Volume"
             decision = "Business Metric Only / Quarantined for Volume"
-            reason = "Funnel outcomes occur after search submission; cannot predict search initiation."
+            reason = "Funnel outcomes occur after search submission; cannot predict forward search initiation."
 
     elif dataset_name == "inventory_features":
         if "prev_" in feature_name or "change_in_" in feature_name or "velocity" in feature_name:
@@ -77,6 +75,12 @@ def audit_feature_leakage(
             risk = "Deterministic Metric"
             decision = "Business Metric / Analytical Target"
             reason = "Deterministic formula from purchase_cost and selling_price; do not predict from inputs."
+
+    # General Quarantined Fallback
+    elif feature_name in quarantined:
+        risk = "Critical / Post-Event Leakage"
+        decision = "Quarantined / Excluded"
+        reason = f"Occurs after the event or directly encodes the target outcome ({target_variable})."
 
     return {
         "dataset_name": dataset_name,

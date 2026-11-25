@@ -94,8 +94,10 @@ LEAKAGE_EXCLUSIONS: Dict[str, List[str]] = {
     "hotel_cancellation_features": [
         "reservation_status",
         "reservation_status_date",
-        "assigned_room_type",   # Operational check-in assignment (post-booking)
-        "room_type_changed",    # Operational room discrepancy observed at allocation
+        "assigned_room_type",                    # Operational check-in assignment (post-booking)
+        "room_type_changed",                     # Operational room discrepancy observed at allocation
+        "market_segment_historical_cancel_rate", # Global target encoding over full dataset (analytical reference only)
+        "deposit_type_historical_cancel_rate",   # Global target encoding over full dataset (analytical reference only)
     ],
     "flight_price_features": [
         # Target is price; no post-booking features in dataset
@@ -103,6 +105,7 @@ LEAKAGE_EXCLUSIONS: Dict[str, List[str]] = {
     "customer_demand_features": [
         "clicked",             # Post-search customer click event
         "booking_completed",   # Post-search customer booking conversion
+        "has_funnel_anomaly",  # Derived post-search outcome anomaly
     ],
     "inventory_features": [
         # Future snapshot observations are strictly excluded via temporal lag masking

@@ -58,14 +58,19 @@ This audit evaluates all candidate features against their prediction cutoff time
 
 ## 2. Quarantined & Post-Event Features Summary
 
-The following variables contain post-event outcome information or circular formula identities and are **strictly excluded** from predictive feature matrices:
+The following variables contain post-event outcome information, circular formula identities, or global target encodings and are **strictly excluded** from predictive feature matrices:
 
 | Dataset Name | Quarantined Variable | Prediction Context | Leakage Risk | Rationale & Quarantine Action |
 | :--- | :--- | :--- | :--- | :--- |
 | `hotel_cancellation_features` | `reservation_status` | Pre-Arrival Booking Time | Critical Post-Event | Contains checkout / cancellation status recorded post-departure. Excluded from input features. |
 | `hotel_cancellation_features` | `reservation_status_date` | Pre-Arrival Booking Time | Critical Post-Event | Date of cancellation/checkout action. Excluded from input features. |
+| `hotel_cancellation_features` | `assigned_room_type` | Pre-Arrival Booking Time | Post-Booking Outcome | Operational room assigned at check-in / night audit; excluded from pre-booking model inputs. |
+| `hotel_cancellation_features` | `room_type_changed` | Pre-Arrival Booking Time | Post-Booking Outcome | Derived from check-in assigned room type; excluded from pre-booking model inputs. |
+| `hotel_cancellation_features` | `market_segment_historical_cancel_rate` | Pre-Arrival Booking Time | Global Target Leakage | Computed using full-dataset cancellation averages across train/val/test splits. Preserved as analytical reference; excluded from model inputs. |
+| `hotel_cancellation_features` | `deposit_type_historical_cancel_rate` | Pre-Arrival Booking Time | Global Target Leakage | Computed using full-dataset cancellation averages across train/val/test splits. Preserved as analytical reference; excluded from model inputs. |
 | `customer_demand_features` | `clicked` | Search Event Time | Post-Search Outcome | User interaction outcome after search presentation; quarantined for search volume forecasting. |
 | `customer_demand_features` | `booking_completed` | Search Event Time | Post-Search Outcome | Transaction checkout conversion; quarantined for search volume forecasting. |
+| `customer_demand_features` | `has_funnel_anomaly` | Search Event Time | Post-Search Outcome | Derived from post-search booking and click outcomes; quarantined for search volume forecasting. |
 | `supplier_profitability_features` | `gross_margin_percentage` | Offer Procurement | Deterministic Metric | Deterministic formula from cost and selling price; maintained as business metric, not ML target predicted from inputs. |
 | `flight_operations_features` | `ARRIVAL_DELAY`, `DEPARTURE_DELAY` | Pre-Departure Schedule | Post-Flight Outcome | Actual operational delay minutes recorded after landing. Excluded from pre-departure predictions. |
 

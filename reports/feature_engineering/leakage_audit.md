@@ -12,21 +12,26 @@ Target leakage occurs when features contain information that would not be availa
 This audit evaluates all candidate features against their prediction cutoff timestamps across all seven analytical domains.
 
 - **Total Features Evaluated:** 234
-- **Eligible Features Approved for Modeling:** 227
-- **Quarantined / Post-Event Excluded Variables:** 10
+- **Eligible Features Approved for Modeling:** 224
+- **Quarantined / Post-Event Excluded Variables:** 13
 
 ---
 
 ## 2. Quarantined & Post-Event Features Summary
 
-The following variables contain post-event outcome information or circular formula identities and are **strictly excluded** from predictive feature matrices:
+The following variables contain post-event outcome information, circular formula identities, or global target encodings and are **strictly excluded** from predictive feature matrices:
 
 | Dataset Name | Quarantined Variable | Prediction Context | Leakage Risk | Rationale & Quarantine Action |
 | :--- | :--- | :--- | :--- | :--- |
 | `hotel_cancellation_features` | `reservation_status` | Pre-Arrival Booking Time | Critical Post-Event | Contains checkout / cancellation status recorded post-departure. Excluded from input features. |
 | `hotel_cancellation_features` | `reservation_status_date` | Pre-Arrival Booking Time | Critical Post-Event | Date of cancellation/checkout action. Excluded from input features. |
+| `hotel_cancellation_features` | `assigned_room_type` | Pre-Arrival Booking Time | Post-Booking Outcome | Operational room assigned at check-in / night audit; excluded from pre-booking model inputs. |
+| `hotel_cancellation_features` | `room_type_changed` | Pre-Arrival Booking Time | Post-Booking Outcome | Derived from check-in assigned room type; excluded from pre-booking model inputs. |
+| `hotel_cancellation_features` | `market_segment_historical_cancel_rate` | Pre-Arrival Booking Time | Global Target Leakage | Computed using full-dataset cancellation averages across train/val/test splits. Preserved as analytical reference; excluded from model inputs. |
+| `hotel_cancellation_features` | `deposit_type_historical_cancel_rate` | Pre-Arrival Booking Time | Global Target Leakage | Computed using full-dataset cancellation averages across train/val/test splits. Preserved as analytical reference; excluded from model inputs. |
 | `customer_demand_features` | `clicked` | Search Event Time | Post-Search Outcome | User interaction outcome after search presentation; quarantined for search volume forecasting. |
 | `customer_demand_features` | `booking_completed` | Search Event Time | Post-Search Outcome | Transaction checkout conversion; quarantined for search volume forecasting. |
+| `customer_demand_features` | `has_funnel_anomaly` | Search Event Time | Post-Search Outcome | Derived from post-search booking and click outcomes; quarantined for search volume forecasting. |
 | `supplier_profitability_features` | `gross_margin_percentage` | Offer Procurement | Deterministic Metric | Deterministic formula from cost and selling price; maintained as business metric, not ML target predicted from inputs. |
 | `flight_operations_features` | `ARRIVAL_DELAY`, `DEPARTURE_DELAY` | Pre-Departure Schedule | Post-Flight Outcome | Actual operational delay minutes recorded after landing. Excluded from pre-departure predictions. |
 
@@ -74,8 +79,8 @@ The following variables contain post-event outcome information or circular formu
 | hotel_cancellation_features | has_agent | is_canceled | Booking Creation Time (Pre-Arrival) | None | Include | Feature observed prior to prediction cutoff; zero target information. |
 | hotel_cancellation_features | has_company | is_canceled | Booking Creation Time (Pre-Arrival) | None | Include | Feature observed prior to prediction cutoff; zero target information. |
 | hotel_cancellation_features | reserved_room_type | is_canceled | Booking Creation Time (Pre-Arrival) | None | Include | Feature observed prior to prediction cutoff; zero target information. |
-| hotel_cancellation_features | assigned_room_type | is_canceled | Booking Creation Time (Pre-Arrival) | Critical / Post-Event Leakage | Quarantined / Excluded | Occurs after the event or directly encodes the target outcome (is_canceled). |
-| hotel_cancellation_features | room_type_changed | is_canceled | Booking Creation Time (Pre-Arrival) | Critical / Post-Event Leakage | Quarantined / Excluded | Occurs after the event or directly encodes the target outcome (is_canceled). |
+| hotel_cancellation_features | assigned_room_type | is_canceled | Booking Creation Time (Pre-Arrival) | Critical / Post-Booking Operational Outcome | Quarantined / Excluded | Operational room assignment occurs at check-in/night audit; unavailable at booking transaction time. |
+| hotel_cancellation_features | room_type_changed | is_canceled | Booking Creation Time (Pre-Arrival) | Critical / Post-Booking Operational Outcome | Quarantined / Excluded | Operational room assignment occurs at check-in/night audit; unavailable at booking transaction time. |
 | hotel_cancellation_features | adr | is_canceled | Booking Creation Time (Pre-Arrival) | Low | Include | Contracted rate agreed at booking time prior to check-in. |
 | hotel_cancellation_features | adr_log | is_canceled | Booking Creation Time (Pre-Arrival) | None | Include | Feature observed prior to prediction cutoff; zero target information. |
 | hotel_cancellation_features | adr_per_guest | is_canceled | Booking Creation Time (Pre-Arrival) | None | Include | Feature observed prior to prediction cutoff; zero target information. |
@@ -86,8 +91,8 @@ The following variables contain post-event outcome information or circular formu
 | hotel_cancellation_features | distribution_channel | is_canceled | Booking Creation Time (Pre-Arrival) | None | Include | Feature observed prior to prediction cutoff; zero target information. |
 | hotel_cancellation_features | deposit_type | is_canceled | Booking Creation Time (Pre-Arrival) | None | Include | Feature observed prior to prediction cutoff; zero target information. |
 | hotel_cancellation_features | customer_type | is_canceled | Booking Creation Time (Pre-Arrival) | None | Include | Feature observed prior to prediction cutoff; zero target information. |
-| hotel_cancellation_features | market_segment_historical_cancel_rate | is_canceled | Booking Creation Time (Pre-Arrival) | None | Include | Feature observed prior to prediction cutoff; zero target information. |
-| hotel_cancellation_features | deposit_type_historical_cancel_rate | is_canceled | Booking Creation Time (Pre-Arrival) | None | Include | Feature observed prior to prediction cutoff; zero target information. |
+| hotel_cancellation_features | market_segment_historical_cancel_rate | is_canceled | Booking Creation Time (Pre-Arrival) | High / Global Target Leakage | Quarantined / Analytical Reference Only | Calculated using target averages from complete dataset across train/val/test splits. Preserved as analytical reference; excluded from model inputs. |
+| hotel_cancellation_features | deposit_type_historical_cancel_rate | is_canceled | Booking Creation Time (Pre-Arrival) | High / Global Target Leakage | Quarantined / Analytical Reference Only | Calculated using target averages from complete dataset across train/val/test splits. Preserved as analytical reference; excluded from model inputs. |
 | hotel_cancellation_features | currency | is_canceled | Booking Creation Time (Pre-Arrival) | None | Include | Feature observed prior to prediction cutoff; zero target information. |
 | hotel_cancellation_features | arrival_date | is_canceled | Booking Creation Time (Pre-Arrival) | None | Include | Feature observed prior to prediction cutoff; zero target information. |
 | flight_price_features | price | price | Flight Search Quote Time (Pre-Departure) | Target Variable | Target Only | Supervised regression label; excluded from input feature matrix. |

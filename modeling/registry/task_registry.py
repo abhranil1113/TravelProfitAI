@@ -123,6 +123,8 @@ class TaskRegistry:
                 "reservation_status_date",
                 "assigned_room_type",
                 "room_type_changed",
+                "market_segment_historical_cancel_rate",
+                "deposit_type_historical_cancel_rate",
                 "booking_changes",
                 "arrival_date",
                 "booking_date",
