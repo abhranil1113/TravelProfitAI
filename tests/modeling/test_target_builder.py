@@ -75,4 +75,34 @@ def test_build_inventory_forecasting_stream():
     stream_df = build_inventory_forecasting_stream(df_inv, horizon_snapshots=1)
     assert "future_available_quantity" in stream_df.columns
     assert "actual_stockout" in stream_df.columns
+    assert "forecast_origin_snapshot_date" in stream_df.columns
+    assert "future_snapshot_date" in stream_df.columns
     assert len(stream_df) > 0
+
+
+def test_demand_panel_zero_future_lookahead_no_bfill():
+    """Verifies that avg_search_price does NOT backfill from future observations."""
+    records = [
+        {"search_id": "s1", "search_date": "2026-01-01", "destination_id": 1, "inventory_type": "FLIGHT", "search_price_inr": np.nan},
+        {"search_id": "s2", "search_date": "2026-01-02", "destination_id": 1, "inventory_type": "FLIGHT", "search_price_inr": np.nan},
+        {"search_id": "s3", "search_date": "2026-01-03", "destination_id": 1, "inventory_type": "FLIGHT", "search_price_inr": 5000.0},
+        {"search_id": "s4", "search_date": "2026-01-04", "destination_id": 1, "inventory_type": "FLIGHT", "search_price_inr": 6000.0},
+    ]
+    df = pd.DataFrame(records)
+    panel = build_demand_forecasting_panel(df, horizon_days=1)
+    # The first two dates should be 0.0 (past-only fill), NOT 5000.0 (bfill from future)
+    first_price = panel.loc[panel["date"] == "2026-01-01", "avg_search_price"].iloc[0]
+    assert first_price == 0.0, f"Expected 0.0 without future lookahead, got {first_price}"
+
+
+def test_inventory_stream_deterministic_sorting():
+    """Verifies deterministic sorting with snapshot_id secondary tie-breaker."""
+    records = [
+        {"snapshot_id": "b_2", "snapshot_date": "2026-01-01", "inventory_id": 1, "travel_date": "2026-02-01", "available_quantity": 10, "booked_quantity": 2},
+        {"snapshot_id": "a_1", "snapshot_date": "2026-01-01", "inventory_id": 1, "travel_date": "2026-02-01", "available_quantity": 12, "booked_quantity": 1},
+        {"snapshot_id": "c_3", "snapshot_date": "2026-01-02", "inventory_id": 1, "travel_date": "2026-02-01", "available_quantity": 8, "booked_quantity": 4},
+    ]
+    df = pd.DataFrame(records)
+    stream = build_inventory_forecasting_stream(df, horizon_snapshots=1)
+    # First snapshot should be a_1 because 'snapshot_id' is used as tie-breaker
+    assert stream.iloc[0]["snapshot_id"] == "a_1"

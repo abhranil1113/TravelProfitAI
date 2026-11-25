@@ -1,0 +1,134 @@
+{
+  "task_name": "flight_price",
+  "task_type": "regression",
+  "dataset_name": "flight_price_features",
+  "model_name": "lightgbm_tuned",
+  "target_column": "price",
+  "feature_schema_version": "1.0.0",
+  "dataset_fingerprint": {
+    "schema_digest_sha256": "27fb14b7b257f04f098c62f455fc3d297803cee9220e00f09bb7c90c15a8d60a",
+    "schema_fingerprint": {
+      "fingerprint_type": "schema_digest",
+      "algorithm": "sha256",
+      "digest": "27fb14b7b257f04f098c62f455fc3d297803cee9220e00f09bb7c90c15a8d60a",
+      "schema_digest_sha256": "27fb14b7b257f04f098c62f455fc3d297803cee9220e00f09bb7c90c15a8d60a",
+      "feature_count": 17,
+      "record_count": 300153,
+      "dataset_name": "flight_price_features"
+    },
+    "content_fingerprint": {
+      "fingerprint_type": "deterministic_content_digest",
+      "algorithm": "sha256",
+      "digest": "a92216da1e321a98a2680147cb3ddb619aa47ab7db8d21b8e080c001be4858d5",
+      "sample_rows_hashed": 1000,
+      "total_records": 300153
+    },
+    "feature_count": 17,
+    "record_count": 300153
+  },
+  "schema_fingerprint": {
+    "fingerprint_type": "schema_digest",
+    "algorithm": "sha256",
+    "digest": "27fb14b7b257f04f098c62f455fc3d297803cee9220e00f09bb7c90c15a8d60a",
+    "schema_digest_sha256": "27fb14b7b257f04f098c62f455fc3d297803cee9220e00f09bb7c90c15a8d60a",
+    "feature_count": 17,
+    "record_count": 300153,
+    "dataset_name": "flight_price_features"
+  },
+  "content_fingerprint": {
+    "fingerprint_type": "deterministic_content_digest",
+    "algorithm": "sha256",
+    "digest": "a92216da1e321a98a2680147cb3ddb619aa47ab7db8d21b8e080c001be4858d5",
+    "sample_rows_hashed": 1000,
+    "total_records": 300153
+  },
+  "validation_strategy": "kfold",
+  "split_policy": "Deterministic kfold (n_splits=5)",
+  "date_ranges": {},
+  "threshold_provenance": null,
+  "feature_names": [
+    "days_left",
+    "days_left_bucket",
+    "days_left_log",
+    "is_immediate_departure",
+    "duration_hours",
+    "duration_minutes",
+    "duration_bucket",
+    "class",
+    "is_business_class",
+    "stops_count",
+    "is_direct_flight",
+    "airline",
+    "source_city",
+    "destination_city",
+    "route",
+    "departure_time",
+    "arrival_time"
+  ],
+  "feature_count": 17,
+  "saved_timestamp": "2026-11-25T10:09:49.325166+00:00",
+  "random_seed": 42,
+  "system_environment": {
+    "python_version": "3.10.0",
+    "platform": "Windows-10-10.0.26200-SP0"
+  },
+  "packages": {
+    "sklearn": "1.7.2",
+    "xgboost": "3.2.0",
+    "lightgbm": "4.7.0",
+    "joblib": "1.6.0",
+    "pandas": "2.3.3",
+    "numpy": "2.2.6"
+  },
+  "fit_time_seconds": 1.6282,
+  "cv_summary": {
+    "task_name": "flight_price",
+    "model_name": "lightgbm_tuned",
+    "n_splits": 5,
+    "mean_fit_time_sec": 1.5869,
+    "mean_inference_time_sec": 0.234382,
+    "total_duration_sec": 9.48,
+    "mean_mae": 1904.8129,
+    "std_mae": 12.0675,
+    "mean_rmse": 3294.5086,
+    "std_rmse": 35.1942,
+    "mean_r2": 0.979,
+    "std_r2": 0.0004,
+    "mean_mape": 15.1473,
+    "std_mape": 0.1559,
+    "mean_wape": 9.1148,
+    "std_wape": 0.0389,
+    "mean_smape": 14.3409,
+    "std_smape": 0.1505,
+    "mean_forecast_bias": 0.8325,
+    "std_forecast_bias": 7.5492
+  },
+  "test_metrics": {
+    "mae": 1911.2069,
+    "rmse": 3299.0377,
+    "r2": 0.9788,
+    "mape": 15.1457,
+    "wape": 9.1697,
+    "smape": 14.3163,
+    "forecast_bias": -2.1259
+  },
+  "selection_rationale": "Selected 'lightgbm_tuned' achieving best mean mae=1904.8129 (improvement of 2556.0033 / 57.30% over linear_regression mae=4460.8162).",
+  "business_params": {
+    "horizon_evaluation": true
+  },
+  "estimator_artifact": "estimator.joblib",
+  "preprocessor_artifact": "preprocessor.joblib",
+  "stage": "Stage 4C",
+  "generalization_audit": {
+    "quote_overlap_pct": 68.77,
+    "seen_quotes_mae": 2002.27,
+    "seen_quotes_wape": 8.95,
+    "unseen_quotes_mae": 1710.66,
+    "unseen_quotes_wape": 9.79,
+    "grouped_airline_route_holdout_mae": 3411.85,
+    "grouped_airline_route_holdout_wape": 15.64,
+    "dummy_baseline_mae": 20053.98,
+    "error_reduction_pct": 83.0,
+    "operational_boundaries": "Applicable strictly for cross-sectional price prediction where 1 <= days_left <= 49. Does not extrapolate to days_left = 0 or days_left > 49. Lacks absolute calendar date features for temporal macroeconomic shock forecasting."
+  }
+}

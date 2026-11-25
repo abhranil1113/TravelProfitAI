@@ -30,12 +30,14 @@ def tune_model_hyperparameters(
     model_name: str,
     X_train: pd.DataFrame,
     y_train: pd.Series,
+    groups: Optional[pd.Series] = None,
     param_grid: Optional[Dict[str, Any]] = None,
     n_iter: int = 5,
     cv_splits: int = 3,
 ) -> Tuple[BaseEstimator, Dict[str, Any], float]:
     """
     Executes RandomizedSearchCV strictly over X_train using an integrated Pipeline.
+    Enforces identical temporal embargo policies as cross-validation.
     
     Returns:
       (best_estimator, best_params, best_score)
@@ -65,17 +67,23 @@ def tune_model_hyperparameters(
     is_classification = task_config.task_type in [TaskType.BINARY_CLASSIFICATION, TaskType.MULTICLASS_CLASSIFICATION]
     scoring = "f1" if is_classification else "neg_mean_absolute_error"
 
-    # 4. Determine Splitter
+    # 4. Determine Splitter with Consistent Embargo Gap
+    is_time_based = task_config.validation_strategy in [
+        ValidationStrategy.TIME_SERIES_SPLIT,
+        ValidationStrategy.CHRONOLOGICAL_SPLIT,
+    ]
+    gap = task_config.business_params.get("embargo_gap_days", 0) if is_time_based else 0
     splitter = get_cross_validation_splitter(
         task_config.validation_strategy,
         n_splits=cv_splits,
-        shuffle=(task_config.validation_strategy != ValidationStrategy.TIME_SERIES_SPLIT),
+        shuffle=(not is_time_based),
         random_state=RANDOM_SEED,
+        gap=gap,
     )
 
     logger.info(
         f"Starting hyperparameter tuning for '{model_name}' on task '{task_config.task_name}' "
-        f"({n_iter} iterations, {cv_splits} CV folds)..."
+        f"({n_iter} iterations, {cv_splits} CV folds, embargo_gap={gap})..."
     )
 
     search = RandomizedSearchCV(
@@ -89,7 +97,7 @@ def tune_model_hyperparameters(
         refit=True,
     )
 
-    search.fit(X_train, y_train)
+    search.fit(X_train, y_train, groups=groups)
 
     # Clean parameter names by removing 'model__' prefix
     best_params = {k.replace("model__", ""): v for k, v in search.best_params_.items()}

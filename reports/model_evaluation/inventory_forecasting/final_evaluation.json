@@ -1,20 +1,56 @@
 {
   "task_name": "inventory_forecasting",
-  "model_name": "lightgbm",
-  "test_records_count": 563,
-  "inference_duration_seconds": 0.0298,
+  "model_name": "random_forest",
+  "test_records_count": 469,
+  "inference_duration_seconds": 0.0964,
+  "applied_decision_threshold": 0.5,
   "metrics": {
-    "mae": 7.317,
-    "rmse": 9.8639,
-    "r2": 0.9126,
-    "mape": 31.9675,
-    "wape": 16.594,
-    "smape": 31.761,
-    "forecast_bias": 3.0663
+    "mae": 9.0128,
+    "rmse": 12.5375,
+    "r2": 0.9178,
+    "mape": 23.5595,
+    "wape": 14.7133,
+    "smape": 25.7409,
+    "forecast_bias": -4.9001,
+    "stockout_recall": 0.8,
+    "stockout_precision": 0.9091,
+    "stockout_f1": 0.8511
   },
   "forecast_diagnostics": {
-    "mean_bias": 3.0663,
-    "overprediction_rate": 0.6661,
-    "underprediction_rate": 0.3339
+    "mean_bias": -4.9001,
+    "overprediction_rate": 0.3262,
+    "underprediction_rate": 0.6738
+  },
+  "stockout_diagnostics": {
+    "stockout_threshold": 5.0,
+    "stockout_recall": 0.8,
+    "stockout_precision": 0.9091,
+    "stockout_f1": 0.8511
+  },
+  "unit_type_breakdown": {
+    "SEAT": {
+      "mae": 11.4458,
+      "rmse": 15.1406,
+      "r2": 0.8947,
+      "mape": 21.0227,
+      "wape": 14.3649,
+      "smape": 23.3993,
+      "forecast_bias": -6.0822,
+      "stockout_recall": 1.0,
+      "stockout_precision": 0.8571,
+      "stockout_f1": 0.9231
+    },
+    "ROOM_NIGHT": {
+      "mae": 6.9533,
+      "rmse": 9.8083,
+      "r2": 0.917,
+      "mape": 25.7532,
+      "wape": 15.228,
+      "smape": 27.7229,
+      "forecast_bias": -3.8995,
+      "stockout_recall": 0.7368,
+      "stockout_precision": 0.9333,
+      "stockout_f1": 0.8235
+    }
   }
 }

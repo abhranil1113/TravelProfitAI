@@ -80,3 +80,29 @@ def test_forecasting_metrics_with_stockout():
     recall, status = compute_stockout_recall(y_true, y_pred, stockout_threshold=0.0)
     assert status == "VALID"
     assert np.isclose(recall, 0.5)
+
+
+def test_compute_stockout_metrics():
+    from modeling.metrics import compute_stockout_metrics
+    y_true = np.array([10.0, 4.0, 2.0, 15.0, 0.0])
+    y_pred = np.array([8.0, 3.0, 6.0, 12.0, 1.0])
+    # threshold = 5.0 -> actual stockouts: 4.0, 2.0, 0.0 (3)
+    # predicted stockouts: 3.0, 1.0 (2) -> both true positives (4.0 and 0.0)
+    metrics = compute_stockout_metrics(y_true, y_pred, stockout_threshold=5.0)
+    assert "stockout_recall" in metrics
+    assert "stockout_precision" in metrics
+    assert "stockout_f1" in metrics
+    assert metrics["stockout_recall"][1] == "VALID"
+    assert np.isclose(metrics["stockout_recall"][0], 2.0 / 3.0, atol=1e-3)
+    assert np.isclose(metrics["stockout_precision"][0], 1.0, atol=1e-3)
+
+
+def test_optimize_classification_threshold():
+    from modeling.metrics import optimize_classification_threshold
+    y_true = np.array([1, 1, 1, 0, 0, 0])
+    y_prob = np.array([0.9, 0.7, 0.4, 0.6, 0.2, 0.1])
+    res = optimize_classification_threshold(y_true, y_prob, cost_fn=3.0, cost_fp=1.0)
+    assert "optimal_threshold" in res
+    assert "minimal_total_cost" in res
+    assert "threshold_curve" in res
+    assert 0.05 <= res["optimal_threshold"] <= 0.95

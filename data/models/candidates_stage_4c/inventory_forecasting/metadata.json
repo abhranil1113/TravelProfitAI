@@ -1,0 +1,264 @@
+{
+  "task_name": "inventory_forecasting",
+  "task_type": "time_series_regression",
+  "dataset_name": "inventory_features",
+  "model_name": "random_forest_regressor",
+  "target_column": "future_available_quantity",
+  "feature_schema_version": "1.0.0",
+  "dataset_fingerprint": {
+    "schema_digest_sha256": "10e3a454b1b05bb1e8cab7635f1b732efc5198b28558f5b6fc640826f6ed7def",
+    "schema_fingerprint": {
+      "fingerprint_type": "schema_digest",
+      "algorithm": "sha256",
+      "digest": "10e3a454b1b05bb1e8cab7635f1b732efc5198b28558f5b6fc640826f6ed7def",
+      "schema_digest_sha256": "10e3a454b1b05bb1e8cab7635f1b732efc5198b28558f5b6fc640826f6ed7def",
+      "feature_count": 24,
+      "record_count": 3750,
+      "dataset_name": "inventory_features"
+    },
+    "content_fingerprint": {
+      "fingerprint_type": "deterministic_content_digest",
+      "algorithm": "sha256",
+      "digest": "0ca535a6676a6d7a412e0375c5e81facd18803b8a03afb855a759cbb795459f3",
+      "sample_rows_hashed": 1000,
+      "total_records": 3750
+    },
+    "feature_count": 24,
+    "record_count": 3750
+  },
+  "schema_fingerprint": {
+    "fingerprint_type": "schema_digest",
+    "algorithm": "sha256",
+    "digest": "10e3a454b1b05bb1e8cab7635f1b732efc5198b28558f5b6fc640826f6ed7def",
+    "schema_digest_sha256": "10e3a454b1b05bb1e8cab7635f1b732efc5198b28558f5b6fc640826f6ed7def",
+    "feature_count": 24,
+    "record_count": 3750,
+    "dataset_name": "inventory_features"
+  },
+  "content_fingerprint": {
+    "fingerprint_type": "deterministic_content_digest",
+    "algorithm": "sha256",
+    "digest": "0ca535a6676a6d7a412e0375c5e81facd18803b8a03afb855a759cbb795459f3",
+    "sample_rows_hashed": 1000,
+    "total_records": 3750
+  },
+  "validation_strategy": "time_series_split",
+  "split_policy": "Deterministic time_series_split (n_splits=5)",
+  "date_ranges": {
+    "date_column": "snapshot_date",
+    "dataset_min_date": "2025-11-15 00:00:00",
+    "dataset_max_date": "2027-05-10 00:00:00",
+    "train_min_date": "2025-11-15 00:00:00",
+    "train_max_date": "2027-02-17 00:00:00",
+    "test_min_date": "2027-02-18 00:00:00",
+    "test_max_date": "2027-05-10 00:00:00"
+  },
+  "threshold_provenance": null,
+  "feature_names": [
+    "inventory_id",
+    "inventory_type",
+    "supplier_id",
+    "origin_id",
+    "destination_id",
+    "unit_type",
+    "travel_date",
+    "days_to_travel",
+    "total_capacity",
+    "booked_quantity",
+    "available_quantity",
+    "occupancy_rate",
+    "inventory_utilization_rate",
+    "availability_rate",
+    "availability_percentage",
+    "availability_bucket",
+    "days_since_prev_snapshot",
+    "change_in_booked_quantity",
+    "change_in_available_quantity",
+    "booking_velocity_units_per_day",
+    "inventory_depletion_velocity",
+    "high_occupancy_indicator",
+    "low_availability_indicator",
+    "rapid_depletion_indicator"
+  ],
+  "feature_count": 24,
+  "saved_timestamp": "2026-11-25T10:50:47.404174+00:00",
+  "random_seed": 42,
+  "system_environment": {
+    "python_version": "3.10.0",
+    "platform": "Windows-10-10.0.26200-SP0"
+  },
+  "packages": {
+    "sklearn": "1.7.2",
+    "xgboost": "3.2.0",
+    "lightgbm": "4.7.0",
+    "joblib": "1.6.0",
+    "pandas": "2.3.3",
+    "numpy": "2.2.6"
+  },
+  "fit_time_seconds": 0.0,
+  "cv_summary": {
+    "best_model": "random_forest_regressor",
+    "comparison": [
+      {
+        "Model": "Champion (Phase 4, with snapshot_date)",
+        "MAE": 5.777,
+        "RMSE": 7.7131,
+        "R2": 0.9689,
+        "SO_Recall": 60.0,
+        "SO_Precision": 83.3,
+        "SO_F1": 69.8,
+        "TP_FP_FN": "15/3/10"
+      },
+      {
+        "Model": "Candidate RF (Stage 4B, clean 24 feat)",
+        "MAE": 9.0128,
+        "RMSE": 12.5375,
+        "R2": 0.9178,
+        "SO_Recall": 80.0,
+        "SO_Precision": 90.9,
+        "SO_F1": 85.1,
+        "TP_FP_FN": "20/2/5"
+      },
+      {
+        "Model": "LightGBM Huber (delta=5.0)",
+        "MAE": 31.6842,
+        "RMSE": 40.4537,
+        "R2": 0.1446,
+        "SO_Recall": 0.0,
+        "SO_Precision": 0.0,
+        "SO_F1": 0.0,
+        "TP_FP_FN": "0/0/25"
+      },
+      {
+        "Model": "LightGBM Huber (delta=10.0)",
+        "MAE": 31.6842,
+        "RMSE": 40.4537,
+        "R2": 0.1446,
+        "SO_Recall": 0.0,
+        "SO_Precision": 0.0,
+        "SO_F1": 0.0,
+        "TP_FP_FN": "0/0/25"
+      },
+      {
+        "Model": "LightGBM Huber (delta=15.0)",
+        "MAE": 31.6842,
+        "RMSE": 40.4537,
+        "R2": 0.1446,
+        "SO_Recall": 0.0,
+        "SO_Precision": 0.0,
+        "SO_F1": 0.0,
+        "TP_FP_FN": "0/0/25"
+      },
+      {
+        "Model": "LightGBM Tuned (lr=0.03, d=4)",
+        "MAE": 9.7429,
+        "RMSE": 13.2032,
+        "R2": 0.9089,
+        "SO_Recall": 0.0,
+        "SO_Precision": 0.0,
+        "SO_F1": 0.0,
+        "TP_FP_FN": "0/0/25"
+      },
+      {
+        "Model": "LightGBM Tuned (lr=0.03, d=6)",
+        "MAE": 9.5968,
+        "RMSE": 13.2804,
+        "R2": 0.9078,
+        "SO_Recall": 4.0,
+        "SO_Precision": 100.0,
+        "SO_F1": 7.7,
+        "TP_FP_FN": "1/0/24"
+      },
+      {
+        "Model": "LightGBM Tuned (lr=0.05, d=4)",
+        "MAE": 9.1264,
+        "RMSE": 12.2394,
+        "R2": 0.9217,
+        "SO_Recall": 72.0,
+        "SO_Precision": 90.0,
+        "SO_F1": 80.0,
+        "TP_FP_FN": "18/2/7"
+      },
+      {
+        "Model": "LightGBM Tuned (lr=0.05, d=6)",
+        "MAE": 9.2862,
+        "RMSE": 12.7084,
+        "R2": 0.9156,
+        "SO_Recall": 76.0,
+        "SO_Precision": 82.6,
+        "SO_F1": 79.2,
+        "TP_FP_FN": "19/4/6"
+      },
+      {
+        "Model": "LightGBM Tuned (lr=0.08, d=4)",
+        "MAE": 9.6152,
+        "RMSE": 12.729,
+        "R2": 0.9153,
+        "SO_Recall": 72.0,
+        "SO_Precision": 90.0,
+        "SO_F1": 80.0,
+        "TP_FP_FN": "18/2/7"
+      },
+      {
+        "Model": "LightGBM Tuned (lr=0.08, d=6)",
+        "MAE": 9.3444,
+        "RMSE": 12.7956,
+        "R2": 0.9144,
+        "SO_Recall": 76.0,
+        "SO_Precision": 76.0,
+        "SO_F1": 76.0,
+        "TP_FP_FN": "19/6/6"
+      },
+      {
+        "Model": "LightGBM Asym-Weighted Huber (w=3 on SO)",
+        "MAE": 31.2613,
+        "RMSE": 41.4501,
+        "R2": 0.102,
+        "SO_Recall": 0.0,
+        "SO_Precision": 0.0,
+        "SO_F1": 0.0,
+        "TP_FP_FN": "0/0/25"
+      },
+      {
+        "Model": "LightGBM Candidate (lr=0.05, d=6)",
+        "MAE": 9.3477,
+        "RMSE": 12.6641,
+        "R2": 0.9162,
+        "SO_Recall": 76.0,
+        "SO_Precision": 82.6,
+        "SO_F1": 79.2,
+        "TP_FP_FN": "19/4/6"
+      },
+      {
+        "Model": "Ensemble (0.5 RF + 0.5 LightGBM)",
+        "MAE": 9.075,
+        "RMSE": 12.4605,
+        "R2": 0.9188,
+        "SO_Recall": 76.0,
+        "SO_Precision": 82.6,
+        "SO_F1": 79.2,
+        "TP_FP_FN": "19/4/6"
+      }
+    ]
+  },
+  "test_metrics": {
+    "mae": 9.0128,
+    "rmse": 12.5375,
+    "r2": 0.9178,
+    "mape": 23.5595,
+    "wape": 14.7133,
+    "smape": 25.7409,
+    "forecast_bias": -4.9001,
+    "stockout_recall": 0.8,
+    "stockout_precision": 0.9091,
+    "stockout_f1": 0.8511
+  },
+  "selection_rationale": "Selected Random Forest Regressor on clean 24-feature schema achieving Pareto-optimal 9.01 MAE, 80.0% stockout recall, and 90.9% stockout precision without temporal snapshot_date leakage.",
+  "business_params": {
+    "stockout_threshold": 5.0,
+    "stockout_threshold_units": 5.0,
+    "evaluate_stockout_recall": true
+  },
+  "estimator_artifact": "estimator.joblib",
+  "preprocessor_artifact": "preprocessor.joblib"
+}

@@ -64,11 +64,16 @@ def build_preprocessor(
         cat_pipeline = Pipeline(steps=cat_steps)
         transformers.append(("cat", cat_pipeline, categorical_cols))
 
-    return ColumnTransformer(
+    transformer = ColumnTransformer(
         transformers=transformers,
         remainder="drop",
         verbose_feature_names_out=False,
     )
+    try:
+        transformer.set_output(transform="pandas")
+    except Exception:
+        pass
+    return transformer
 
 
 def partition_features(

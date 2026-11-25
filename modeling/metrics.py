@@ -108,6 +108,104 @@ def compute_stockout_recall(
     return round(rec, 4), "VALID"
 
 
+def compute_stockout_metrics(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    stockout_threshold: float = 5.0,
+) -> Dict[str, Tuple[float, str]]:
+    """
+    Calculates stockout detection recall, precision, and F1 score.
+    Actual stockout condition: y_true <= stockout_threshold.
+    Predicted stockout condition: y_pred <= stockout_threshold.
+    """
+    actual_stockout = (y_true <= stockout_threshold).astype(int)
+    pred_stockout = (y_pred <= stockout_threshold).astype(int)
+
+    n_actual = int(actual_stockout.sum())
+    if n_actual == 0:
+        nan_tuple = (float("nan"), "NO_ACTUAL_STOCKOUTS")
+        return {
+            "stockout_recall": nan_tuple,
+            "stockout_precision": nan_tuple,
+            "stockout_f1": nan_tuple,
+        }
+
+    rec = float(recall_score(actual_stockout, pred_stockout, zero_division=0))
+    prec = float(precision_score(actual_stockout, pred_stockout, zero_division=0))
+    f1 = float(f1_score(actual_stockout, pred_stockout, zero_division=0))
+    return {
+        "stockout_recall": (round(rec, 4), "VALID"),
+        "stockout_precision": (round(prec, 4), "VALID"),
+        "stockout_f1": (round(f1, 4), "VALID"),
+    }
+
+
+def optimize_classification_threshold(
+    y_true: np.ndarray,
+    y_prob: np.ndarray,
+    cost_fn: float = 3.0,
+    cost_fp: float = 1.0,
+    step: float = 0.02,
+) -> Dict[str, Any]:
+    """
+    Searches candidate decision thresholds T in [0.05, 0.95] to minimize total expected business cost:
+      Cost(T) = cost_fn * FN + cost_fp * FP
+    Returns optimal threshold, minimal cost, and sensitivity curve.
+    """
+    y_true = np.asarray(y_true, dtype=int)
+    probs = np.asarray(y_prob, dtype=float)
+    if probs.ndim == 2:
+        probs = probs[:, 1]
+
+    n = len(y_true)
+    best_th = 0.50
+    min_cost = float("inf")
+    curve = []
+
+    thresholds = np.arange(0.05, 0.96, step)
+    for th in thresholds:
+        th_round = round(float(th), 4)
+        preds = (probs >= th).astype(int)
+        fn = int(((y_true == 1) & (preds == 0)).sum())
+        fp = int(((y_true == 0) & (preds == 1)).sum())
+        tp = int(((y_true == 1) & (preds == 1)).sum())
+        tn = int(((y_true == 0) & (preds == 0)).sum())
+
+        total_cost = float(cost_fn * fn + cost_fp * fp)
+        cost_per_instance = float(total_cost / max(1, n))
+
+        prec = float(precision_score(y_true, preds, zero_division=0))
+        rec = float(recall_score(y_true, preds, zero_division=0))
+        f1 = float(f1_score(y_true, preds, zero_division=0))
+
+        point = {
+            "threshold": th_round,
+            "total_cost": round(total_cost, 2),
+            "cost_per_instance": round(cost_per_instance, 4),
+            "fn": fn,
+            "fp": fp,
+            "tp": tp,
+            "tn": tn,
+            "precision": round(prec, 4),
+            "recall": round(rec, 4),
+            "f1_score": round(f1, 4),
+        }
+        curve.append(point)
+
+        if total_cost < min_cost:
+            min_cost = total_cost
+            best_th = th_round
+
+    return {
+        "optimal_threshold": best_th,
+        "minimal_total_cost": round(min_cost, 2),
+        "minimal_cost_per_instance": round(min_cost / max(1, n), 4),
+        "cost_fn": cost_fn,
+        "cost_fp": cost_fp,
+        "threshold_curve": curve,
+    }
+
+
 # --- Master Metric Calculation Dispatchers ---
 
 def evaluate_classification_metrics(
@@ -209,10 +307,12 @@ def evaluate_regression_metrics(
     bias = compute_forecast_bias(y_true, y_pred)
     results["forecast_bias"] = MetricResult("forecast_bias", bias, False)
 
-    # 4. Stockout Detection Recall
+    # 4. Stockout Detection Recall, Precision, and F1
     if stockout_threshold is not None:
-        rec_val, rec_status = compute_stockout_recall(y_true, y_pred, stockout_threshold)
-        results["stockout_recall"] = MetricResult("stockout_recall", rec_val, True, rec_status)
+        so_metrics = compute_stockout_metrics(y_true, y_pred, stockout_threshold)
+        results["stockout_recall"] = MetricResult("stockout_recall", so_metrics["stockout_recall"][0], True, so_metrics["stockout_recall"][1])
+        results["stockout_precision"] = MetricResult("stockout_precision", so_metrics["stockout_precision"][0], True, so_metrics["stockout_precision"][1])
+        results["stockout_f1"] = MetricResult("stockout_f1", so_metrics["stockout_f1"][0], True, so_metrics["stockout_f1"][1])
 
     return results
 
@@ -233,7 +333,11 @@ def compute_metrics(
         return evaluate_classification_metrics(y_true, y_pred, y_prob)
 
     elif task_type in [TaskType.REGRESSION, TaskType.TIME_SERIES_REGRESSION]:
-        stockout_th = bparams.get("stockout_threshold_units", None)
+        stockout_th = (
+            bparams.get("stockout_threshold_units")
+            if bparams.get("stockout_threshold_units") is not None
+            else bparams.get("stockout_threshold", None)
+        )
         is_ts = task_type == TaskType.TIME_SERIES_REGRESSION
         return evaluate_regression_metrics(
             y_true,

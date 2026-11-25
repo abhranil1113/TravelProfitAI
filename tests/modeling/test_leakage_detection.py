@@ -47,6 +47,52 @@ def test_leakage_quarantined_post_event_features():
         audit_task_leakage(task_config=cfg, X=X)
 
 
+def test_leakage_historical_cancel_rates_fail_closed():
+    """Verifies that full-dataset target-encoded cancel rates trigger fail-closed ValueError."""
+    cfg = TaskConfig(
+        task_name="hotel_cancellation",
+        dataset_name="hotel_cancellation_features",
+        task_type=TaskType.BINARY_CLASSIFICATION,
+        target_column="is_canceled",
+        excluded_columns=[
+            "market_segment_historical_cancel_rate",
+            "deposit_type_historical_cancel_rate",
+        ],
+    )
+    # 1. Market segment cancel rate leak
+    X_segment = pd.DataFrame({
+        "lead_time_days": [10, 20],
+        "market_segment_historical_cancel_rate": [0.35, 0.40],
+    })
+    with pytest.raises(ValueError, match="Target leakage or unauthorized feature detected"):
+        audit_task_leakage(task_config=cfg, X=X_segment)
+
+    # 2. Deposit type cancel rate leak
+    X_deposit = pd.DataFrame({
+        "lead_time_days": [10, 20],
+        "deposit_type_historical_cancel_rate": [0.20, 0.95],
+    })
+    with pytest.raises(ValueError, match="Target leakage or unauthorized feature detected"):
+        audit_task_leakage(task_config=cfg, X=X_deposit)
+
+
+def test_leakage_explicitly_excluded_column_fail_closed():
+    """Verifies that any explicitly excluded column triggers fail-closed ValueError."""
+    cfg = TaskConfig(
+        task_name="flight_price",
+        dataset_name="flight_price_features",
+        task_type=TaskType.REGRESSION,
+        target_column="price",
+        excluded_columns=["price_record_id"],
+    )
+    X = pd.DataFrame({
+        "days_left": [5, 10],
+        "price_record_id": [101, 102],
+    })
+    with pytest.raises(ValueError, match="Target leakage or unauthorized feature detected"):
+        audit_task_leakage(task_config=cfg, X=X)
+
+
 def test_clean_features_no_leakage():
     cfg = TaskConfig(
         task_name="hotel_cancellation",

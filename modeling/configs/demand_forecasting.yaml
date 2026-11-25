@@ -25,7 +25,11 @@ excluded_columns:
   - booking_completed
   - has_funnel_anomaly
   - currency
+  - date
+  - forecast_origin_date
+  - target_date
 business_params:
+  horizon_days: 7
   forecast_horizon_days: 7
   seasonal_period_days: 7
   embargo_gap_days: 7

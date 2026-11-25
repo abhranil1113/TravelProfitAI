@@ -130,13 +130,21 @@ class TaskRegistry:
                 "booking_date",
                 "currency",
             ],
-            validation_strategy=ValidationStrategy.STRATIFIED_KFOLD,
+            validation_strategy=ValidationStrategy.CHRONOLOGICAL_SPLIT,
             n_splits=5,
             primary_metric="f1_score",
             secondary_metrics=["roc_auc", "pr_auc", "precision", "recall", "log_loss", "accuracy"],
             candidate_models=["dummy", "logistic_regression", "random_forest", "xgboost", "lightgbm"],
-            business_params={"threshold": 0.50, "cost_fn": 3.0, "cost_fp": 1.0},
-            description="Predicts hotel booking cancellation risk at reservation time.",
+            business_params={
+                "threshold": 0.50,
+                "decision_threshold": 0.50,
+                "cost_fn": 3.0,
+                "cost_false_negative": 3.0,
+                "cost_fp": 1.0,
+                "cost_false_positive": 1.0,
+                "optimize_threshold": True,
+            },
+            description="Predicts hotel booking cancellation risk using chronological arrival-minus-lead-time synthesized booking date proxy (transaction-level timestamps unavailable).",
         )
 
         # 2. Flight Price Prediction
@@ -170,6 +178,9 @@ class TaskRegistry:
                 "booking_completed",
                 "has_funnel_anomaly",
                 "currency",
+                "date",
+                "forecast_origin_date",
+                "target_date",
             ],
             group_columns=["destination_id", "inventory_type"],
             validation_strategy=ValidationStrategy.TIME_SERIES_SPLIT,
@@ -178,8 +189,14 @@ class TaskRegistry:
             primary_metric="mae",
             secondary_metrics=["rmse", "wape", "smape"],
             candidate_models=["naive", "seasonal_naive", "linear_regression", "random_forest", "xgboost", "lightgbm"],
-            business_params={"horizon_days": 7, "seasonal_period": 7},
-            description="Forecasts destination search demand volume 7 days ahead.",
+            business_params={
+                "horizon_days": 7,
+                "forecast_horizon_days": 7,
+                "seasonal_period": 7,
+                "seasonal_period_days": 7,
+                "embargo_gap_days": 7,
+            },
+            description="Forecasts destination search demand volume 7 days ahead with purged validation embargo.",
         )
 
         # 4. Inventory Availability & Stockout Forecasting
@@ -190,16 +207,25 @@ class TaskRegistry:
             target_column="future_available_quantity",
             excluded_columns=[
                 "snapshot_id",
+                "snapshot_date",
+                "forecast_origin_snapshot_date",
+                "future_snapshot_date",
                 "inventory_sold_out_indicator",
+                "actual_stockout",
+                "future_booked_quantity",
             ],
             group_columns=["inventory_id", "travel_date"],
             validation_strategy=ValidationStrategy.TIME_SERIES_SPLIT,
             n_splits=5,
             forecast_horizon=1,
             primary_metric="mae",
-            secondary_metrics=["rmse", "wape", "stockout_recall"],
+            secondary_metrics=["rmse", "wape", "stockout_recall", "stockout_precision", "stockout_f1"],
             candidate_models=["naive", "linear_regression", "random_forest", "xgboost", "lightgbm"],
-            business_params={"stockout_threshold": 5.0},
+            business_params={
+                "stockout_threshold": 5.0,
+                "stockout_threshold_units": 5.0,
+                "evaluate_stockout_recall": True,
+            },
             description="Forecasts future available inventory and detects impending stockouts.",
         )
 

@@ -10,6 +10,8 @@ secondary_metrics:
   - rmse
   - wape
   - stockout_recall
+  - stockout_precision
+  - stockout_f1
 candidate_models:
   - naive
   - linear_regression
@@ -21,8 +23,14 @@ group_columns:
   - travel_date
 excluded_columns:
   - snapshot_id
+  - snapshot_date
+  - forecast_origin_snapshot_date
+  - future_snapshot_date
   - inventory_sold_out_indicator
+  - actual_stockout
+  - future_booked_quantity
 business_params:
+  stockout_threshold: 5.0
   stockout_threshold_units: 5.0
   evaluate_stockout_recall: true
 description: Forecasts future available inventory quantity and predicts critical stockouts.

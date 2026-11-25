@@ -38,6 +38,7 @@ class ValidationStrategy(str, Enum):
     KFOLD = "kfold"
     TIME_SERIES_SPLIT = "time_series_split"
     GROUP_KFOLD = "group_kfold"
+    CHRONOLOGICAL_SPLIT = "chronological_split"
 
 
 # Supported Model Identifiers
@@ -97,6 +98,8 @@ METRIC_DIRECTION_IS_HIGHER_BETTER: Dict[str, bool] = {
     "wape": False,
     "smape": False,
     "stockout_recall": True,
+    "stockout_precision": True,
+    "stockout_f1": True,
     "forecast_bias": False,
 }
 

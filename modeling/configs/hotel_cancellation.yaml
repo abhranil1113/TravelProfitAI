@@ -2,7 +2,7 @@ task_name: hotel_cancellation
 dataset_name: hotel_cancellation_features
 task_type: binary_classification
 target_column: is_canceled
-validation_strategy: stratified_kfold
+validation_strategy: chronological_split
 n_splits: 5
 primary_metric: f1_score
 secondary_metrics:
@@ -27,8 +27,13 @@ excluded_columns:
   - arrival_date
   - booking_date
   - currency
+  - market_segment_historical_cancel_rate
+  - deposit_type_historical_cancel_rate
 business_params:
   decision_threshold: 0.50
   cost_false_negative: 3.0
   cost_false_positive: 1.0
+  cost_fn: 3.0
+  cost_fp: 1.0
+  optimize_threshold: true
 description: Predicts hotel booking cancellation risk at reservation time.

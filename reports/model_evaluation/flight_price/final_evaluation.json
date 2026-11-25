@@ -1,25 +1,26 @@
 {
   "task_name": "flight_price",
   "model_name": "lightgbm_tuned",
-  "test_records_count": 4500,
-  "inference_duration_seconds": 0.0327,
+  "test_records_count": 45023,
+  "inference_duration_seconds": 0.1955,
+  "applied_decision_threshold": 0.5,
   "metrics": {
-    "mae": 2239.3554,
-    "rmse": 3863.384,
-    "r2": 0.9709,
-    "mape": 16.4162,
-    "wape": 10.8037,
-    "smape": 15.5904,
-    "forecast_bias": -28.9059
+    "mae": 1911.2069,
+    "rmse": 3299.0377,
+    "r2": 0.9788,
+    "mape": 15.1457,
+    "wape": 9.1697,
+    "smape": 14.3163,
+    "forecast_bias": -2.1259
   },
   "residual_diagnostics": {
-    "mean_residual": -28.9059,
-    "std_residual": 3863.2759,
-    "median_residual": 184.6378
+    "mean_residual": -2.1259,
+    "std_residual": 3299.037,
+    "median_residual": 229.9435
   },
   "horizon_mae_inr": {
-    "immediate_1_7d": 3857.93,
-    "intermediate_8_14d": 2603.08,
-    "advance_15d_plus": 1937.23
+    "immediate_1_7d": 3225.57,
+    "intermediate_8_14d": 2343.22,
+    "advance_15d_plus": 1644.52
   }
 }

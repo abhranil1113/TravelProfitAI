@@ -17,6 +17,7 @@ from modeling.splitters import get_cross_validation_splitter
 from modeling.model_factory import create_model
 from modeling.trainer import train_single_model, ModelArtifact
 from modeling.metrics import compute_metrics, MetricResult
+from modeling.leakage_detection import audit_task_leakage
 
 logger = logging.getLogger(__name__)
 
@@ -68,21 +69,30 @@ def execute_cross_validation(
     model_name: str,
     X: pd.DataFrame,
     y: pd.Series,
+    groups: Optional[pd.Series] = None,
     model_kwargs: Optional[Dict[str, Any]] = None,
 ) -> CrossValidationResult:
     """
-    Executes K-fold cross-validation with strict fold-level preprocessing and metric tracking.
+    Executes K-fold cross-validation with strict fold-level preprocessing,
+    mandatory fail-closed leakage checks, and metric tracking.
     """
+    # Mandatory fail-closed leakage check at CV entry point
+    audit_task_leakage(task_config, X)
+
     total_start = time.perf_counter()
     m_kwargs = model_kwargs or {}
     n_splits = task_config.n_splits
 
     # 1. Obtain Cross-Validation Splitter
-    gap = task_config.business_params.get("embargo_gap_days", 0) if task_config.validation_strategy == ValidationStrategy.TIME_SERIES_SPLIT else 0
+    is_time_based = task_config.validation_strategy in [
+        ValidationStrategy.TIME_SERIES_SPLIT,
+        ValidationStrategy.CHRONOLOGICAL_SPLIT,
+    ]
+    gap = task_config.business_params.get("embargo_gap_days", 0) if is_time_based else 0
     splitter = get_cross_validation_splitter(
         task_config.validation_strategy,
         n_splits=n_splits,
-        shuffle=(task_config.validation_strategy != ValidationStrategy.TIME_SERIES_SPLIT),
+        shuffle=(not is_time_based),
         random_state=RANDOM_SEED,
         gap=gap,
     )
@@ -106,8 +116,8 @@ def execute_cross_validation(
         f"Starting {n_splits}-fold CV for '{task_config.task_name}' with model '{model_name}'..."
     )
 
-    # Split generator
-    split_gen = splitter.split(X, y if is_classifier else None)
+    # Split generator passing calendar date groups if time-based
+    split_gen = splitter.split(X, y if is_classifier else None, groups=groups)
 
     for fold_idx, (train_idx, val_idx) in enumerate(split_gen, start=1):
         X_train, y_train = X.iloc[train_idx].copy(), y.iloc[train_idx].copy()

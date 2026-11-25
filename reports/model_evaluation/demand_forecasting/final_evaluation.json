@@ -1,20 +1,21 @@
 {
   "task_name": "demand_forecasting",
   "model_name": "naive",
-  "test_records_count": 1586,
-  "inference_duration_seconds": 0.0087,
+  "test_records_count": 1395,
+  "inference_duration_seconds": 0.0095,
+  "applied_decision_threshold": 0.5,
   "metrics": {
-    "mae": 1.623,
-    "rmse": 1.7317,
-    "r2": -5.6635,
-    "mape": 77.4333,
-    "wape": 402.1875,
-    "smape": 153.451,
-    "forecast_bias": 1.5965
+    "mae": 0.4036,
+    "rmse": 0.77,
+    "r2": -0.3788,
+    "mape": 100.0,
+    "wape": 100.0,
+    "smape": 64.8029,
+    "forecast_bias": -0.4036
   },
   "forecast_diagnostics": {
-    "mean_bias": 1.5965,
-    "overprediction_rate": 0.925,
-    "underprediction_rate": 0.0101
+    "mean_bias": -0.4036,
+    "overprediction_rate": 0.0,
+    "underprediction_rate": 0.324
   }
 }

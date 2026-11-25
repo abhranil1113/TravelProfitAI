@@ -1,0 +1,132 @@
+{
+  "task_name": "demand_forecasting",
+  "task_type": "time_series_regression",
+  "dataset_name": "customer_demand_features",
+  "model_name": "naive",
+  "target_column": "future_search_volume_7d",
+  "feature_schema_version": "1.0.0",
+  "dataset_fingerprint": {
+    "schema_digest_sha256": "55c5c781327da962ff7d6ef5e200b2c3db006ce7d7e2bffa53dcb921a597d187",
+    "schema_fingerprint": {
+      "fingerprint_type": "schema_digest",
+      "algorithm": "sha256",
+      "digest": "55c5c781327da962ff7d6ef5e200b2c3db006ce7d7e2bffa53dcb921a597d187",
+      "schema_digest_sha256": "55c5c781327da962ff7d6ef5e200b2c3db006ce7d7e2bffa53dcb921a597d187",
+      "feature_count": 15,
+      "record_count": 10569,
+      "dataset_name": "customer_demand_features"
+    },
+    "content_fingerprint": {
+      "fingerprint_type": "deterministic_content_digest",
+      "algorithm": "sha256",
+      "digest": "e445972e2f6070728c2df04c2b9c0cc7bb3c8fdcc4dd08673cb018b789f8c63f",
+      "sample_rows_hashed": 1000,
+      "total_records": 10569
+    },
+    "feature_count": 15,
+    "record_count": 10569
+  },
+  "schema_fingerprint": {
+    "fingerprint_type": "schema_digest",
+    "algorithm": "sha256",
+    "digest": "55c5c781327da962ff7d6ef5e200b2c3db006ce7d7e2bffa53dcb921a597d187",
+    "schema_digest_sha256": "55c5c781327da962ff7d6ef5e200b2c3db006ce7d7e2bffa53dcb921a597d187",
+    "feature_count": 15,
+    "record_count": 10569,
+    "dataset_name": "customer_demand_features"
+  },
+  "content_fingerprint": {
+    "fingerprint_type": "deterministic_content_digest",
+    "algorithm": "sha256",
+    "digest": "e445972e2f6070728c2df04c2b9c0cc7bb3c8fdcc4dd08673cb018b789f8c63f",
+    "sample_rows_hashed": 1000,
+    "total_records": 10569
+  },
+  "validation_strategy": "time_series_split",
+  "split_policy": "Deterministic time_series_split (n_splits=5)",
+  "date_ranges": {
+    "date_column": "date",
+    "dataset_min_date": "2025-09-12 00:00:00",
+    "dataset_max_date": "2027-05-04 00:00:00",
+    "train_min_date": "2025-09-12 00:00:00",
+    "train_max_date": "2027-02-04 00:00:00",
+    "test_min_date": "2027-02-12 00:00:00",
+    "test_max_date": "2027-05-04 00:00:00",
+    "embargo_gap_days": 7
+  },
+  "threshold_provenance": null,
+  "feature_names": [
+    "destination_id",
+    "inventory_type",
+    "search_volume",
+    "total_travellers",
+    "avg_search_price",
+    "lag_1",
+    "lag_7",
+    "lag_14",
+    "rolling_mean_7",
+    "rolling_mean_14",
+    "rolling_std_7",
+    "day_of_week",
+    "is_weekend",
+    "month",
+    "quarter"
+  ],
+  "feature_count": 15,
+  "saved_timestamp": "2026-11-25T10:09:55.675091+00:00",
+  "random_seed": 42,
+  "system_environment": {
+    "python_version": "3.10.0",
+    "platform": "Windows-10-10.0.26200-SP0"
+  },
+  "packages": {
+    "sklearn": "1.7.2",
+    "xgboost": "3.2.0",
+    "lightgbm": "4.7.0",
+    "joblib": "1.6.0",
+    "pandas": "2.3.3",
+    "numpy": "2.2.6"
+  },
+  "fit_time_seconds": 0.0409,
+  "cv_summary": {
+    "task_name": "demand_forecasting",
+    "model_name": "naive",
+    "n_splits": 5,
+    "mean_fit_time_sec": 0.018,
+    "mean_inference_time_sec": 0.008776,
+    "total_duration_sec": 0.18,
+    "mean_mae": 0.5007,
+    "std_mae": 0.1487,
+    "mean_rmse": 0.8736,
+    "std_rmse": 0.1817,
+    "mean_r2": -0.4815,
+    "std_r2": 0.1338,
+    "mean_mape": 100.0,
+    "std_mape": 0.0,
+    "mean_wape": 100.0,
+    "std_wape": 0.0,
+    "mean_smape": 76.3124,
+    "std_smape": 17.618,
+    "mean_forecast_bias": -0.5007,
+    "std_forecast_bias": 0.1487
+  },
+  "test_metrics": {
+    "mae": 0.4036,
+    "rmse": 0.77,
+    "r2": -0.3788,
+    "mape": 100.0,
+    "wape": 100.0,
+    "smape": 64.8029,
+    "forecast_bias": -0.4036
+  },
+  "selection_rationale": "Selected 'naive' achieving best mean mae=0.5007 (improvement of 0.0000 / 0.00% over naive mae=0.5007).",
+  "business_params": {
+    "horizon_days": 7,
+    "forecast_horizon_days": 7,
+    "seasonal_period": 7,
+    "seasonal_period_days": 7,
+    "embargo_gap_days": 7
+  },
+  "estimator_artifact": "estimator.joblib",
+  "preprocessor_artifact": "preprocessor.joblib"
+}

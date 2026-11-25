@@ -1,7 +1,7 @@
 """
 TBO InventoryIQ - Hotel Booking Feature Engineering (Phase 3)
 Transforms cleaned_hotel_bookings into model-ready features for cancellation prediction.
-Computes true transaction booking_date and separates pre-booking features from
+Computes synthesized booking_date proxy (arrival_date - lead_time_days) and separates pre-booking features from
 post-booking operational outcomes.
 """
 
@@ -19,6 +19,7 @@ from feature_engineering.date_features import extract_calendar_features
 from feature_engineering.config import BIN_CONFIGS
 
 # Explicit Feature Boundary Classification
+# Pre-booking features strictly available at reservation time
 PRE_BOOKING_FEATURE_COLUMNS = [
     "lead_time_days", "lead_time_bucket", "lead_time_log",
     "arrival_year", "arrival_month", "arrival_day", "arrival_day_of_week",
@@ -34,7 +35,13 @@ PRE_BOOKING_FEATURE_COLUMNS = [
     "adr", "adr_log", "adr_per_guest",
     "hotel", "meal", "country", "market_segment", "distribution_channel",
     "deposit_type", "customer_type",
-    "market_segment_historical_cancel_rate", "deposit_type_historical_cancel_rate",
+]
+
+# Analytical Reference Columns (Calculated over complete dataset; QUARANTINED from predictive inputs)
+# These benchmark features compute full-dataset target averages and must NEVER enter model training as predictors.
+ANALYTICAL_REFERENCE_COLUMNS = [
+    "market_segment_historical_cancel_rate",
+    "deposit_type_historical_cancel_rate",
 ]
 
 # Post-Booking Operational Features (Occur after transaction time; quarantined for pre-booking models)

@@ -59,7 +59,8 @@ def build_demand_forecasting_panel(
         reindexed["inventory_type"] = inv_type
         reindexed["search_volume"] = reindexed["search_volume"].fillna(0)
         reindexed["total_travellers"] = reindexed["total_travellers"].fillna(0)
-        reindexed["avg_search_price"] = reindexed["avg_search_price"].ffill().bfill().fillna(0.0)
+        # Zero future lookahead: strictly use past forward fill and zero fill for missing prices
+        reindexed["avg_search_price"] = reindexed["avg_search_price"].ffill().fillna(0.0)
 
         # 4. Construct Lag Features (Only past observations t, t-1, t-7, t-14)
         vol = reindexed["search_volume"]
@@ -77,8 +78,13 @@ def build_demand_forecasting_panel(
         reindexed["quarter"] = reindexed.index.quarter
 
         # 5. Target Construction: Future search volume at horizon h (shift -horizon)
+        # Note: target is point search volume at day t + horizon_days
         target_col = f"future_search_volume_{horizon_days}d"
         reindexed[target_col] = vol.shift(-horizon_days)
+
+        # Preserve point-in-time timestamps as traceability metadata (never predictors)
+        reindexed["forecast_origin_date"] = reindexed.index.strftime("%Y-%m-%d")
+        reindexed["target_date"] = (reindexed.index + pd.Timedelta(days=horizon_days)).strftime("%Y-%m-%d")
 
         panel_records.append(reindexed.reset_index().rename(columns={"index": "date"}))
 
@@ -86,6 +92,10 @@ def build_demand_forecasting_panel(
     # Drop rows at the end of each series where future target is not yet observed
     panel_clean = panel_df.dropna(subset=[f"future_search_volume_{horizon_days}d"]).reset_index(drop=True)
     panel_clean[f"future_search_volume_{horizon_days}d"] = panel_clean[f"future_search_volume_{horizon_days}d"].astype(float)
+
+    # Sort globally by calendar date, and secondarily by entity dimensions to ensure
+    # all entities are represented chronologically across temporal windows
+    panel_clean = panel_clean.sort_values(["date", "destination_id", "inventory_type"]).reset_index(drop=True)
 
     logger.info(
         f"Built demand forecasting panel: {len(panel_clean)} time-series records "
@@ -108,6 +118,8 @@ def build_inventory_forecasting_stream(
     """
     df_work = df_inventory.copy()
     sort_cols = ["inventory_id", "travel_date", "snapshot_date"]
+    if "snapshot_id" in df_work.columns:
+        sort_cols.append("snapshot_id")
     df_work = df_work.sort_values(sort_cols).reset_index(drop=True)
 
     # 1. Group by inventory identity and travel date to shift target
@@ -116,6 +128,10 @@ def build_inventory_forecasting_stream(
     # Future available quantity h snapshots ahead
     df_work["future_available_quantity"] = grouped["available_quantity"].shift(-horizon_snapshots)
     df_work["future_booked_quantity"] = grouped["booked_quantity"].shift(-horizon_snapshots)
+
+    # Preserve snapshot timestamps as metadata for audit and leakage protection
+    df_work["forecast_origin_snapshot_date"] = df_work["snapshot_date"].astype(str)
+    df_work["future_snapshot_date"] = grouped["snapshot_date"].shift(-horizon_snapshots).astype(str)
     
     # Stockout classification label
     df_work["actual_stockout"] = (
@@ -153,7 +169,10 @@ def prepare_task_dataset(
 
     elif task_config.task_name == "inventory_forecasting":
         horizon = task_config.forecast_horizon or 1
-        threshold = task_config.business_params.get("stockout_threshold_units", 5.0)
+        threshold = float(
+            task_config.business_params.get("stockout_threshold_units")
+            or task_config.business_params.get("stockout_threshold", 5.0)
+        )
         df = build_inventory_forecasting_stream(df, horizon_snapshots=horizon, stockout_threshold=threshold)
 
     # 2. Verify target column exists
@@ -174,13 +193,20 @@ def prepare_task_dataset(
     # Exclude target, specified exclusions, and post-booking leakage
     drop_cols = set(task_config.excluded_columns + [task_config.target_column])
     
-    # Also drop non-predictor columns added in target builders
-    if "actual_stockout" in df.columns and task_config.target_column != "actual_stockout":
-        drop_cols.add("actual_stockout")
-    if "future_booked_quantity" in df.columns:
-        drop_cols.add("future_booked_quantity")
-    if "date" in df.columns:
-        drop_cols.add("date")
+    # Also drop non-predictor timestamp/traceability columns added in target builders
+    meta_cols_to_drop = [
+        "actual_stockout",
+        "future_booked_quantity",
+        "date",
+        "forecast_origin_date",
+        "target_date",
+        "snapshot_date",
+        "forecast_origin_snapshot_date",
+        "future_snapshot_date",
+    ]
+    for mc in meta_cols_to_drop:
+        if mc in df.columns and mc != task_config.target_column:
+            drop_cols.add(mc)
 
     feature_cols = [c for c in df.columns if c not in drop_cols]
     if task_config.feature_columns:

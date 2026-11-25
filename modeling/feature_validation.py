@@ -16,10 +16,12 @@ def validate_modeling_features(
     X: pd.DataFrame,
     max_missing_pct: float = 50.0,
     check_constants: bool = True,
+    fail_closed: bool = True,
 ) -> Dict[str, Any]:
     """
     Audits candidate predictor matrix X before model training.
     Returns structured validation report with detected anomalies.
+    If fail_closed is True, raises ValueError when critical violations are found.
     """
     n_rows, n_cols = X.shape
     if n_rows == 0 or n_cols == 0:
@@ -63,8 +65,9 @@ def validate_modeling_features(
     }
 
     if not is_valid:
-        logger.warning(
-            f"Feature validation flagged issues: high_missing={high_missing_cols}, inf={inf_cols}"
-        )
+        msg = f"Feature validation flagged issues: high_missing={high_missing_cols}, inf={inf_cols}"
+        logger.warning(msg)
+        if fail_closed:
+            raise ValueError(f"Feature validation gate failed: {msg}")
 
     return report

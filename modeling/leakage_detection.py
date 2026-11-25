@@ -79,7 +79,7 @@ def audit_task_leakage(
             leaked_features.append({
                 "feature": excl,
                 "reason": "Explicitly excluded column present in feature matrix.",
-                "severity": "HIGH",
+                "severity": "CRITICAL",
             })
 
     has_critical_leakage = any(item["severity"] == "CRITICAL" for item in leaked_features)
@@ -92,10 +92,10 @@ def audit_task_leakage(
         "features_audited_count": len(feature_names),
     }
 
-    if has_critical_leakage:
-        leak_names = [item["feature"] for item in leaked_features if item["severity"] == "CRITICAL"]
+    if has_critical_leakage or len(leaked_features) > 0:
+        leak_names = [item["feature"] for item in leaked_features]
         raise ValueError(
-            f"Target leakage detected for task '{task_config.task_name}': {leak_names}. "
+            f"Target leakage or unauthorized feature detected for task '{task_config.task_name}': {leak_names}. "
             f"Training aborted to prevent invalid model results."
         )
 
