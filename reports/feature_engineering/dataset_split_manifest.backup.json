@@ -1,0 +1,41 @@
+{
+  "project": "TBO InventoryIQ",
+  "phase": "Phase 3 - Feature Engineering & Split Manifest",
+  "split_strategy": "Strict Chronological / Time-Series (Zero Future Leakage)",
+  "datasets": {
+    "flight_price_features": {
+      "split_type": "Scenario-Based Horizon Split (Advance Booking vs. Immediate Departure)",
+      "split_key": "days_left",
+      "calendar_timestamps_present": false,
+      "rationale": "Kaggle source dataset lacks calendar collection timestamps. Split evaluates model generalization across booking horizons: advance booking (>=15 days) to near-departure (1-7 days).",
+      "total_records": 4,
+      "train": {
+        "records": 2,
+        "pct": 50.0,
+        "days_left_range": [
+          15,
+          49
+        ],
+        "avg_price_inr": 5500.0
+      },
+      "validation": {
+        "records": 1,
+        "pct": 25.0,
+        "days_left_range": [
+          8,
+          14
+        ],
+        "avg_price_inr": 9000.0
+      },
+      "test": {
+        "records": 1,
+        "pct": 25.0,
+        "days_left_range": [
+          1,
+          7
+        ],
+        "avg_price_inr": 15000.0
+      }
+    }
+  }
+}

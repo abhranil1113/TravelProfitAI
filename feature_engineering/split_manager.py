@@ -4,7 +4,7 @@ Constructs reproducible, leakage-free chronological and grouped dataset splits
 for future model training without executing any training in Phase 3.
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional, Union
 import json
 from pathlib import Path
 import pandas as pd
@@ -13,10 +13,20 @@ from feature_engineering.config import REPORTS_DIR
 
 
 def generate_chronological_splits(
-    feature_datasets: Dict[str, pd.DataFrame]
+    feature_datasets: Dict[str, pd.DataFrame],
+    output_path: Optional[Union[str, Path]] = None,
 ) -> Dict[str, Any]:
     """
     Computes deterministic chronological split manifests for time-dependent datasets.
+
+    Args:
+        feature_datasets: Dictionary mapping dataset names to DataFrames.
+        output_path: Optional path to save the generated split manifest.
+                     If None (default), returns the manifest dictionary in memory
+                     without writing to disk.
+
+    Returns:
+        Dict[str, Any]: The split manifest dictionary.
     """
     manifest = {
         "project": "TBO InventoryIQ",
@@ -164,8 +174,10 @@ def generate_chronological_splits(
             "test": {"records": n - val_end, "pct": 15.0},
         }
 
-    manifest_path = REPORTS_DIR / "dataset_split_manifest.json"
-    with open(manifest_path, "w", encoding="utf-8") as f:
-        json.dump(manifest, f, indent=2)
+    if output_path is not None:
+        target_path = Path(output_path)
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(target_path, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, indent=2)
 
     return manifest

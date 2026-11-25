@@ -47,3 +47,23 @@ def test_scenario_horizon_split_flight_price():
     assert flight_split["test"]["records"] == 1  # 3 (1-7)
     assert "Scenario-Based Horizon Split" in flight_split["split_type"]
     assert flight_split["calendar_timestamps_present"] == False
+
+
+def test_split_manifest_persistence_opt_in(tmp_path):
+    fpdf = pd.DataFrame({
+        "days_left": [30, 20, 10, 3],
+        "price": [5000, 6000, 9000, 15000],
+    })
+    feature_datasets = {"flight_price_features": fpdf}
+
+    # 1. Default call (output_path=None) must NOT write any file to disk
+    manifest = generate_chronological_splits(feature_datasets, output_path=None)
+    assert manifest is not None
+    assert "flight_price_features" in manifest["datasets"]
+
+    # 2. Explicit output_path writes strictly to target location
+    custom_target = tmp_path / "test_manifest.json"
+    manifest_saved = generate_chronological_splits(feature_datasets, output_path=custom_target)
+    assert custom_target.exists()
+    assert manifest_saved == manifest
+

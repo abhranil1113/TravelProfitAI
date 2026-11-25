@@ -3,38 +3,149 @@
   "phase": "Phase 3 - Feature Engineering & Split Manifest",
   "split_strategy": "Strict Chronological / Time-Series (Zero Future Leakage)",
   "datasets": {
+    "hotel_cancellation_features": {
+      "split_key": "arrival_date",
+      "split_type": "Arrival Date Seasonal Cohort Split",
+      "total_records": 119208,
+      "train": {
+        "records": 78589,
+        "pct": 65.93,
+        "date_range": [
+          "2015-07-01",
+          "2016-12-31"
+        ],
+        "target_cancellation_rate_pct": 36.22
+      },
+      "validation": {
+        "records": 18442,
+        "pct": 15.47,
+        "date_range": [
+          "2017-01-01",
+          "2017-04-30"
+        ],
+        "target_cancellation_rate_pct": 36.53
+      },
+      "test": {
+        "records": 22177,
+        "pct": 18.6,
+        "date_range": [
+          "2017-05-01",
+          "2017-08-31"
+        ],
+        "target_cancellation_rate_pct": 40.57
+      },
+      "booking_date_chronological_split": {
+        "split_key": "booking_date",
+        "split_type": "Transaction Point-in-Time Booking Stream Split",
+        "train": {
+          "records": 83489,
+          "pct": 70.04,
+          "booking_date_range": [
+            "2013-06-24",
+            "2016-11-06"
+          ],
+          "target_cancellation_rate_pct": 38.01
+        },
+        "validation": {
+          "records": 18002,
+          "pct": 15.1,
+          "booking_date_range": [
+            "2016-11-07",
+            "2017-02-03"
+          ],
+          "target_cancellation_rate_pct": 40.08
+        },
+        "test": {
+          "records": 17717,
+          "pct": 14.86,
+          "booking_date_range": [
+            "2017-02-04",
+            "2017-08-31"
+          ],
+          "target_cancellation_rate_pct": 29.63
+        }
+      }
+    },
     "flight_price_features": {
       "split_type": "Scenario-Based Horizon Split (Advance Booking vs. Immediate Departure)",
       "split_key": "days_left",
       "calendar_timestamps_present": false,
       "rationale": "Kaggle source dataset lacks calendar collection timestamps. Split evaluates model generalization across booking horizons: advance booking (>=15 days) to near-departure (1-7 days).",
-      "total_records": 4,
+      "total_records": 300153,
       "train": {
-        "records": 2,
-        "pct": 50.0,
+        "records": 225235,
+        "pct": 75.04,
         "days_left_range": [
           15,
           49
         ],
-        "avg_price_inr": 5500.0
+        "avg_price_inr": 19549.63
       },
       "validation": {
-        "records": 1,
-        "pct": 25.0,
+        "records": 42805,
+        "pct": 14.26,
         "days_left_range": [
           8,
           14
         ],
-        "avg_price_inr": 9000.0
+        "avg_price_inr": 23768.36
       },
       "test": {
-        "records": 1,
-        "pct": 25.0,
+        "records": 32113,
+        "pct": 10.7,
         "days_left_range": [
           1,
           7
         ],
-        "avg_price_inr": 15000.0
+        "avg_price_inr": 26451.23
+      }
+    },
+    "customer_demand_features": {
+      "split_key": "chronological_index",
+      "total_records": 5000,
+      "train": {
+        "records": 3500,
+        "pct": 70.0
+      },
+      "validation": {
+        "records": 750,
+        "pct": 15.0
+      },
+      "test": {
+        "records": 750,
+        "pct": 15.0
+      }
+    },
+    "inventory_features": {
+      "split_key": "chronological_snapshot_date",
+      "total_records": 5000,
+      "train": {
+        "records": 3500,
+        "pct": 70.0
+      },
+      "validation": {
+        "records": 750,
+        "pct": 15.0
+      },
+      "test": {
+        "records": 750,
+        "pct": 15.0
+      }
+    },
+    "supplier_profitability_features": {
+      "split_key": "chronological_travel_date",
+      "total_records": 5000,
+      "train": {
+        "records": 3500,
+        "pct": 70.0
+      },
+      "validation": {
+        "records": 750,
+        "pct": 15.0
+      },
+      "test": {
+        "records": 750,
+        "pct": 15.0
       }
     }
   }

@@ -114,7 +114,8 @@ def run_full_feature_pipeline(flight_sample_rows: int = None) -> Dict[str, Any]:
 
     # 4. Generate Chronological Split Manifests
     logger.info("Step 4: Constructing reproducible chronological split manifests...")
-    split_manifest = generate_chronological_splits(feature_datasets)
+    manifest_path = REPORTS_DIR / "dataset_split_manifest.json"
+    split_manifest = generate_chronological_splits(feature_datasets, output_path=manifest_path)
 
     # 5. Export Feature Dictionary & Metadata
     logger.info("Step 5: Exporting feature dictionary and metadata catalogs...")
