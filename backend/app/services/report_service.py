@@ -116,7 +116,30 @@ class ReportService:
             mime = "text/csv"
             ext = "csv"
         else:
-            content = f"%PDF-1.4\n% TBO InventoryIQ Executive Summary: {report.title}\n%%EOF"
+            gen_time = report.generation_completed_at.isoformat() if report.generation_completed_at else datetime.utcnow().isoformat()
+            stream_text = f"BT /F1 12 Tf 50 720 Td (TBO InventoryIQ - {report.title}) Tj 0 -25 Td (Report ID: {report.report_id}) Tj 0 -20 Td (Report Type: {report.report_type}) Tj 0 -20 Td (Status: {report.status.value}) Tj 0 -20 Td (Generated At: {gen_time}) Tj ET"
+            stream_len = len(stream_text.encode("utf-8"))
+            content = (
+                f"%PDF-1.4\n"
+                f"1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n"
+                f"2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n"
+                f"3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> >> endobj\n"
+                f"4 0 obj << /Length {stream_len} >> stream\n"
+                f"{stream_text}\n"
+                f"endstream\n"
+                f"endobj\n"
+                f"xref\n"
+                f"0 5\n"
+                f"0000000000 65535 f \n"
+                f"0000000009 00000 n \n"
+                f"0000000058 00000 n \n"
+                f"0000000115 00000 n \n"
+                f"0000000300 00000 n \n"
+                f"trailer << /Size 5 /Root 1 0 R >>\n"
+                f"startxref\n"
+                f"450\n"
+                f"%%EOF\n"
+            )
             mime = "application/pdf"
             ext = "pdf"
 

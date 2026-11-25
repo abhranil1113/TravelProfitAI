@@ -41,13 +41,44 @@ from backend.app.schemas.notification import (
 logger = logging.getLogger("tbo_inventoryiq.notifications")
 
 
-def _schedule_background(coro):
-    """Safely schedules an async coroutine on the running event loop if one exists."""
+def _schedule_background(coro) -> Any:
+    """
+    Safely schedules an async coroutine on the running event loop if one exists,
+    or dispatches thread-safely to the main application loop, or executes directly.
+    Guarantees that notifications are never silently closed or dropped.
+    """
+    # 1. Check if the current thread has an active, running event loop
     try:
         loop = asyncio.get_running_loop()
-        loop.create_task(coro)
+        if loop.is_running():
+            if NotificationService._main_loop is None or not NotificationService._main_loop.is_running():
+                NotificationService._main_loop = loop
+            return loop.create_task(coro)
     except RuntimeError:
-        coro.close()
+        pass
+
+    # 2. If in a worker thread (e.g. FastAPI anyio threadpool), check for the main running loop
+    main_loop = NotificationService.get_main_loop()
+    if main_loop and main_loop.is_running():
+        return asyncio.run_coroutine_threadsafe(coro, main_loop)
+
+    # 3. If no event loop is running anywhere (e.g. synchronous unit test or CLI script),
+    # run the coroutine to completion so it is never dropped.
+    try:
+        try:
+            loop = asyncio.get_event_loop()
+            if not loop.is_running() and not loop.is_closed():
+                return loop.run_until_complete(coro)
+        except RuntimeError:
+            pass
+        return asyncio.run(coro)
+    except Exception as e:
+        logger.error("Failed to execute notification background task: %s", e)
+        try:
+            coro.close()
+        except Exception:
+            pass
+        raise
 
 
 class NotificationService:
@@ -57,9 +88,27 @@ class NotificationService:
     idempotent event dispatching, and real-time Socket.IO delivery.
     """
 
+    _main_loop: Optional[asyncio.AbstractEventLoop] = None
+
     # In-memory idempotency cache: key -> timestamp (seconds)
     _idempotency_cache: Dict[str, float] = {}
     _idempotency_ttl_seconds: float = 30.0
+
+    @classmethod
+    def set_main_loop(cls, loop: asyncio.AbstractEventLoop) -> None:
+        """Sets the application's primary running asyncio event loop."""
+        cls._main_loop = loop
+
+    @classmethod
+    def get_main_loop(cls) -> Optional[asyncio.AbstractEventLoop]:
+        """Returns the application's primary running event loop if active."""
+        if cls._main_loop is not None:
+            try:
+                if cls._main_loop.is_running():
+                    return cls._main_loop
+            except Exception:
+                pass
+        return None
 
     @classmethod
     def create_notification_object(
@@ -147,83 +196,101 @@ class NotificationService:
             for dr in default_roles:
                 resolved_roles.add(dr.upper())
 
-        if resolved_roles and db is not None:
+        active_session = db
+        own_session = False
+        if active_session is None or not getattr(active_session, "is_active", True):
             try:
-                role_users = db.execute(
-                    select(User.id).where(
-                        User.is_active == True,
-                        User.role.in_(list(resolved_roles)),
-                    )
-                ).scalars().all()
-                for uid in role_users:
-                    target_recipients.add(uid)
+                from backend.app.database.session import SessionLocal
+                active_session = SessionLocal()
+                own_session = True
             except Exception as e:
-                logger.warning("Failed to resolve users for roles %s: %s", resolved_roles, e)
-
-        # 4. Filter by Notification Preferences (In-App Channel)
-        skipped_recipients: List[int] = []
-        final_recipients: List[int] = []
-
-        if db is not None and target_recipients:
-            try:
-                disabled_users = set(
-                    db.execute(
-                        select(NotificationPreference.user_id).where(
-                            NotificationPreference.user_id.in_(list(target_recipients)),
-                            NotificationPreference.channel == NotificationChannel.IN_APP,
-                            NotificationPreference.is_enabled == False,
-                        )
-                    ).scalars().all()
-                )
-                for uid in target_recipients:
-                    if uid in disabled_users:
-                        skipped_recipients.append(uid)
-                    else:
-                        final_recipients.append(uid)
-            except Exception as e:
-                logger.warning("Failed to check notification preferences: %s", e)
-                final_recipients = list(target_recipients)
-        else:
-            final_recipients = list(target_recipients)
+                logger.debug("Independent DB session creation not available: %s", e)
+                active_session = None
 
         persisted_records: Dict[int, Notification] = {}
         persisted_count = 0
+        final_recipients: List[int] = []
 
-        # 5. Database Persistence (Safe and Non-Blocking)
-        if db is not None and final_recipients:
-            try:
-                orm_type = map_event_to_orm_type(event_type)
-                for uid in final_recipients:
-                    notif = Notification(
-                        user_id=uid,
-                        type=orm_type,
-                        title=title,
-                        message=message,
-                        entity_type=entity_type,
-                        entity_id=str(entity_id) if entity_id is not None else None,
-                        is_read=False,
+        try:
+            if resolved_roles and active_session is not None:
+                try:
+                    role_users = active_session.execute(
+                        select(User.id).where(
+                            User.is_active == True,
+                            User.role.in_(list(resolved_roles)),
+                        )
+                    ).scalars().all()
+                    for uid in role_users:
+                        target_recipients.add(uid)
+                except Exception as e:
+                    logger.warning("Failed to resolve users for roles %s: %s", resolved_roles, e)
+
+            # 4. Filter by Notification Preferences (In-App Channel)
+            skipped_recipients: List[int] = []
+
+            if active_session is not None and target_recipients:
+                try:
+                    disabled_users = set(
+                        active_session.execute(
+                            select(NotificationPreference.user_id).where(
+                                NotificationPreference.user_id.in_(list(target_recipients)),
+                                NotificationPreference.channel == NotificationChannel.IN_APP,
+                                NotificationPreference.is_enabled == False,
+                            )
+                        ).scalars().all()
                     )
-                    db.add(notif)
-                    db.flush()
-                    persisted_records[uid] = notif
-                    persisted_count += 1
+                    for uid in target_recipients:
+                        if uid in disabled_users:
+                            skipped_recipients.append(uid)
+                        else:
+                            final_recipients.append(uid)
+                except Exception as e:
+                    logger.warning("Failed to check notification preferences: %s", e)
+                    final_recipients = list(target_recipients)
+            else:
+                final_recipients = list(target_recipients)
 
-                    # Record in-app delivery attempt
-                    is_online = socket_manager.is_user_connected(uid)
-                    delivery = NotificationDelivery(
-                        notification_id=notif.id,
-                        channel=NotificationChannel.IN_APP,
-                        delivery_status=DeliveryStatus.SENT if is_online else DeliveryStatus.PENDING,
-                        attempt_count=1 if is_online else 0,
-                        last_attempt_at=datetime.now(timezone.utc) if is_online else None,
-                        delivered_at=datetime.now(timezone.utc) if is_online else None,
-                    )
-                    db.add(delivery)
+            # 5. Database Persistence (Safe and Non-Blocking)
+            if active_session is not None and final_recipients:
+                try:
+                    orm_type = map_event_to_orm_type(event_type)
+                    for uid in final_recipients:
+                        notif = Notification(
+                            user_id=uid,
+                            type=orm_type,
+                            title=title,
+                            message=message,
+                            entity_type=entity_type,
+                            entity_id=str(entity_id) if entity_id is not None else None,
+                            is_read=False,
+                        )
+                        active_session.add(notif)
+                        active_session.flush()
+                        persisted_records[uid] = notif
+                        persisted_count += 1
 
-                db.commit()
-            except Exception as e:
-                logger.error("Failed to persist notification records in DB: %s", e)
-                db.rollback()
+                        # Record in-app delivery attempt
+                        is_online = socket_manager.is_user_connected(uid)
+                        delivery = NotificationDelivery(
+                            notification_id=notif.id,
+                            channel=NotificationChannel.IN_APP,
+                            delivery_status=DeliveryStatus.SENT if is_online else DeliveryStatus.PENDING,
+                            attempt_count=1 if is_online else 0,
+                            last_attempt_at=datetime.now(timezone.utc) if is_online else None,
+                            delivered_at=datetime.now(timezone.utc) if is_online else None,
+                        )
+                        active_session.add(delivery)
+
+                    active_session.commit()
+                except Exception as e:
+                    logger.error("Failed to persist notification records in DB: %s", e)
+                    active_session.rollback()
+        finally:
+            if own_session and active_session is not None:
+                try:
+                    active_session.close()
+                except Exception:
+                    pass
 
         # 6. Real-Time Socket.IO Emission
         emitted_count = 0
@@ -319,12 +386,13 @@ class NotificationService:
         metadata: Optional[Dict[str, Any]] = None,
         db: Optional[Session] = None,
         idempotency_key: Optional[str] = None,
-    ) -> None:
+    ) -> Any:
         """
         Synchronous non-blocking helper for triggering notifications from synchronous business code.
-        Safely schedules async notify on the active event loop if present.
+        Safely schedules async notify on the active event loop if present or dispatches
+        thread-safely to the main event loop, guaranteeing no silent coroutine drops.
         """
-        _schedule_background(
+        return _schedule_background(
             cls.notify(
                 event_type=event_type,
                 title=title,

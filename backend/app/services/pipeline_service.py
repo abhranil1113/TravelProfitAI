@@ -46,7 +46,7 @@ class PipelineService:
     @staticmethod
     def trigger_batch(db: Session, payload: PipelineBatchTriggerRequest, user_id: int) -> IngestionBatch:
         batch_uid = f"BATCH-{uuid.uuid4().hex[:10].upper()}"
-        celery_task = f"task-{uuid.uuid4().hex[:8]}"
+        pipeline_task = f"in_process_{batch_uid.lower()}"
 
         batch = IngestionBatch(
             batch_uid=batch_uid,
@@ -54,7 +54,7 @@ class PipelineService:
             source_uri=payload.source_uri.strip(),
             batch_date=payload.batch_date or date.today(),
             status=PipelineStatus.PENDING,
-            celery_task_id=celery_task,
+            celery_task_id=pipeline_task,
             triggered_by_user_id=user_id,
             processing_started_at=datetime.now(timezone.utc),
         )
@@ -64,7 +64,7 @@ class PipelineService:
             action="DATA_INGESTION_BATCH_TRIGGERED",
             entity_type="ingestion_batches",
             entity_id=batch_uid,
-            new_value_json={"dataset": batch.dataset_name, "celery_task_id": celery_task},
+            new_value_json={"dataset": batch.dataset_name, "execution_mode": "IN_PROCESS", "task_id": pipeline_task},
         ))
         db.commit()
         db.refresh(batch)

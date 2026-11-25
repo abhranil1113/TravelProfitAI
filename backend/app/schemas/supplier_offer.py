@@ -59,7 +59,10 @@ class SupplierOfferCreateRequest(BaseModel):
                 if isinstance(val, str) and len(val) == 10:
                     data["valid_from"] = datetime.fromisoformat(f"{val}T00:00:00")
             if not data.get("travel_date"):
-                if data.get("valid_from"):
+                if data.get("valid_until"):
+                    vu = data["valid_until"]
+                    data["travel_date"] = vu.date() if isinstance(vu, datetime) else vu
+                elif data.get("valid_from"):
                     vf = data["valid_from"]
                     data["travel_date"] = vf.date() if isinstance(vf, datetime) else vf
                 else:

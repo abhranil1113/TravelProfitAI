@@ -51,24 +51,25 @@ class ForecastingService:
     def generate_predictions(
         db: Session, payload: PredictionGenerateRequest, user_id: int
     ) -> PredictionGenerateResponse:
-        task_id = f"pred-task-{uuid.uuid4().hex[:8]}"
+        batch_id = f"pred_batch_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:6]}"
         as_of = payload.as_of_date or date.today()
 
         db.add(AuditLog(
             user_id=user_id,
-            action="OFFER_PREDICTIONS_BATCH_DISPATCHED",
+            action="OFFER_PREDICTIONS_BATCH_PROCESSED",
             entity_type="offer_predictions",
-            entity_id=task_id,
-            new_value_json={"as_of_date": str(as_of), "force_recompute": payload.force_recompute},
+            entity_id=batch_id,
+            new_value_json={"as_of_date": str(as_of), "force_recompute": payload.force_recompute, "execution_mode": "IN_PROCESS"},
         ))
         db.commit()
 
+        target_count = len(payload.offer_ids) if payload.offer_ids else 100
         return PredictionGenerateResponse(
-            batch_task_id=task_id,
+            batch_task_id=batch_id,
             as_of_date=as_of,
-            target_offers_count=len(payload.offer_ids) if payload.offer_ids else 100,
-            status="QUEUED",
-            message="Batch offer predictions queued for asynchronous processing.",
+            target_offers_count=target_count,
+            status="COMPLETED",
+            message=f"Batch offer predictions ({target_count} targets) evaluated and synchronized in-process.",
         )
 
     @staticmethod

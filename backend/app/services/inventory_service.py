@@ -122,8 +122,14 @@ class InventoryService:
 
     @staticmethod
     def create_snapshot(db: Session, payload: InventorySnapshotCreateRequest) -> InventorySnapshot:
+        from backend.app.core.exceptions import BadRequestException
         item = db.query(InventoryItem).filter(InventoryItem.inventory_id == payload.inventory_id).first()
-        cat = item.inventory_category if item else InventoryCategory.HOTEL
+        if not item:
+            raise EntityNotFoundError("InventoryItem", payload.inventory_id)
+        if payload.available_units < 0:
+            raise BadRequestException(f"available_units cannot be negative, got {payload.available_units}")
+
+        cat = item.inventory_category
         snap_dt = datetime.combine(payload.snapshot_date, datetime.min.time()) if isinstance(payload.snapshot_date, date) and not isinstance(payload.snapshot_date, datetime) else (payload.snapshot_date or datetime.utcnow())
         trav_dt = payload.snapshot_date if isinstance(payload.snapshot_date, date) else date.today()
         tot_units = payload.available_units + (getattr(payload, "booked_units", 0) or 0)
@@ -145,10 +151,16 @@ class InventoryService:
 
     @staticmethod
     def bulk_create_snapshots(db: Session, snapshots_data: list[InventorySnapshotCreateRequest]) -> int:
+        from backend.app.core.exceptions import BadRequestException
         records = []
         for p in snapshots_data:
             item = db.query(InventoryItem).filter(InventoryItem.inventory_id == p.inventory_id).first()
-            cat = item.inventory_category if item else InventoryCategory.HOTEL
+            if not item:
+                raise EntityNotFoundError("InventoryItem", p.inventory_id)
+            if p.available_units < 0:
+                raise BadRequestException(f"available_units cannot be negative, got {p.available_units}")
+
+            cat = item.inventory_category
             snap_dt = datetime.combine(p.snapshot_date, datetime.min.time()) if isinstance(p.snapshot_date, date) and not isinstance(p.snapshot_date, datetime) else (p.snapshot_date or datetime.utcnow())
             trav_dt = p.snapshot_date if isinstance(p.snapshot_date, date) else date.today()
             tot_units = p.available_units + (getattr(p, "booked_units", 0) or 0)

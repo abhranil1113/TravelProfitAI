@@ -53,19 +53,10 @@ def require_roles(*allowed_roles: UserRole):
 
 def require_worker_token(
     x_worker_token: Annotated[str | None, Header(alias="X-Worker-Token")] = None,
-    authorization: Annotated[str | None, Header(alias="Authorization")] = None,
 ) -> str:
-    if x_worker_token and x_worker_token == settings.WORKER_SECRET_TOKEN:
+    import secrets
+    if x_worker_token and secrets.compare_digest(x_worker_token, settings.WORKER_SECRET_TOKEN):
         return x_worker_token
-    if authorization and authorization.startswith("Bearer "):
-        token = authorization.split(" ", 1)[1]
-        try:
-            from backend.app.core.security import decode_access_token
-            payload = decode_access_token(token)
-            if payload and payload.get("role") in ["ADMIN", "SYSTEM"]:
-                return "ADMIN"
-        except Exception:
-            pass
     raise PermissionDeniedError("Valid X-Worker-Token header is required.")
 
 

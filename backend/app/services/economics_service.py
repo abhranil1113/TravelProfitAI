@@ -20,13 +20,32 @@ class EconomicsService:
         penalty = req.penalty_cost_inr or Decimal("0.00")
 
         if req.inventory_category == InventoryCategory.HOTEL:
-            # Hotel economics: probability-weighted revenue factoring cancellation and salvage
-            expected_revenue = price * (Decimal("1.00") - p_cancel) + cost * salvage_rate * p_cancel
+            # Four-outcome scenario economics aligned with optimization/economics/hotel_economics.py
+            theta = Decimal("0.85")      # Base sell-through
+            r_cust = Decimal("0.80")     # Customer refund rate
+            f_resale = Decimal("0.40")   # Resale probability
+            delta = Decimal("0.90")      # Resale discount factor
+            r_supp_cancel = Decimal("0.85") if getattr(req, "refundable", False) else Decimal("0.00")
+            r_supp_unsold = Decimal("0.00")
+
+            p_s1 = Decimal("1.00") - theta                     # Unsold
+            p_s2 = theta * (Decimal("1.00") - p_cancel)         # Completed
+            p_s3a = theta * p_cancel * f_resale                 # Cancelled & Resold
+            p_s3b = theta * p_cancel * (Decimal("1.00") - f_resale)  # Cancelled & Unresold
+
+            inflow_s1 = r_supp_unsold * cost
+            inflow_s2 = price
+            inflow_s3a = (Decimal("1.00") - r_cust) * price + delta * price
+            inflow_s3b = (Decimal("1.00") - r_cust) * price + r_supp_cancel * cost
+
+            expected_revenue = (p_s1 * inflow_s1 + p_s2 * inflow_s2 + p_s3a * inflow_s3a + p_s3b * inflow_s3b)
             unit_contribution = expected_revenue - cost - penalty
         else:
-            # Flight economics: partial non-refundable inventory with salvage / resale
-            expected_revenue = price * (Decimal("1.00") - p_cancel * Decimal("0.50")) + cost * salvage_rate * (p_cancel * Decimal("0.50"))
-            unit_contribution = expected_revenue - cost - penalty
+            # Flight procurement economics aligned with optimization/economics/flight_economics.py
+            theta = Decimal("0.85")
+            expected_gross_revenue = theta * price + (Decimal("1.00") - theta) * salvage_rate * cost
+            expected_penalty = (Decimal("1.00") - theta) * penalty
+            unit_contribution = expected_gross_revenue - cost - expected_penalty
 
         total_net_profit = unit_contribution * req.demand_quantity
         profit_margin = (unit_contribution / price * 100) if price > 0 else Decimal("0.00")

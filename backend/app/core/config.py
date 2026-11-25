@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from typing import Any, List, Optional
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -58,6 +58,23 @@ class Settings(BaseSettings):
                     pass
             return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v
+
+    @model_validator(mode="after")
+    def validate_production_security(self) -> Settings:
+        if self.ENVIRONMENT.lower() == "production":
+            insecure_defaults = [
+                "tbo_inventoryiq_super_secret_jwt_key_2026_sabuj_sangha",
+                "secret",
+                "changeme",
+                "default",
+            ]
+            if self.SECRET_KEY in insecure_defaults or len(self.SECRET_KEY) < 32:
+                raise ValueError("Insecure or default SECRET_KEY is not permitted in production. Must be at least 32 characters.")
+            if self.WORKER_SECRET_TOKEN in ["tbo_worker_internal_secret_token_sabuj_sangha", "secret", "default"]:
+                raise ValueError("Insecure or default WORKER_SECRET_TOKEN is not permitted in production.")
+            if "*" in self.BACKEND_CORS_ORIGINS:
+                raise ValueError("Wildcard '*' in BACKEND_CORS_ORIGINS is not permitted in production.")
+        return self
     
     model_config = SettingsConfigDict(
         env_file=".env",

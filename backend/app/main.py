@@ -60,6 +60,17 @@ if settings.SOCKET_IO_ENABLED:
     logger.info("Socket.IO real-time engine mounted at %s", settings.SOCKET_IO_PATH)
 
 
+@app.on_event("startup")
+async def startup_event():
+    try:
+        import asyncio
+        from backend.app.services.notification_service import NotificationService
+        NotificationService.set_main_loop(asyncio.get_running_loop())
+        logger.info("NotificationService main event loop registered on startup.")
+    except Exception as e:
+        logger.warning("Could not set main loop on startup: %s", e)
+
+
 @app.on_event("shutdown")
 async def shutdown_socket_manager():
     if settings.SOCKET_IO_ENABLED:

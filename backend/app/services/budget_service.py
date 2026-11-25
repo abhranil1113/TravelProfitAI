@@ -122,7 +122,9 @@ class BudgetService:
         user_id: int,
     ) -> ProcurementBudget:
         budget = db.execute(
-            select(ProcurementBudget).where(ProcurementBudget.id == budget_id)
+            select(ProcurementBudget)
+            .where(ProcurementBudget.id == budget_id)
+            .with_for_update()
         ).scalar_one_or_none()
 
         if not budget:
@@ -151,7 +153,9 @@ class BudgetService:
     @staticmethod
     def activate_budget(db: Session, budget_id: int, user_id: int) -> ProcurementBudget:
         budget = db.execute(
-            select(ProcurementBudget).where(ProcurementBudget.id == budget_id)
+            select(ProcurementBudget)
+            .where(ProcurementBudget.id == budget_id)
+            .with_for_update()
         ).scalar_one_or_none()
 
         if not budget:
@@ -190,7 +194,9 @@ class BudgetService:
     @staticmethod
     def close_budget(db: Session, budget_id: int, user_id: int) -> ProcurementBudget:
         budget = db.execute(
-            select(ProcurementBudget).where(ProcurementBudget.id == budget_id)
+            select(ProcurementBudget)
+            .where(ProcurementBudget.id == budget_id)
+            .with_for_update()
         ).scalar_one_or_none()
 
         if not budget:
@@ -226,7 +232,9 @@ class BudgetService:
         user_id: int,
     ) -> ProcurementBudget:
         budget = db.execute(
-            select(ProcurementBudget).where(ProcurementBudget.id == budget_id)
+            select(ProcurementBudget)
+            .where(ProcurementBudget.id == budget_id)
+            .with_for_update()
         ).scalar_one_or_none()
 
         if not budget:
@@ -254,6 +262,9 @@ class BudgetService:
                 f"Budget reduction of INR {req.amount_inr} would bring total ({new_total}) below committed and reserved amount ({budget.spent_amount_inr + budget.reserved_amount_inr})"
             )
 
+        prev_avail = prev_total - budget.spent_amount_inr - budget.reserved_amount_inr
+        new_avail = new_total - budget.spent_amount_inr - budget.reserved_amount_inr
+
         budget.total_amount_inr = new_total
 
         ledger_entry = BudgetLedgerEntry(
@@ -261,8 +272,8 @@ class BudgetService:
             idempotency_key=req.idempotency_key,
             transaction_type=BudgetTransactionType.ADJUSTMENT,
             amount_inr=req.amount_inr,
-            previous_balance_inr=prev_total,
-            new_balance_inr=new_total,
+            previous_balance_inr=prev_avail,
+            new_balance_inr=new_avail,
             created_by_user_id=user_id,
             description=req.description,
         )

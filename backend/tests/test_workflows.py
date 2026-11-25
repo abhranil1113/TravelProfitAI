@@ -120,12 +120,12 @@ def test_workflow_c_optimization_and_procurement(client, admin_headers, pm_heade
     assert "purchase_orders_created" in pos
 
 
-def test_workflow_d_reports_and_analytics(client, admin_headers, pm_headers):
+def test_workflow_d_reports_and_analytics(client, admin_headers, pm_headers, worker_headers):
     """Workflow D: Search Events, Analytics, Reports, and Notifications."""
     # 1. Ingest search events
     events = client.post(
         "/api/v1/search-events/bulk",
-        headers=admin_headers,
+        headers=worker_headers,
         json={"events": [{"dest_id": "DEL", "inventory_category": "HOTEL", "stay_duration_nights": 3, "converted": True, "conversion_value_inr": 15000.00}]}
     ).json()
     assert events["inserted_count"] == 1

@@ -33,7 +33,7 @@ def register(
     user, token = AuthService.register_user(db, payload, creator_id=current_admin.id)
     return AuthMessageResponse(
         message=f"User {user.email} registered successfully.",
-        action_token=token,
+        action_token=None,  # Do not expose sensitive token in HTTP response
     )
 
 
@@ -103,7 +103,7 @@ def forgot_password(
     token = AuthService.forgot_password(db, payload.email)
     return AuthMessageResponse(
         message="If the email is registered, password reset instructions have been generated.",
-        action_token=token,
+        action_token=None,  # Do not expose sensitive token in HTTP response
     )
 
 

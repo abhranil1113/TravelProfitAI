@@ -61,8 +61,7 @@ def get_comparison_group(
     db: Annotated[Session, Depends(get_db)],
 ):
     """123. Retrieve stored comparison analysis results for comparison group."""
-    # Returns comparison with group id
-    return RunCompareResponse(comparison_group_id=comparison_group_id, runs=[])
+    return OptimizationService.get_comparison_group(db, comparison_group_id)
 
 
 @router.post(
@@ -136,8 +135,24 @@ def stream_run_progress(
     db: Annotated[Session, Depends(get_db)],
 ):
     """111. Server-Sent Events (SSE) streaming real-time solver execution progress."""
+    import json
+    from sqlalchemy import select
+    from backend.app.models.schema import OptimizationRunEvent
+
+    events = list(
+        db.execute(
+            select(OptimizationRunEvent)
+            .where(OptimizationRunEvent.run_id == run_id)
+            .order_by(OptimizationRunEvent.sequence_number.asc())
+        ).scalars().all()
+    )
+
     async def event_generator():
-        yield f"data: {{\"run_id\": \"{run_id}\", \"event\": \"CONNECTED\", \"progress_pct\": 100.0}}\n\n"
+        yield f"data: {json.dumps({'run_id': run_id, 'event': 'CONNECTED', 'progress_pct': 0.0})}\n\n"
+        for ev in events:
+            yield f"data: {json.dumps({'run_id': run_id, 'sequence': ev.sequence_number, 'event': ev.event_type, 'message': ev.message, 'progress_pct': ev.progress_pct})}\n\n"
+        if not events:
+            yield f"data: {json.dumps({'run_id': run_id, 'event': 'COMPLETED', 'progress_pct': 100.0})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
@@ -299,10 +314,19 @@ def download_run_artifact(
     db: Annotated[Session, Depends(get_db)],
 ):
     """122. Download specific optimization run artifact."""
+    import os
     art = OptimizationService.get_artifact(db, run_id, filename)
+    if os.path.exists(art.storage_path):
+        with open(art.storage_path, "rb") as f:
+            content = f.read()
+        return Response(
+            content=content,
+            media_type=art.mime_type or "application/octet-stream",
+            headers={"Content-Disposition": f'attachment; filename="{art.filename}"'},
+        )
     return Response(
         content=f'{{"artifact": "{art.filename}", "run_id": "{run_id}", "status": "available"}}',
-        media_type=art.mime_type,
+        media_type=art.mime_type or "application/json",
         headers={"Content-Disposition": f'attachment; filename="{art.filename}"'},
     )
 

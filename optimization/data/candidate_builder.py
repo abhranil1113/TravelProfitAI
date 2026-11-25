@@ -29,6 +29,8 @@ from optimization.economics.flight_economics import FlightEconomicsCalculator
 class CandidateOpportunityBuilder:
     """End-to-end data preparation service producing candidate procurement opportunities."""
 
+    _CANDIDATE_CACHE: Dict[Tuple[str, str, bool], Tuple[List[ProcurementOpportunity], List[CandidateOffer], Dict[str, Any]]] = {}
+
     def __init__(self, config: OptimizationConfig, loader: Optional[DatasetLoader] = None):
         self.config = config
         self.loader = loader or DatasetLoader()
@@ -40,6 +42,14 @@ class CandidateOpportunityBuilder:
         Returns:
             Tuple of (opportunities, candidate_offers, audit_metadata)
         """
+        cache_key = (
+            str(self.config.optimization_timestamp),
+            str(self.config.target_currency),
+            bool(self.config.allow_prototype_currency_override),
+        )
+        if cache_key in self._CANDIDATE_CACHE:
+            cached_opps, cached_cands, cached_meta = self._CANDIDATE_CACHE[cache_key]
+            return list(cached_opps), [c.model_copy() for c in cached_cands], dict(cached_meta)
         # 1. Load raw datasets
         raw_offers = self.loader.load_supplier_offers()
         raw_inventory = self.loader.load_inventory_availability()
@@ -202,4 +212,5 @@ class CandidateOpportunityBuilder:
             "opportunities_generated": len(opportunities),
             "flight_salvage_mode": "10% Optional" if self.config.use_flight_salvage_optional else "0% Baseline Spoilage",
         }
+        self._CANDIDATE_CACHE[cache_key] = (list(opportunities), [c.model_copy() for c in candidates], dict(audit_meta))
         return opportunities, candidates, audit_meta

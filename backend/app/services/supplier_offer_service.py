@@ -74,10 +74,12 @@ class SupplierOfferService:
         val_from = payload.valid_from.date() if isinstance(payload.valid_from, datetime) else (payload.valid_from or date.today())
         val_until = payload.valid_until.date() if isinstance(payload.valid_until, datetime) else (payload.valid_until or (date.today() + timedelta(days=30)))
         if val_until < val_from:
-            val_until = val_from
+            from backend.app.core.exceptions import BadRequestException
+            raise BadRequestException(f"valid_from ({val_from.isoformat()}) cannot be after valid_until ({val_until.isoformat()})")
         trav_date = payload.travel_date or val_until
-        if trav_date < val_until:
-            trav_date = val_until
+        if trav_date < val_from:
+            from backend.app.core.exceptions import BadRequestException
+            raise BadRequestException(f"travel_date ({trav_date.isoformat()}) cannot be earlier than valid_from ({val_from.isoformat()})")
 
         inv_id = payload.inventory_id.strip() if payload.inventory_id else None
         dest_code = payload.dest_id.upper() if payload.dest_id else "BLR"
@@ -103,6 +105,8 @@ class SupplierOfferService:
                 db.add(new_dest)
                 db.flush()
 
+        list_price = payload.original_cost if payload.original_cost and payload.original_cost > payload.cost_per_unit_inr else payload.cost_per_unit_inr
+
         offer = SupplierOffer(
             offer_id=offer_id,
             supplier_id=payload.supplier_id.upper(),
@@ -112,7 +116,7 @@ class SupplierOfferService:
             inventory_category=payload.inventory_category,
             unit_type=payload.unit_type,
             unit_cost_inr=payload.cost_per_unit_inr,
-            list_price_inr=payload.cost_per_unit_inr * Decimal("1.20"),
+            list_price_inr=list_price,
             currency_code=payload.currency,
             original_unit_cost=payload.original_cost,
             moq=payload.moq,
@@ -168,7 +172,8 @@ class SupplierOfferService:
             updates["moq"] = offer.moq
         if payload.cost_per_unit_inr is not None:
             offer.unit_cost_inr = payload.cost_per_unit_inr
-            offer.list_price_inr = payload.cost_per_unit_inr * Decimal("1.20")
+            if offer.list_price_inr < offer.unit_cost_inr:
+                offer.list_price_inr = offer.unit_cost_inr
             updates["cost_per_unit_inr"] = str(offer.unit_cost_inr)
         if payload.valid_until is not None:
             offer.valid_until = payload.valid_until.date() if isinstance(payload.valid_until, datetime) else payload.valid_until

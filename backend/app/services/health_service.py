@@ -37,8 +37,8 @@ class HealthService:
         except Exception:
             db_status = "degraded"
 
-        # Check redis connectivity (graceful fallback)
-        redis_status = "connected"
+        # Redis is intentionally not configured (infrastructure constraint: Redis/Celery not implemented)
+        redis_status = "not_configured"
 
         overall = "ready" if db_status == "connected" else "not_ready"
         return ReadinessResponse(
@@ -59,21 +59,33 @@ class HealthService:
 
     @staticmethod
     def get_champion_models_health(db: Session) -> ChampionModelHealthResponse:
+        import os
         models = db.execute(
             select(MLModel).where(MLModel.is_champion.is_(True))
         ).scalars().all()
 
-        items = [
-            ChampionModelHealthItem(
-                model_type=m.model_type.value,
-                version=m.version,
-                is_champion=m.is_champion,
-                status=m.model_status or "DEPLOYED",
+        items = []
+        all_healthy = True
+        for m in models:
+            # Check model artifact on disk if storage_uri is present
+            artifact_exists = True
+            if m.storage_uri and not os.path.exists(m.storage_uri):
+                artifact_exists = False
+
+            model_st = m.model_status or ("DEPLOYED" if artifact_exists else "DEGRADED")
+            if not artifact_exists or model_st == "DEGRADED":
+                all_healthy = False
+
+            items.append(
+                ChampionModelHealthItem(
+                    model_type=m.model_type.value,
+                    version=m.version,
+                    is_champion=m.is_champion,
+                    status=model_st,
+                )
             )
-            for m in models
-        ]
 
         return ChampionModelHealthResponse(
             models=items,
-            all_healthy=True,
+            all_healthy=all_healthy if models else True,
         )

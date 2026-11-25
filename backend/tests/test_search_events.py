@@ -3,12 +3,12 @@ from __future__ import annotations
 import pytest
 
 
-def test_search_events_and_funnel(client, admin_headers, pm_headers):
+def test_search_events_and_funnel(client, admin_headers, pm_headers, worker_headers):
     """Test #163 to #165, #180: Search events ingestion, velocity, and conversion funnel analytics."""
-    # 180. POST /search-events/bulk (ingest search events)
+    # 180. POST /search-events/bulk (ingest search events with worker token)
     bulk_res = client.post(
         "/api/v1/search-events/bulk",
-        headers=admin_headers,
+        headers=worker_headers,
         json={
             "events": [
                 {
