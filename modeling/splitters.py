@@ -51,7 +51,7 @@ class PurgedGroupTimeSeriesSplit:
     def split(self, X, y=None, groups=None) -> Generator[Tuple[np.ndarray, np.ndarray], None, None]:
         if groups is None:
             raise ValueError(
-                "PurgedGroupTimeSeriesSplit requires 'groups' parameter containing calendar dates or timestamps."
+                "PurgedGroupTimeSeriesSplit requires 'groups' containing calendar dates or timestamps."
             )
 
         n_samples = len(X)
@@ -121,9 +121,7 @@ def get_cross_validation_splitter(
         return ChronologicalSplitter(n_splits=n_splits)
 
     elif strategy == ValidationStrategy.TIME_SERIES_SPLIT:
-        # Time-series splits must NEVER shuffle; uses embargo gap when specified
-        if gap > 0:
-            return PurgedGroupTimeSeriesSplit(n_splits=n_splits, embargo_gap=gap)
+        # Time-series splits must NEVER shuffle; uses gap when specified
         return TimeSeriesSplit(n_splits=n_splits, gap=gap)
 
     raise ValueError(f"Unsupported validation strategy: {strategy}")

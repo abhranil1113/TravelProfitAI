@@ -38,6 +38,7 @@ class ModelArtifactRegistry:
     _CLASS_CACHE: Dict[str, Tuple[Any, Any, Dict[str, Any]]] = {}
     _TASK_TO_CACHE_KEY: Dict[str, str] = {}
     _TASK_GENERATIONS: Dict[str, int] = {}
+    _GLOBAL_GENERATION: int = 0
     _CACHE_LOCK = threading.RLock()
     _TASK_LOAD_LOCKS: Dict[str, threading.Lock] = {}
 
@@ -75,6 +76,7 @@ class ModelArtifactRegistry:
                     del cls._TASK_TO_CACHE_KEY[task_norm]
                 logger.info("Invalidated ML Engine model cache for task: %s (cleared %d keys, gen=%d)", task_norm, len(keys_to_remove), cls._TASK_GENERATIONS[task_norm])
             else:
+                cls._GLOBAL_GENERATION += 1
                 for k in list(cls._TASK_GENERATIONS.keys()):
                     cls._TASK_GENERATIONS[k] += 1
                 cls._CLASS_CACHE.clear()
@@ -170,6 +172,7 @@ class ModelArtifactRegistry:
             # Double-check cache under _CACHE_LOCK
             with self._CACHE_LOCK:
                 start_gen = self._TASK_GENERATIONS.get(task_norm, 0)
+                start_global_gen = self._GLOBAL_GENERATION
                 if self.config.cache_models:
                     if model_version:
                         v_str = str(model_version).strip()
@@ -265,7 +268,7 @@ class ModelArtifactRegistry:
             cached_tuple = (estimator, preprocessor, raw_metadata)
             with self._CACHE_LOCK:
                 current_gen = self._TASK_GENERATIONS.get(task_norm, 0)
-                if current_gen == start_gen:
+                if current_gen == start_gen and self._GLOBAL_GENERATION == start_global_gen:
                     if self.config.cache_models:
                         self._CLASS_CACHE[cache_key] = cached_tuple
                         if not model_version:
@@ -276,7 +279,7 @@ class ModelArtifactRegistry:
                     )
                 else:
                     logger.warning(
-                        "Discarded loaded model for '%s' due to concurrent invalidation (start_gen=%d, current_gen=%d).",
-                        task_norm, start_gen, current_gen
+                        "Discarded loaded model for '%s' due to concurrent invalidation (start_gen=%d, current_gen=%d, global_gen=%d vs %d).",
+                        task_norm, start_gen, current_gen, start_global_gen, self._GLOBAL_GENERATION
                     )
             return cached_tuple

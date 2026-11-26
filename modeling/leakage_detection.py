@@ -95,7 +95,7 @@ def audit_task_leakage(
     if has_critical_leakage or len(leaked_features) > 0:
         leak_names = [item["feature"] for item in leaked_features]
         raise ValueError(
-            f"Target leakage or unauthorized feature detected for task '{task_config.task_name}': {leak_names}. "
+            f"Target leakage detected: Target leakage or unauthorized feature detected for task '{task_config.task_name}': {leak_names}. "
             f"Training aborted to prevent invalid model results."
         )
 

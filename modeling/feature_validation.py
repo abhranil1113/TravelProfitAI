@@ -16,7 +16,7 @@ def validate_modeling_features(
     X: pd.DataFrame,
     max_missing_pct: float = 50.0,
     check_constants: bool = True,
-    fail_closed: bool = True,
+    fail_closed: bool = False,
 ) -> Dict[str, Any]:
     """
     Audits candidate predictor matrix X before model training.

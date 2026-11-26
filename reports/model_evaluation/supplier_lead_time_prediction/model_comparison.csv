@@ -1,3 +1,3 @@
 task_name,model_name,n_splits,mean_fit_time_sec,mean_inference_time_sec,total_duration_sec,mean_mae,std_mae,mean_rmse,std_rmse,mean_r2,std_r2,mean_mape,std_mape,mean_wape,std_wape,mean_smape,std_smape,mean_forecast_bias,std_forecast_bias
-supplier_lead_time_prediction,dummy,3,0.0078,0.004164,0.05,3.0416,0.0254,3.5462,0.0341,-0.0049,0.0043,70.1929,5.2088,42.8156,1.5612,46.4412,1.5625,0.0007,0.3048
-supplier_lead_time_prediction,linear_regression,3,0.0141,0.005726,0.07,3.1043,0.0611,3.5986,0.0798,-0.0353,0.0468,71.7812,5.4219,43.6778,0.6882,47.2387,1.0334,-0.0129,0.3776
+supplier_lead_time_prediction,dummy,3,0.0049,0.002612,0.03,3.0416,0.0254,3.5462,0.0341,-0.0049,0.0043,70.1929,5.2088,42.8156,1.5612,46.4412,1.5625,0.0007,0.3048
+supplier_lead_time_prediction,linear_regression,3,0.0101,0.002921,0.05,3.1043,0.0611,3.5986,0.0798,-0.0353,0.0468,71.7812,5.4219,43.6778,0.6882,47.2387,1.0334,-0.0129,0.3776

@@ -32,7 +32,14 @@ class DemandForecastService:
     ):
         self.registry = registry
         self.searches_df = searches_df if searches_df is not None else pd.DataFrame()
-        self.optimization_timestamp = optimization_timestamp or "2026-06-15"
+        if optimization_timestamp is not None:
+            self.optimization_timestamp = str(optimization_timestamp)
+        elif not self.searches_df.empty and "search_date" in self.searches_df.columns:
+            valid_dates = pd.to_datetime(self.searches_df["search_date"], errors="coerce").dropna()
+            self.optimization_timestamp = valid_dates.max().strftime("%Y-%m-%d") if not valid_dates.empty else pd.Timestamp.now().strftime("%Y-%m-%d")
+        else:
+            self.optimization_timestamp = pd.Timestamp.now().strftime("%Y-%m-%d")
+
         self.estimator, self.preprocessor, self.metadata = self.registry.get_model(self.TASK_NAME)
         self.expected_features: List[str] = self.metadata.get("feature_names", [
             "destination_id", "inventory_type", "search_volume", "total_travellers",
@@ -50,18 +57,27 @@ class DemandForecastService:
 
         df = self.searches_df.copy()
         if "search_date" in df.columns:
-            df["search_date_dt"] = pd.to_datetime(df["search_date"])
-            cutoff_dt = pd.to_datetime(self.optimization_timestamp)
+            df["search_date_dt"] = pd.to_datetime(df["search_date"], errors="coerce")
+            if hasattr(df["search_date_dt"].dt, "tz") and df["search_date_dt"].dt.tz is not None:
+                df["search_date_dt"] = df["search_date_dt"].dt.tz_localize(None)
+            df["search_date_dt"] = df["search_date_dt"].dt.normalize()
+            df = df.dropna(subset=["search_date_dt"])
+
+            cutoff_dt = pd.to_datetime(self.optimization_timestamp, errors="coerce")
+            if hasattr(cutoff_dt, "tz") and cutoff_dt.tz is not None:
+                cutoff_dt = cutoff_dt.tz_localize(None)
+            cutoff_dt = cutoff_dt.normalize()
             df = df[df["search_date_dt"] <= cutoff_dt]
 
         if df.empty:
             return cache
 
-        target_date = pd.to_datetime(self.optimization_timestamp) + pd.Timedelta(days=7)
-        day_of_week = int(target_date.dayofweek)
+        # Origin date calendar features (matching modeling/target_builder.py training semantics)
+        origin_date = pd.to_datetime(self.optimization_timestamp, errors="coerce")
+        day_of_week = int(origin_date.dayofweek)
         is_weekend = int(day_of_week >= 5)
-        month = int(target_date.month)
-        quarter = int(target_date.quarter)
+        month = int(origin_date.month)
+        quarter = int(origin_date.quarter)
 
         grouped = df.groupby(["destination_id", "inventory_type"])
         for (dest, itype), group in grouped:
@@ -81,22 +97,27 @@ class DemandForecastService:
             daily_reindexed = daily.reindex(full_idx)
             daily_reindexed["vol"] = daily_reindexed["vol"].fillna(0.0)
             daily_reindexed["travellers"] = daily_reindexed["travellers"].fillna(0.0)
-            daily_reindexed["price"] = daily_reindexed["price"].ffill().fillna(5000.0)
+            daily_reindexed["price"] = daily_reindexed["price"].ffill().fillna(0.0)
 
             last_row = daily_reindexed.iloc[-1]
             s_vol = float(last_row["vol"])
             t_trav = float(last_row["travellers"])
-            a_price = float(last_row["price"]) if np.isfinite(last_row["price"]) else 5000.0
+            a_price = float(last_row["price"]) if np.isfinite(last_row["price"]) else 0.0
 
             vol_series = daily_reindexed["vol"]
-            lag_1 = float(vol_series.shift(1).iloc[-1]) if len(vol_series) >= 2 else s_vol
-            lag_7 = float(vol_series.shift(7).iloc[-1]) if len(vol_series) >= 8 else lag_1
-            lag_14 = float(vol_series.shift(14).iloc[-1]) if len(vol_series) >= 15 else lag_7
+            lag_1_series = vol_series.shift(1).fillna(0.0)
+            lag_7_series = vol_series.shift(7).fillna(0.0)
+            lag_14_series = vol_series.shift(14).fillna(0.0)
+            r_mean_7_series = vol_series.shift(1).rolling(7, min_periods=1).mean().fillna(0.0)
+            r_mean_14_series = vol_series.shift(1).rolling(14, min_periods=1).mean().fillna(0.0)
+            r_std_7_series = vol_series.shift(1).rolling(7, min_periods=1).std().fillna(0.0)
 
-            r_mean_7 = float(vol_series.shift(1).rolling(7, min_periods=1).mean().iloc[-1]) if len(vol_series) >= 2 else lag_1
-            r_mean_14 = float(vol_series.shift(1).rolling(14, min_periods=1).mean().iloc[-1]) if len(vol_series) >= 2 else r_mean_7
-            r_std_7_val = vol_series.shift(1).rolling(7, min_periods=1).std().iloc[-1] if len(vol_series) >= 2 else 0.0
-            r_std_7 = float(r_std_7_val) if np.isfinite(r_std_7_val) else 0.0
+            lag_1 = float(lag_1_series.iloc[-1])
+            lag_7 = float(lag_7_series.iloc[-1])
+            lag_14 = float(lag_14_series.iloc[-1])
+            r_mean_7 = float(r_mean_7_series.iloc[-1])
+            r_mean_14 = float(r_mean_14_series.iloc[-1])
+            r_std_7 = float(r_std_7_series.iloc[-1])
 
             cache[dest_key] = {
                 "destination_id": str(dest),
@@ -139,7 +160,9 @@ class DemandForecastService:
             X_trans = self.preprocessor.transform(row_df) if self.preprocessor is not None else row_df
             raw_pred = self.estimator.predict(X_trans)
             val = float(raw_pred[0]) if hasattr(raw_pred, "__len__") else float(raw_pred)
-            val = max(0.0, val) if np.isfinite(val) else 0.0
+            if not np.isfinite(val):
+                raise ModelInferenceError(f"Demand estimator produced non-finite prediction '{val}' for {key}")
+            val = max(0.0, val)
 
             self._prediction_cache[key] = val
             return val

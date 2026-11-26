@@ -2,7 +2,7 @@
   "market_seasonal_signals": {
     "dataset_name": "market_seasonal_signals",
     "source_path": "data/synthetic/market_seasonal_signals.csv",
-    "processing_timestamp": "2026-11-24T07:15:39.771584+00:00",
+    "processing_timestamp": "2026-11-26T09:20:02.711157+00:00",
     "initial_rows": 5000,
     "final_rows": 5000,
     "rows_removed": 0,
@@ -20,7 +20,7 @@
   "inventory_availability": {
     "dataset_name": "inventory_availability",
     "source_path": "data/synthetic/inventory_availability.csv",
-    "processing_timestamp": "2026-11-24T07:15:39.787520+00:00",
+    "processing_timestamp": "2026-11-26T09:20:02.739621+00:00",
     "initial_rows": 5000,
     "final_rows": 5000,
     "rows_removed": 0,
@@ -39,7 +39,7 @@
   "supplier_offers": {
     "dataset_name": "supplier_offers",
     "source_path": "data/synthetic/supplier_offers.csv",
-    "processing_timestamp": "2026-11-24T07:15:39.821127+00:00",
+    "processing_timestamp": "2026-11-26T09:20:02.788729+00:00",
     "currency": "INR",
     "initial_rows": 5000,
     "final_rows": 5000,
@@ -59,7 +59,7 @@
   "customer_search_events": {
     "dataset_name": "customer_search_events",
     "source_path": "data/synthetic/customer_search_events.csv",
-    "processing_timestamp": "2026-11-24T07:15:39.834926+00:00",
+    "processing_timestamp": "2026-11-26T09:20:02.834362+00:00",
     "currency": "INR",
     "initial_rows": 5000,
     "final_rows": 5000,
@@ -79,7 +79,7 @@
   "airlines": {
     "dataset_name": "airlines",
     "source_path": "data/raw/flights/airlines.csv",
-    "processing_timestamp": "2026-11-24T07:15:39.866878+00:00",
+    "processing_timestamp": "2026-11-26T09:20:02.883821+00:00",
     "initial_rows": 14,
     "final_rows": 14,
     "rows_removed": 0,
@@ -92,7 +92,7 @@
   "airports": {
     "dataset_name": "airports",
     "source_path": "data/raw/flights/airports.csv",
-    "processing_timestamp": "2026-11-24T07:15:39.866878+00:00",
+    "processing_timestamp": "2026-11-26T09:20:02.886675+00:00",
     "initial_rows": 322,
     "final_rows": 322,
     "rows_removed": 0,
@@ -105,7 +105,7 @@
   "flights": {
     "dataset_name": "flights",
     "source_path": "data/raw/flights/flights.csv",
-    "processing_timestamp": "2026-11-24T07:15:39.866878+00:00",
+    "processing_timestamp": "2026-11-26T09:20:02.889616+00:00",
     "initial_rows": 1000,
     "final_rows": 1000,
     "rows_removed": 0,
@@ -123,7 +123,7 @@
   "flight_prices": {
     "dataset_name": "flight_prices",
     "source_path": "data/raw/flight_prices/Flight Price Prediction.csv",
-    "processing_timestamp": "2026-11-24T07:15:39.930666+00:00",
+    "processing_timestamp": "2026-11-26T09:20:02.977641+00:00",
     "currency": "INR",
     "initial_rows": 300153,
     "final_rows": 300153,
@@ -144,7 +144,7 @@
   "hotel_bookings": {
     "dataset_name": "hotel_bookings",
     "source_path": "data/raw/hotel_bookings/hotel_bookings.csv",
-    "processing_timestamp": "2026-11-24T07:15:40.765605+00:00",
+    "processing_timestamp": "2026-11-26T09:20:04.463596+00:00",
     "currency": "EUR",
     "initial_rows": 119390,
     "final_rows": 119208,

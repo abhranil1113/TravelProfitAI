@@ -4,28 +4,76 @@
   "dataset_name": "supplier_lead_time_features",
   "model_name": "dummy",
   "target_column": "actual_lead_days",
+  "feature_schema_version": "1.0.0",
+  "dataset_fingerprint": {
+    "schema_digest_sha256": "cbfea5b92241e16d74e321195e3654d33155ca0ad12920db5ec6b6fd56253521",
+    "schema_fingerprint": {
+      "fingerprint_type": "schema_digest",
+      "algorithm": "sha256",
+      "digest": "cbfea5b92241e16d74e321195e3654d33155ca0ad12920db5ec6b6fd56253521",
+      "schema_digest_sha256": "cbfea5b92241e16d74e321195e3654d33155ca0ad12920db5ec6b6fd56253521",
+      "feature_count": 3,
+      "record_count": 200,
+      "dataset_name": "supplier_lead_time_features"
+    },
+    "content_fingerprint": {
+      "fingerprint_type": "deterministic_content_digest",
+      "algorithm": "sha256",
+      "digest": "fa191b6724230e564c2be6ca990f5042e9317052f65a5b4b58441e634b4abb09",
+      "sample_rows_hashed": 200,
+      "total_records": 200
+    },
+    "feature_count": 3,
+    "record_count": 200
+  },
+  "schema_fingerprint": {
+    "fingerprint_type": "schema_digest",
+    "algorithm": "sha256",
+    "digest": "cbfea5b92241e16d74e321195e3654d33155ca0ad12920db5ec6b6fd56253521",
+    "schema_digest_sha256": "cbfea5b92241e16d74e321195e3654d33155ca0ad12920db5ec6b6fd56253521",
+    "feature_count": 3,
+    "record_count": 200,
+    "dataset_name": "supplier_lead_time_features"
+  },
+  "content_fingerprint": {
+    "fingerprint_type": "deterministic_content_digest",
+    "algorithm": "sha256",
+    "digest": "fa191b6724230e564c2be6ca990f5042e9317052f65a5b4b58441e634b4abb09",
+    "sample_rows_hashed": 200,
+    "total_records": 200
+  },
+  "validation_strategy": "kfold",
+  "split_policy": "Deterministic kfold (n_splits=3)",
+  "date_ranges": {},
+  "threshold_provenance": null,
   "feature_names": [
     "quote_amount",
     "fill_rate",
     "historical_reliability"
   ],
   "feature_count": 3,
-  "saved_timestamp": "2026-11-24T07:16:11.631887+00:00",
+  "saved_timestamp": "2026-11-26T09:21:02.344007+00:00",
   "random_seed": 42,
+  "system_environment": {
+    "python_version": "3.10.0",
+    "platform": "Windows-10-10.0.26200-SP0"
+  },
   "packages": {
     "sklearn": "1.7.2",
     "xgboost": "3.2.0",
     "lightgbm": "4.7.0",
-    "joblib": "1.6.0"
+    "joblib": "1.6.0",
+    "pandas": "2.3.3",
+    "numpy": "2.2.6"
   },
-  "fit_time_seconds": 0.008,
+  "fit_time_seconds": 0.0052,
   "cv_summary": {
     "task_name": "supplier_lead_time_prediction",
     "model_name": "dummy",
     "n_splits": 3,
-    "mean_fit_time_sec": 0.0078,
-    "mean_inference_time_sec": 0.004164,
-    "total_duration_sec": 0.05,
+    "mean_fit_time_sec": 0.0049,
+    "mean_inference_time_sec": 0.002612,
+    "total_duration_sec": 0.03,
     "mean_mae": 3.0416,
     "std_mae": 0.0254,
     "mean_rmse": 3.5462,

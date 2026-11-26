@@ -36,6 +36,8 @@ class NaiveForecaster(BaseEstimator, RegressorMixin):
     def __getattr__(self, name: str) -> Any:
         if name == "lag_col_idx":
             return getattr(self, "lag_col_idx_", None)
+        if name == "lag_col_idx_":
+            return getattr(self, "lag_col_idx", None)
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
     def __setstate__(self, state: Dict[str, Any]) -> None:
@@ -47,6 +49,20 @@ class NaiveForecaster(BaseEstimator, RegressorMixin):
             state["lag_col"] = "lag_1"
         if "last_value_" not in state:
             state["last_value_"] = 0.0
+        # Resolve lag_col_idx_ from feature_names_in_ if available
+        if state.get("lag_col_idx_") is None and "feature_names_in_" in state:
+            try:
+                fn = np.asarray(state["feature_names_in_"])
+                matches = np.where(fn == state["lag_col"])[0]
+                if len(matches) > 0:
+                    state["lag_col_idx_"] = int(matches[0])
+                    state["lag_col_idx"] = int(matches[0])
+            except Exception:
+                pass
+        # Fallback to standard 15-feature panel index if lag_col is lag_1
+        if state.get("lag_col_idx_") is None and state.get("lag_col") == "lag_1":
+            state["lag_col_idx_"] = 5
+            state["lag_col_idx"] = 5
         self.__dict__.update(state)
 
     def fit(self, X, y=None):
@@ -65,14 +81,18 @@ class NaiveForecaster(BaseEstimator, RegressorMixin):
             preds = X[self.lag_col].to_numpy().astype(float)
         # Path B: Input is a NumPy array (or DataFrame) and lag_col_idx_ is known
         elif hasattr(self, "lag_col_idx_") and self.lag_col_idx_ is not None:
-            if isinstance(X, np.ndarray) and 0 <= self.lag_col_idx_ < X.shape[1]:
-                preds = X[:, self.lag_col_idx_].astype(float)
-            elif isinstance(X, pd.DataFrame) and 0 <= self.lag_col_idx_ < X.shape[1]:
+            if isinstance(X, pd.DataFrame) and 0 <= self.lag_col_idx_ < X.shape[1]:
                 preds = X.iloc[:, self.lag_col_idx_].to_numpy().astype(float)
+            elif isinstance(X, (np.ndarray, list)):
+                arr = np.asarray(X, dtype=float)
+                if arr.ndim == 1:
+                    arr = arr.reshape(1, -1)
+                if arr.ndim == 2 and 0 <= self.lag_col_idx_ < arr.shape[1]:
+                    preds = arr[:, self.lag_col_idx_].astype(float)
 
         # Fallback: Constant persistence from last training observation
         if preds is None:
-            n = len(X)
+            n = len(X) if hasattr(X, "__len__") else 1
             logger.warning(
                 f"NaiveForecaster: Column '{self.lag_col}' (idx={getattr(self, 'lag_col_idx_', None)}) "
                 f"not resolvable in input of type {type(X)}. Falling back to last_value_={self.last_value_}."
@@ -104,6 +124,8 @@ class SeasonalNaiveForecaster(BaseEstimator, RegressorMixin):
     def __getattr__(self, name: str) -> Any:
         if name == "lag_col_idx":
             return getattr(self, "lag_col_idx_", None)
+        if name == "lag_col_idx_":
+            return getattr(self, "lag_col_idx", None)
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
     def __setstate__(self, state: Dict[str, Any]) -> None:
@@ -117,6 +139,20 @@ class SeasonalNaiveForecaster(BaseEstimator, RegressorMixin):
             state["lag_col"] = "lag_7"
         if "seasonal_history_" not in state:
             state["seasonal_history_"] = np.array([])
+        # Resolve lag_col_idx_ from feature_names_in_ if available
+        if state.get("lag_col_idx_") is None and "feature_names_in_" in state:
+            try:
+                fn = np.asarray(state["feature_names_in_"])
+                matches = np.where(fn == state["lag_col"])[0]
+                if len(matches) > 0:
+                    state["lag_col_idx_"] = int(matches[0])
+                    state["lag_col_idx"] = int(matches[0])
+            except Exception:
+                pass
+        # Fallback to standard 15-feature panel index if lag_col is lag_7
+        if state.get("lag_col_idx_") is None and state.get("lag_col") == "lag_7":
+            state["lag_col_idx_"] = 6
+            state["lag_col_idx"] = 6
         self.__dict__.update(state)
 
     def fit(self, X, y=None):
@@ -137,14 +173,18 @@ class SeasonalNaiveForecaster(BaseEstimator, RegressorMixin):
             preds = X[self.lag_col].to_numpy().astype(float)
         # Path B: Input is a NumPy array (or DataFrame) and lag_col_idx_ is known
         elif hasattr(self, "lag_col_idx_") and self.lag_col_idx_ is not None:
-            if isinstance(X, np.ndarray) and 0 <= self.lag_col_idx_ < X.shape[1]:
-                preds = X[:, self.lag_col_idx_].astype(float)
-            elif isinstance(X, pd.DataFrame) and 0 <= self.lag_col_idx_ < X.shape[1]:
+            if isinstance(X, pd.DataFrame) and 0 <= self.lag_col_idx_ < X.shape[1]:
                 preds = X.iloc[:, self.lag_col_idx_].to_numpy().astype(float)
+            elif isinstance(X, (np.ndarray, list)):
+                arr = np.asarray(X, dtype=float)
+                if arr.ndim == 1:
+                    arr = arr.reshape(1, -1)
+                if arr.ndim == 2 and 0 <= self.lag_col_idx_ < arr.shape[1]:
+                    preds = arr[:, self.lag_col_idx_].astype(float)
 
         # Fallback: Tiled seasonal history from training period
         if preds is None:
-            n = len(X)
+            n = len(X) if hasattr(X, "__len__") else 1
             logger.warning(
                 f"SeasonalNaiveForecaster: Column '{self.lag_col}' (idx={getattr(self, 'lag_col_idx_', None)}) "
                 f"not resolvable in input of type {type(X)}. Falling back to tiled seasonal history."

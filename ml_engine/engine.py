@@ -520,6 +520,9 @@ class MLEngine:
             prob_dict = None
             pred_label = None
 
+        if not np.isfinite(val):
+            raise ModelInferenceError(f"Model produced non-finite prediction '{val}' for task '{task_name}'")
+
         latency_ms = float(round((time.perf_counter() - start_time) * 1000.0, 3))
         return PredictionResult(
             task=request.task,

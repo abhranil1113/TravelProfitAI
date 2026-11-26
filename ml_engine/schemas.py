@@ -37,6 +37,8 @@ class PredictionRequest(BaseModel):
 
 class PredictionResult(BaseModel):
     """Standardized prediction response returned across all ML tasks."""
+    model_config = {"protected_namespaces": ()}
+
     task: PredictionTask
     status: InferenceStatus
     prediction: Optional[Any] = None
@@ -76,6 +78,8 @@ class BatchPredictionResult(BaseModel):
 
 class ModelMetadataSchema(BaseModel):
     """Schema representing validated metadata.json serialized alongside model artifacts."""
+    model_config = {"protected_namespaces": ()}
+
     task_name: str
     task_type: str
     model_name: str
@@ -85,6 +89,7 @@ class ModelMetadataSchema(BaseModel):
     saved_timestamp: Optional[str] = None
     random_seed: Optional[int] = 42
     artifact_checksum: Optional[str] = None
+    packages: Optional[Dict[str, Any]] = Field(default_factory=dict)
     test_metrics: Optional[Dict[str, Any]] = Field(default_factory=dict)
     cv_summary: Optional[Dict[str, Any]] = Field(default_factory=dict)
     business_params: Optional[Dict[str, Any]] = Field(default_factory=dict)

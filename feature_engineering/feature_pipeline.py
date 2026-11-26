@@ -15,6 +15,7 @@ if str(BASE_DIR) not in sys.path:
 import logging
 from typing import Dict, Any
 
+from feature_engineering.config import REPORTS_DIR
 from feature_engineering.dataset_builder import build_all_feature_datasets
 from feature_engineering.feature_validation import validate_feature_dataset
 from feature_engineering.leakage_detection import run_full_leakage_audit

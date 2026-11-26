@@ -59,8 +59,11 @@ def validate_business_rules(datasets: Dict[str, pd.DataFrame]) -> pd.DataFrame:
         })
 
         # Hotel room count > 0
-        hotel_searches = df[df["inventory_type"] == "HOTEL"]
-        invalid_rooms = ((hotel_searches["rooms_count"] <= 0) | (hotel_searches["rooms_count"].isnull())).sum()
+        if "inventory_type" in df.columns and "rooms_count" in df.columns:
+            hotel_searches = df[df["inventory_type"] == "HOTEL"]
+            invalid_rooms = ((hotel_searches["rooms_count"] <= 0) | (hotel_searches["rooms_count"].isnull())).sum()
+        else:
+            invalid_rooms = 0
         violations.append({
             "dataset_name": "customer_search_events",
             "rule_id": "BR_SE_04",

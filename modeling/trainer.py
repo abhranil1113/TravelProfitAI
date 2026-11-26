@@ -38,9 +38,10 @@ class ModelArtifact:
     def transform_features(self, X: pd.DataFrame) -> np.ndarray:
         """Transforms input DataFrame using the fold-fitted preprocessor."""
         # Align features to expected columns
-        X_aligned = X[self.feature_names].copy()
+        X_aligned = X.reindex(columns=self.feature_names).copy()
         if self.preprocessor is not None:
-            return self.preprocessor.transform(X_aligned)
+            out = self.preprocessor.transform(X_aligned)
+            return out.to_numpy() if hasattr(out, "to_numpy") else np.asarray(out)
         return X_aligned.to_numpy()
 
     def predict(self, X: pd.DataFrame) -> Tuple[np.ndarray, float]:
