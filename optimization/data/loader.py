@@ -55,7 +55,7 @@ class DatasetLoader:
                             "offer_id": str(o.offer_id),
                             "supplier_id": str(o.supplier_id),
                             "inventory_type": str(o.inventory_category.value if hasattr(o.inventory_category, "value") else o.inventory_category),
-                            "inventory_id": str(o.inventory_id) if o.inventory_id else f"INV_{o.offer_id}",
+                            "inventory_id": str(o.inventory_id) if o.inventory_id else str(o.offer_id),
                             "origin_id": str(o.origin_dest_id) if o.origin_dest_id else None,
                             "destination_id": str(o.dest_id),
                             "travel_date": str(o.travel_date),
@@ -70,7 +70,8 @@ class DatasetLoader:
                     logger.info("Loaded %d active supplier offers directly from PostgreSQL.", len(rows))
                     return pd.DataFrame(rows)
             except Exception as e:
-                logger.warning("Database supplier offer loading failed (%s). Falling back to Parquet.", e)
+                logger.error("Database supplier offer loading failed: %s", e)
+                raise OptimizationError(f"Database supplier offer loading failed: {e}") from e
 
         path = self._resolve_path(self.paths["supplier_offers"])
         if not os.path.exists(path):
@@ -109,21 +110,24 @@ class DatasetLoader:
                     logger.info("Loaded %d inventory snapshot records directly from PostgreSQL.", len(rows))
                     return pd.DataFrame(rows)
             except Exception as e:
-                logger.warning("Database inventory snapshot loading failed (%s). Falling back to Parquet.", e)
+                logger.error("Database inventory snapshot loading failed: %s", e)
+                raise OptimizationError(f"Database inventory snapshot loading failed: {e}") from e
 
         path = self._resolve_path(self.paths["inventory_availability"])
         if not os.path.exists(path):
             raise OptimizationError(f"Missing inventory availability dataset at {path}")
         return pd.read_parquet(path)
 
-    def load_customer_searches(self) -> pd.DataFrame:
+    def load_customer_searches(self, cutoff_timestamp: Optional[str] = None) -> pd.DataFrame:
         """Loads customer searches from PostgreSQL if db provided, else Parquet."""
         if self.db is not None:
             try:
                 from backend.app.models.schema import CustomerSearchEvent
+                query = self.db.query(CustomerSearchEvent)
+                if cutoff_timestamp:
+                    query = query.filter(CustomerSearchEvent.search_date <= cutoff_timestamp)
                 searches = (
-                    self.db.query(CustomerSearchEvent)
-                    .order_by(CustomerSearchEvent.search_date.desc(), CustomerSearchEvent.search_id.asc())
+                    query.order_by(CustomerSearchEvent.search_date.desc(), CustomerSearchEvent.search_id.asc())
                     .limit(10000)
                     .all()
                 )
@@ -131,13 +135,13 @@ class DatasetLoader:
                     rows = []
                     for s in searches:
                         inv_cat = str(s.inventory_category.value if hasattr(s.inventory_category, "value") else s.inventory_category)
-                        price = float(s.search_price) if s.search_price is not None else 5000.0
+                        price = float(s.search_price) if s.search_price is not None else None
                         rooms = int(s.rooms_count) if s.rooms_count is not None else (int(s.travellers_count) if inv_cat == "HOTEL" else None)
                         rows.append({
                             "search_id": str(s.search_id),
                             "user_id": str(s.user_session_id) if s.user_session_id else None,
                             "search_date": str(s.search_date),
-                            "travel_date": str(s.travel_date) if s.travel_date else str(s.search_date),
+                            "travel_date": str(s.travel_date) if s.travel_date else None,
                             "destination_id": str(s.dest_id),
                             "origin_id": str(s.origin_dest_id) if s.origin_dest_id else None,
                             "inventory_type": inv_cat,
@@ -151,7 +155,8 @@ class DatasetLoader:
                     logger.info("Loaded %d customer search events directly from PostgreSQL.", len(rows))
                     return pd.DataFrame(rows)
             except Exception as e:
-                logger.warning("Database customer searches loading failed (%s). Falling back to Parquet.", e)
+                logger.error("Database customer searches loading failed: %s", e)
+                raise OptimizationError(f"Database customer searches loading failed: {e}") from e
 
         path = self._resolve_path(self.paths["customer_searches"])
         if not os.path.exists(path):
@@ -182,14 +187,15 @@ class DatasetLoader:
                             "holiday_indicator": is_holiday,
                             "festival_indicator": is_festival,
                             "event_indicator": is_event,
-                            "temperature": 25.0,
-                            "rainfall_mm": 0.0,
+                            "temperature": None,
+                            "rainfall_mm": None,
                             "demand_index": mult,
                         })
                     logger.info("Loaded %d market signal records directly from PostgreSQL.", len(rows))
                     return pd.DataFrame(rows)
             except Exception as e:
-                logger.warning("Database market signals loading failed (%s). Falling back to Parquet.", e)
+                logger.error("Database market signals loading failed: %s", e)
+                raise OptimizationError(f"Database market signals loading failed: {e}") from e
 
         path = self._resolve_path(self.paths["market_signals"])
         if not os.path.exists(path):

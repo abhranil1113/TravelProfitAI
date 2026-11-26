@@ -14,6 +14,7 @@ class PointInTimeResolver:
     """Enforces strict temporal integrity at optimization timestamp T_opt."""
 
     def __init__(self, optimization_timestamp: str):
+        self.raw_timestamp = str(optimization_timestamp)
         self.optimization_timestamp = str(optimization_timestamp).split("T")[0]
 
     def filter_active_supplier_offers(self, offers_df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, Any]]:
@@ -64,11 +65,13 @@ class PointInTimeResolver:
             }
             return pd.DataFrame(), audit_meta
 
-        # Sort by snapshot_date ascending, then pick the last record per (inventory_id, travel_date)
-        valid_snapshots.sort_values(by=["inventory_id", "travel_date", "snapshot_date_str"], inplace=True)
-        latest_snapshots = valid_snapshots.groupby(
-            ["inventory_id", "travel_date"], as_index=False
-        ).last().reset_index(drop=True)
+        # Sort by snapshot_date ascending, then pick the exact latest physical snapshot row per (inventory_id, travel_date).
+        # Note: drop_duplicates(keep='last') preserves atomic physical rows, preventing groupby().last() column-blending.
+        valid_snapshots.sort_values(by=["inventory_id", "travel_date", "snapshot_date_str"], ascending=True, inplace=True)
+        latest_snapshots = valid_snapshots.drop_duplicates(
+            subset=["inventory_id", "travel_date"],
+            keep="last"
+        ).reset_index(drop=True)
 
         audit_meta = {
             "total_raw_snapshots": len(df),

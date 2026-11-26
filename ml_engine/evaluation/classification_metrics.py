@@ -25,7 +25,22 @@ class ClassificationMetrics:
         yp = (yp_prob >= threshold).astype(int)
 
         if len(yt) == 0:
-            return {"accuracy": 0.0, "precision": 0.0, "recall": 0.0, "f1": 0.0}
+            return {
+                "threshold": threshold,
+                "accuracy": None,
+                "precision": None,
+                "recall": None,
+                "specificity": None,
+                "f1_score": None,
+                "brier_score": None,
+                "confusion_matrix": {
+                    "true_positives": 0,
+                    "false_positives": 0,
+                    "true_negatives": 0,
+                    "false_negatives": 0,
+                },
+                "sample_count": 0,
+            }
 
         tp = int(np.sum((yt == 1) & (yp == 1)))
         fp = int(np.sum((yt == 0) & (yp == 1)))

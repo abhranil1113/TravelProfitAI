@@ -68,7 +68,11 @@ class HotelFeaturePreprocessor:
                 missing_features=missing
             )
 
-        lead_time = float(raw_record.get("lead_time_days", raw_record.get("lead_time", 30)))
+        lead_time_raw = raw_record.get("lead_time_days", raw_record.get("lead_time"))
+        if lead_time_raw is None:
+            raise FeatureValidationError("Missing 'lead_time' in hotel booking record", missing_features=["lead_time"])
+        lead_time = float(lead_time_raw)
+
         w_nights = float(raw_record["stays_in_weekend_nights"])
         d_nights = float(raw_record["stays_in_week_nights"])
         total_stay = max(1.0, w_nights + d_nights)
@@ -78,25 +82,32 @@ class HotelFeaturePreprocessor:
         babies = float(raw_record.get("babies", 0))
         total_guests = max(1.0, adults + children + babies)
 
-        adr = float(raw_record.get("adr", raw_record.get("price", 100.0)))
+        adr_raw = raw_record.get("adr", raw_record.get("price"))
+        if adr_raw is None:
+            raise FeatureValidationError("Missing 'adr' / 'price' in hotel booking record", missing_features=["adr"])
+        adr = float(adr_raw)
 
-        arrival_date_str = str(raw_record.get("arrival_date", raw_record.get("travel_date", "2026-06-15")))
+        arrival_date_str = raw_record.get("arrival_date", raw_record.get("travel_date"))
+        if not arrival_date_str:
+            raise FeatureValidationError("Missing 'arrival_date' / 'travel_date' in hotel booking record", missing_features=["arrival_date"])
         try:
-            arr_dt = pd.to_datetime(arrival_date_str)
-        except Exception:
-            arr_dt = pd.to_datetime("2026-06-15")
+            arr_dt = pd.to_datetime(str(arrival_date_str))
+        except Exception as e:
+            raise FeatureValidationError(f"Invalid arrival_date/travel_date format '{arrival_date_str}': {e}") from e
 
-        # Bucket lead time
+        # Bucket lead time aligned to fitted training categories ['0-7d', '8-30d', '31-90d', '91-180d', '181-365d', '365d+']
         if lead_time <= 7:
-            lt_bucket = "0-7 days"
+            lt_bucket = "0-7d"
         elif lead_time <= 30:
-            lt_bucket = "8-30 days"
+            lt_bucket = "8-30d"
         elif lead_time <= 90:
-            lt_bucket = "31-90 days"
+            lt_bucket = "31-90d"
         elif lead_time <= 180:
-            lt_bucket = "91-180 days"
+            lt_bucket = "91-180d"
+        elif lead_time <= 365:
+            lt_bucket = "181-365d"
         else:
-            lt_bucket = "181+ days"
+            lt_bucket = "365d+"
 
         mkt_seg = str(raw_record["market_segment"]).strip()
         dep_type = str(raw_record["deposit_type"]).strip()

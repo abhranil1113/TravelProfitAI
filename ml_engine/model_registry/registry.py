@@ -37,6 +37,7 @@ class ModelArtifactRegistry:
     DEFAULT_BASE_DIR = "data/models"
     _CLASS_CACHE: Dict[str, Tuple[Any, Any, Dict[str, Any]]] = {}
     _TASK_TO_CACHE_KEY: Dict[str, str] = {}
+    _TASK_GENERATIONS: Dict[str, int] = {}
     _CACHE_LOCK = threading.RLock()
 
     def __init__(
@@ -60,17 +61,21 @@ class ModelArtifactRegistry:
         """
         Invalidates in-memory cached model artifacts across all instances in a thread-safe manner.
         Ensures stale models are never served after promotion or retirement events.
+        Increments per-task cache generation to prevent stale concurrent background reinsertion.
         """
         with cls._CACHE_LOCK:
             if task_name:
                 task_norm = str(task_name.value if hasattr(task_name, "value") else task_name).lower().strip()
+                cls._TASK_GENERATIONS[task_norm] = cls._TASK_GENERATIONS.get(task_norm, 0) + 1
                 keys_to_remove = [k for k in cls._CLASS_CACHE if k.startswith(f"{task_norm}::")]
                 for k in keys_to_remove:
                     del cls._CLASS_CACHE[k]
                 if task_norm in cls._TASK_TO_CACHE_KEY:
                     del cls._TASK_TO_CACHE_KEY[task_norm]
-                logger.info("Invalidated ML Engine model cache for task: %s (cleared %d keys)", task_norm, len(keys_to_remove))
+                logger.info("Invalidated ML Engine model cache for task: %s (cleared %d keys, gen=%d)", task_norm, len(keys_to_remove), cls._TASK_GENERATIONS[task_norm])
             else:
+                for k in list(cls._TASK_GENERATIONS.keys()):
+                    cls._TASK_GENERATIONS[k] += 1
                 cls._CLASS_CACHE.clear()
                 cls._TASK_TO_CACHE_KEY.clear()
                 logger.info("Cleared entire ML Engine artifact cache.")
@@ -102,11 +107,7 @@ class ModelArtifactRegistry:
         if self.db is not None:
             try:
                 from backend.app.models.schema import MLModel
-                try:
-                    self.db.expire_all()
-                except Exception:
-                    pass
-                query = self.db.query(MLModel).filter(MLModel.model_type == task_norm)
+                query = self.db.query(MLModel).execution_options(populate_existing=True).filter(MLModel.model_type == task_norm)
                 if model_version:
                     query = query.filter(MLModel.version == str(model_version).strip())
                 else:
@@ -123,11 +124,6 @@ class ModelArtifactRegistry:
         standard_path = os.path.join(self.base_dir, task_norm)
         if os.path.exists(standard_path):
             return standard_path
-
-        # 3. Check stage 4c candidates directory
-        candidates_4c_path = os.path.join(self.base_dir, "candidates_stage_4c", task_norm)
-        if os.path.exists(candidates_4c_path):
-            return candidates_4c_path
 
         raise ModelNotFoundError(
             f"Artifact directory not found for ML task '{task_name}' at '{standard_path}'"
@@ -150,6 +146,7 @@ class ModelArtifactRegistry:
 
         # --- FAST O(1) CACHE PATH ---
         with self._CACHE_LOCK:
+            start_gen = self._TASK_GENERATIONS.get(task_norm, 0)
             if self.config.cache_models:
                 if model_version:
                     v_str = str(model_version).strip()
@@ -165,6 +162,7 @@ class ModelArtifactRegistry:
         # --- SLOW CACHE MISS PATH ---
         with self._CACHE_LOCK:
             # Double-check after acquiring lock to prevent redundant loading
+            start_gen = self._TASK_GENERATIONS.get(task_norm, 0)
             if self.config.cache_models:
                 if model_version:
                     v_str = str(model_version).strip()
@@ -258,13 +256,19 @@ class ModelArtifactRegistry:
                     raise ArtifactCorruptedError(f"Failed to load preprocessor from '{prep_path}': {exc}") from exc
 
             cached_tuple = (estimator, preprocessor, raw_metadata)
-            if self.config.cache_models:
-                self._CLASS_CACHE[cache_key] = cached_tuple
-                if not model_version:
-                    self._TASK_TO_CACHE_KEY[task_norm] = cache_key
-
-            logger.info(
-                "Successfully loaded and cached model for task '%s' (%s, version=%s, trust=%s) from '%s'",
-                task_norm, schema.model_name, version_str, trust_source, task_dir
-            )
+            current_gen = self._TASK_GENERATIONS.get(task_norm, 0)
+            if current_gen == start_gen:
+                if self.config.cache_models:
+                    self._CLASS_CACHE[cache_key] = cached_tuple
+                    if not model_version:
+                        self._TASK_TO_CACHE_KEY[task_norm] = cache_key
+                logger.info(
+                    "Successfully loaded and cached model for task '%s' (%s, version=%s, trust=%s) from '%s'",
+                    task_norm, schema.model_name, version_str, trust_source, task_dir
+                )
+            else:
+                logger.warning(
+                    "Discarded loaded model for '%s' due to concurrent invalidation (start_gen=%d, current_gen=%d).",
+                    task_norm, start_gen, current_gen
+                )
             return cached_tuple

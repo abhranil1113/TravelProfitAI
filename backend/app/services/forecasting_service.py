@@ -308,8 +308,8 @@ class ForecastingService:
                 base_searches = float(sum(m.search_count for m in recent_metrics) / len(recent_metrics))
                 base_bookings = float(sum(m.booking_count for m in recent_metrics) / len(recent_metrics))
             else:
-                base_searches = 50.0
-                base_bookings = 10.0
+                logger.warning("No recent daily metrics found for destination %s prior to %s. Skipping baseline materialization.", did, as_of)
+                continue
 
             # Step in weekly horizon increments
             horizon_steps = list(range(1, horizon_days + 1, 7))
@@ -339,7 +339,7 @@ class ForecastingService:
                         existing_dfc.predicted_search_volume = pred_search
                         existing_dfc.confidence_lower = conf_lower
                         existing_dfc.confidence_upper = conf_upper
-                        existing_dfc.model_version = "CHAMPION_DEMAND_V1"
+                        existing_dfc.model_version = "HEURISTIC_BASELINE_V1"
                     else:
                         db.add(DestinationDemandForecast(
                             dest_id=did,
@@ -352,12 +352,12 @@ class ForecastingService:
                             confidence_lower=conf_lower,
                             confidence_upper=conf_upper,
                             demand_multiplier=round(multiplier, 2),
-                            model_version="CHAMPION_DEMAND_V1",
+                            model_version="HEURISTIC_BASELINE_V1",
                         ))
                     total_demand_rows += 1
 
                     # Upsert inventory depletion forecast
-                    pred_avail = max(0, int(round(pred_units * 1.8)))
+                    pred_avail = max(0, int(round(base_bookings * multiplier)))
                     depletion_velocity = round(base_bookings / 7.0, 2)
 
                     existing_ifc = db.query(DestinationInventoryForecast).filter(
@@ -372,7 +372,7 @@ class ForecastingService:
                         existing_ifc.predicted_depletion_velocity = depletion_velocity
                         existing_ifc.confidence_lower = conf_lower
                         existing_ifc.confidence_upper = conf_upper
-                        existing_ifc.model_version = "CHAMPION_INVENTORY_V1"
+                        existing_ifc.model_version = "HEURISTIC_BASELINE_V1"
                     else:
                         db.add(DestinationInventoryForecast(
                             dest_id=did,
@@ -384,7 +384,7 @@ class ForecastingService:
                             predicted_depletion_velocity=depletion_velocity,
                             confidence_lower=conf_lower,
                             confidence_upper=conf_upper,
-                            model_version="CHAMPION_INVENTORY_V1",
+                            model_version="HEURISTIC_BASELINE_V1",
                         ))
                     total_inv_rows += 1
 

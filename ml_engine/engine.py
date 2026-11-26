@@ -122,6 +122,19 @@ class MLEngine:
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.shutdown(wait=True)
 
+    def get_health_status(self) -> Dict[str, Any]:
+        """Returns health status report for registered predictors and admission control."""
+        with self._lifecycle_lock:
+            status = {
+                "is_shutdown": self._is_shutdown,
+                "max_workers": self.config.max_workers,
+                "registered_tasks": [task.value for task in self.router._handlers.keys()],
+                "has_registry": self.registry is not None,
+            }
+            if hasattr(self, "_admission_semaphore"):
+                status["admission_semaphore_value"] = getattr(self._admission_semaphore, "_value", None)
+            return status
+
     def shutdown(self, wait: bool = True, cancel_futures: bool = False) -> None:
         """
         Gracefully terminates internal thread pool executor without interrupting active tasks unexpectedly.
@@ -332,6 +345,10 @@ class MLEngine:
         start_time = time.perf_counter()
 
         try:
+            # 0. Explicit unsupported tasks
+            if request.task == PredictionTask.SUPPLIER_LEAD_TIME:
+                raise UnsupportedPredictionError("Supplier lead time prediction is not implemented in this version.")
+
             # 1. Specialized handler dispatch if registered
             if self.router.has_handler(request.task):
                 result = self.router.dispatch(request)

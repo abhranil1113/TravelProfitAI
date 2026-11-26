@@ -152,8 +152,8 @@ class OptimizationService:
             "ABNORMAL": SolverStatus.ERROR,
             "NOT_SOLVED": SolverStatus.PENDING,
         }
-        raw_status = plan.solver_metadata.get("solver_status", "OPTIMAL")
-        solver_status = status_map.get(raw_status, SolverStatus.OPTIMAL)
+        raw_status = plan.solver_metadata.get("solver_status", "ERROR")
+        solver_status = status_map.get(raw_status, SolverStatus.ERROR)
         is_opt = bool(plan.solver_metadata.get("is_proven_optimal", False))
         pipe_status = PipelineStatus.SUCCESS if solver_status in (SolverStatus.OPTIMAL, SolverStatus.FEASIBLE) else PipelineStatus.FAILED
 
@@ -333,11 +333,13 @@ class OptimizationService:
         import hashlib, os
         for fname, atype, mtype in artifacts_meta:
             fpath = os.path.join("data", "optimization", fname)
-            fsize = os.path.getsize(fpath) if os.path.exists(fpath) else 1024
+            if not os.path.exists(fpath):
+                logger.warning("Optimization artifact file not found on disk: %s", fpath)
+                continue
+            fsize = os.path.getsize(fpath)
             checksum = None
-            if os.path.exists(fpath):
-                with open(fpath, "rb") as af:
-                    checksum = hashlib.sha256(af.read()).hexdigest()
+            with open(fpath, "rb") as af:
+                checksum = hashlib.sha256(af.read()).hexdigest()
             art = OptimizationRunArtifact(
                 run_id=run_id,
                 filename=fname,
@@ -345,46 +347,32 @@ class OptimizationService:
                 file_size_bytes=fsize,
                 storage_path=fpath,
                 mime_type=mtype,
-                checksum_sha256=checksum or "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                checksum_sha256=checksum,
             )
             db.add(art)
 
         # Real procurement recommendations persisted to database
+        from backend.app.core.exceptions import EntityNotFoundError
         from backend.app.models.schema import Destination, InventoryCategory, OfferStatus, Supplier, SupplierOffer, SupplierType, UnitType
         for rec in plan.recommendations:
             # Ensure foreign key entities exist
             dest_code = str(rec.destination_id).upper()
-            if not db.query(Destination).filter(Destination.dest_id == dest_code).first():
-                db.add(Destination(dest_id=dest_code, name=dest_code, city=dest_code, country="India", airport_code=dest_code[:3]))
-                db.flush()
+            dest_entity = db.query(Destination).filter(Destination.dest_id == dest_code).first()
+            if not dest_entity:
+                raise EntityNotFoundError("Destination", dest_code)
 
             supp_code = str(rec.supplier_id).upper()
-            if not db.query(Supplier).filter(Supplier.supplier_id == supp_code).first():
-                s_type = SupplierType.HOTEL if rec.inventory_type.upper() == "HOTEL" else SupplierType.FLIGHT
-                db.add(Supplier(supplier_id=supp_code, name=f"Supplier {supp_code}", supplier_type=s_type, is_active=True))
-                db.flush()
+            supp_entity = db.query(Supplier).filter(Supplier.supplier_id == supp_code).first()
+            if not supp_entity:
+                raise EntityNotFoundError("Supplier", supp_code)
 
             off_code = str(rec.offer_id)
+            offer_entity = db.query(SupplierOffer).filter(SupplierOffer.offer_id == off_code).first()
+            if not offer_entity:
+                raise EntityNotFoundError("SupplierOffer", off_code)
+
             inv_cat = InventoryCategory.HOTEL if rec.inventory_type.lower() == "hotel" else InventoryCategory.FLIGHT
             u_type = UnitType.ROOM_NIGHT if rec.inventory_type.lower() == "hotel" else UnitType.SEAT
-            if not db.query(SupplierOffer).filter(SupplierOffer.offer_id == off_code).first():
-                db.add(SupplierOffer(
-                    offer_id=off_code,
-                    supplier_id=supp_code,
-                    dest_id=dest_code,
-                    inventory_category=inv_cat,
-                    unit_type=u_type,
-                    unit_cost_inr=Decimal(str(round(rec.unit_purchase_cost, 2))),
-                    list_price_inr=Decimal(str(round(rec.unit_purchase_cost, 2))),
-                    currency_code="INR",
-                    moq=1,
-                    max_capacity=rec.procurement_quantity,
-                    valid_from=cutoff,
-                    valid_until=cutoff,
-                    travel_date=cutoff,
-                    status=OfferStatus.ACTIVE,
-                ))
-                db.flush()
 
             db_rec = ProcurementRecommendation(
                 run_id=run_id,

@@ -20,9 +20,10 @@ class DataDriftDetector:
         target: np.ndarray,
         num_buckets: int = 10,
         epsilon: float = 1e-4,
-    ) -> float:
+    ) -> Optional[float]:
         """
         Calculates Population Stability Index (PSI) between baseline and target distributions.
+        Returns None if there is insufficient sample size (< 10) or degenerate baseline variance.
         PSI < 0.1: No significant change
         0.1 <= PSI < 0.2: Moderate drift
         PSI >= 0.2: Significant drift, retrain recommended
@@ -37,14 +38,14 @@ class DataDriftDetector:
         t = t[np.isfinite(t)]
 
         if len(b) < 10 or len(t) < 10:
-            return 0.0
+            return None
 
         quantiles = np.linspace(0, 100, num_buckets + 1)
         bins = np.percentile(b, quantiles)
         bins = np.unique(bins)
 
         if len(bins) < 2:
-            return 0.0
+            return None
 
         # Extend outer bins to open boundaries to capture extreme values
         bins = bins.copy()

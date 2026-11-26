@@ -31,11 +31,23 @@ class OptimizationMLAdapter:
         optimization_timestamp: Optional[str] = None,
     ):
         self.registry = registry or ModelArtifactRegistry()
+        self._owns_engine = (engine is None)
         self.engine = engine or MLEngine.create_default(
             registry=self.registry,
             searches_df=searches_df,
             optimization_timestamp=optimization_timestamp,
         )
+
+    def close(self) -> None:
+        """Shuts down underlying MLEngine if owned by this adapter instance."""
+        if getattr(self, "_owns_engine", False) and self.engine is not None:
+            self.engine.shutdown(wait=False)
+
+    def __enter__(self) -> "OptimizationMLAdapter":
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.close()
 
     def predict_demand_search_volume(self, destination_id: str, inventory_type: str) -> Optional[float]:
         """

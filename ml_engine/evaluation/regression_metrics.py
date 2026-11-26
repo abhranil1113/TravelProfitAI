@@ -4,7 +4,7 @@ ml_engine/evaluation/regression_metrics.py
 Comprehensive regression evaluation metrics with zero-denominator safeguards.
 """
 
-from typing import Dict, Any, Union
+from typing import Dict, Any, Union, Optional
 import numpy as np
 
 
@@ -12,15 +12,25 @@ class RegressionMetrics:
     """Calculates evaluation metrics for continuous regression and forecasting predictions."""
 
     @staticmethod
-    def calculate_all(y_true: Union[np.ndarray, list], y_pred: Union[np.ndarray, list]) -> Dict[str, float]:
+    def calculate_all(y_true: Union[np.ndarray, list], y_pred: Union[np.ndarray, list]) -> Dict[str, Any]:
         """
         Computes MAE, RMSE, R2, MAPE, WAPE, SMAPE, and Forecast Bias.
+        Returns None for metric values if input array is empty.
         """
         yt = np.asarray(y_true, dtype=float)
         yp = np.asarray(y_pred, dtype=float)
 
         if len(yt) == 0:
-            return {"mae": 0.0, "rmse": 0.0, "r2": 0.0, "wape": 0.0, "smape": 0.0, "bias": 0.0}
+            return {
+                "mae": None,
+                "rmse": None,
+                "r2": None,
+                "mape": None,
+                "wape": None,
+                "smape": None,
+                "forecast_bias": None,
+                "sample_count": 0,
+            }
 
         errors = yt - yp
         abs_errors = np.abs(errors)
