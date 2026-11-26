@@ -75,6 +75,24 @@ class RecommendationService:
         user_id: int,
     ) -> ProcurementRecommendation:
         rec = RecommendationService.get_recommendation(db, rec_id)
+        from backend.app.models.schema import PolicyScope
+        from backend.app.services.policy_service import PolicyService
+        PolicyService.enforce_workflow_policies(
+            db=db,
+            scope=PolicyScope.RECOMMENDATION_APPROVAL,
+            entity_type="procurement_recommendations",
+            entity_id=str(rec_id),
+            context={
+                "recommendation_id": rec.id,
+                "run_id": rec.run_id,
+                "supplier_id": rec.supplier_id,
+                "dest_id": rec.dest_id,
+                "recommended_qty": rec.recommended_qty,
+                "total_spend_inr": float(rec.total_spend_inr),
+                "sell_through_rate": float(rec.sell_through_rate),
+            },
+            user_id=user_id,
+        )
         rec.approval_status = ApprovalStatus.APPROVED
         rec.approved_by_user_id = user_id
         rec.approved_at = datetime.utcnow()
@@ -134,6 +152,25 @@ class RecommendationService:
             ).scalars().all()
         )
         now = datetime.utcnow()
+        from backend.app.models.schema import PolicyScope
+        from backend.app.services.policy_service import PolicyService
+        for r in recs:
+            PolicyService.enforce_workflow_policies(
+                db=db,
+                scope=PolicyScope.RECOMMENDATION_APPROVAL,
+                entity_type="procurement_recommendations",
+                entity_id=str(r.id),
+                context={
+                    "recommendation_id": r.id,
+                    "run_id": r.run_id,
+                    "supplier_id": r.supplier_id,
+                    "dest_id": r.dest_id,
+                    "recommended_qty": r.recommended_qty,
+                    "total_spend_inr": float(r.total_spend_inr),
+                    "sell_through_rate": float(r.sell_through_rate),
+                },
+                user_id=user_id,
+            )
         for r in recs:
             r.approval_status = ApprovalStatus.APPROVED
             r.approved_by_user_id = user_id

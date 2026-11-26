@@ -18,10 +18,10 @@ class RecommendationResponse(BaseModel):
 
     id: int
     run_id: str
-    offer_id: int
+    offer_id: str | int
     prediction_id: Optional[int] = None
-    supplier_id: int
-    dest_id: int
+    supplier_id: str | int
+    dest_id: str | int
     inventory_category: InventoryCategory
     unit_type: UnitType
     recommended_qty: int
@@ -67,10 +67,10 @@ class RejectionResponse(BaseModel):
 
     id: int
     run_id: str
-    offer_id: int
+    offer_id: str | int
     prediction_id: Optional[int] = None
-    supplier_id: int
-    dest_id: int
+    supplier_id: str | int
+    dest_id: str | int
     inventory_category: InventoryCategory
     unit_type: UnitType
     reason_code: RejectionReasonCode

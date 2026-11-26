@@ -94,6 +94,21 @@ class ProcurementService:
         if not supplier.is_active:
             raise BadRequestException(f"Supplier '{supplier.supplier_id}' is inactive and cannot accept purchase orders")
 
+        from backend.app.models.schema import (
+            PolicyScope,
+            SupplierVerificationProfile,
+            SupplierVerificationStatus,
+        )
+        sup_profile = db.execute(
+            select(SupplierVerificationProfile).where(
+                SupplierVerificationProfile.supplier_id == supplier.supplier_id
+            )
+        ).scalar_one_or_none()
+        if sup_profile and sup_profile.verification_status == SupplierVerificationStatus.SUSPENDED:
+            raise BadRequestException(
+                f"Supplier '{supplier.supplier_id}' is SUSPENDED and cannot receive purchase orders."
+            )
+
         today = date.today()
         calculated_lines = []
         total_amount = Decimal("0.00")
@@ -158,6 +173,31 @@ class ProcurementService:
                 )
 
         po_num = f"PO-{datetime.utcnow().strftime('%Y%m%d')}-{supplier.supplier_id}-{uuid.uuid4().hex[:4].upper()}"
+
+        from backend.app.services.policy_service import PolicyService
+        po_policy_ctx = {
+            "supplier_id": supplier.supplier_id,
+            "budget_id": req.budget_id,
+            "total_amount_inr": float(total_amount),
+            "lines_count": len(calculated_lines),
+            "supplier_tier": sup_profile.tier.value if sup_profile else "TIER_3_STANDARD",
+        }
+        PolicyService.enforce_workflow_policies(
+            db=db,
+            scope=PolicyScope.PURCHASE_ORDER_CREATE,
+            entity_type="purchase_orders",
+            entity_id=po_num,
+            context=po_policy_ctx,
+            user_id=user_id,
+        )
+        PolicyService.enforce_workflow_policies(
+            db=db,
+            scope=PolicyScope.PURCHASE_ORDER_SUBMIT,
+            entity_type="purchase_orders",
+            entity_id=po_num,
+            context=po_policy_ctx,
+            user_id=user_id,
+        )
 
         po = PurchaseOrder(
             po_number=po_num,

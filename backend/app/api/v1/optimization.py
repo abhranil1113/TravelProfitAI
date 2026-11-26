@@ -31,12 +31,35 @@ from backend.app.schemas.optimization import (
     SensitivityRunRequest,
     SensitivityScenarioResponse,
 )
+from backend.app.schemas.risk import (
+    CVaROptimizationRecordResponse,
+    CVaROptimizationRequest,
+    PortfolioStressTestResponse,
+    RiskAdjustedComparisonResponse,
+    StressTestBatchResponse,
+    StressTestExecuteRequest,
+)
 from backend.app.services.optimization_service import OptimizationService
+from backend.app.services.risk_service import RiskService
 
 router = APIRouter(prefix="/optimization-runs", tags=["13. Optimization Runs"])
 
 
 # --- STATIC SUB-PATHS MUST COME BEFORE PARAMETERIZED PATHS ---
+
+@router.post(
+    "/cvar",
+    response_model=CVaROptimizationRecordResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def run_cvar_optimization(
+    req: CVaROptimizationRequest,
+    current_user: Annotated[User, Depends(require_roles(UserRole.PROCUREMENT_MANAGER, UserRole.ADMIN))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Execute Rockafellar-Uryasev CVaR tail-risk optimization across scenarios."""
+    rec = RiskService.run_cvar_optimization(db, req, current_user.id)
+    return CVaROptimizationRecordResponse.model_validate(rec)
 
 @router.post(
     "/compare",
@@ -342,3 +365,46 @@ def generate_purchase_orders_for_run(
 ):
     """179. Generate draft/issued purchase orders for all approved recommendations in run."""
     return OptimizationService.generate_purchase_orders(db, run_id, current_user.id)
+
+
+@router.post(
+    "/{run_id}/stress-test",
+    response_model=StressTestBatchResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def execute_run_stress_test(
+    run_id: str,
+    req: StressTestExecuteRequest,
+    current_user: Annotated[User, Depends(require_roles(UserRole.PROCUREMENT_MANAGER, UserRole.ADMIN))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Execute stress tests of an optimization run against one or more risk scenarios."""
+    return RiskService.run_stress_test(db, run_id, req, current_user.id)
+
+
+@router.get(
+    "/{run_id}/stress-tests",
+    response_model=List[PortfolioStressTestResponse],
+)
+def list_run_stress_tests(
+    run_id: str,
+    current_user: Annotated[User, Depends(require_roles(UserRole.PROCUREMENT_MANAGER, UserRole.ANALYST, UserRole.ADMIN))],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """List stress test results for an optimization run."""
+    items = RiskService.list_stress_tests(db, run_id)
+    return [PortfolioStressTestResponse.model_validate(i) for i in items]
+
+
+@router.get(
+    "/{run_id}/risk-adjusted-comparison",
+    response_model=RiskAdjustedComparisonResponse,
+)
+def compare_risk_adjusted_runs(
+    run_id: str,
+    current_user: Annotated[User, Depends(require_roles(UserRole.PROCUREMENT_MANAGER, UserRole.ANALYST, UserRole.ADMIN))],
+    db: Annotated[Session, Depends(get_db)],
+    compare_run_ids: List[str] = Query(..., min_length=1),
+):
+    """Compare baseline optimization run against alternative/CVaR runs on risk-adjusted metrics."""
+    return RiskService.compare_risk_adjusted(db, run_id, compare_run_ids)

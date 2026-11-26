@@ -264,6 +264,187 @@ class DeliveryStatus(str, enum.Enum):
     BOUNCED = "BOUNCED"
 
 
+# --- Enterprise Production Domains Enums ---
+
+# Domain 1: Portfolio Risk & Scenario Engine
+class RiskScenarioType(str, enum.Enum):
+    DEMAND_SHOCK = "DEMAND_SHOCK"
+    CANCELLATION_SPIKE = "CANCELLATION_SPIKE"
+    FX_SHOCK = "FX_SHOCK"
+    SUPPLIER_DISRUPTION = "SUPPLIER_DISRUPTION"
+    CORRELATED_MULTIVARIATE = "CORRELATED_MULTIVARIATE"
+    SEASONAL_SURGE = "SEASONAL_SURGE"
+
+
+class StressTestStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+# Domain 2: MLOps Production Governance
+class DriftSeverity(str, enum.Enum):
+    NONE = "NONE"
+    MODERATE = "MODERATE"
+    SEVERE = "SEVERE"
+
+
+class FreshnessStatus(str, enum.Enum):
+    FRESH = "FRESH"
+    WARNING = "WARNING"
+    STALE = "STALE"
+
+
+class DeploymentMode(str, enum.Enum):
+    SHADOW = "SHADOW"
+    CANARY = "CANARY"
+
+
+class DeploymentStatus(str, enum.Enum):
+    ACTIVE = "ACTIVE"
+    PAUSED = "PAUSED"
+    ROLLED_BACK = "ROLLED_BACK"
+    PROMOTED = "PROMOTED"
+    RETIRED = "RETIRED"
+
+
+class ModelLifecycleAction(str, enum.Enum):
+    REGISTERED = "REGISTERED"
+    SHADOW_DEPLOYED = "SHADOW_DEPLOYED"
+    CANARY_DEPLOYED = "CANARY_DEPLOYED"
+    PROMOTED_CHAMPION = "PROMOTED_CHAMPION"
+    ROLLED_BACK = "ROLLED_BACK"
+    RETIRED = "RETIRED"
+
+
+class RetrainingTriggerMetric(str, enum.Enum):
+    PSI = "PSI"
+    KS_STATISTIC = "KS_STATISTIC"
+    FEATURE_STALENESS = "FEATURE_STALENESS"
+    MAE_DEGRADATION = "MAE_DEGRADATION"
+    SCHEDULED = "SCHEDULED"
+
+
+# Domain 3: Supplier Collaboration & Connectivity Hub
+class SupplierTier(str, enum.Enum):
+    TIER_1_STRATEGIC = "TIER_1_STRATEGIC"
+    TIER_2_PREFERRED = "TIER_2_PREFERRED"
+    TIER_3_STANDARD = "TIER_3_STANDARD"
+    PROBATION = "PROBATION"
+
+
+class SupplierVerificationStatus(str, enum.Enum):
+    UNVERIFIED = "UNVERIFIED"
+    PENDING_REVIEW = "PENDING_REVIEW"
+    VERIFIED = "VERIFIED"
+    SUSPENDED = "SUSPENDED"
+    REJECTED = "REJECTED"
+
+
+class OnboardingStage(str, enum.Enum):
+    INITIATED = "INITIATED"
+    DOCUMENT_REVIEW = "DOCUMENT_REVIEW"
+    TECHNICAL_INTEGRATION = "TECHNICAL_INTEGRATION"
+    SANDBOX_VERIFICATION = "SANDBOX_VERIFICATION"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
+class SupplierCredentialStatus(str, enum.Enum):
+    ACTIVE = "ACTIVE"
+    ROTATED = "ROTATED"
+    REVOKED = "REVOKED"
+    EXPIRED = "EXPIRED"
+
+
+class RateSyncStatus(str, enum.Enum):
+    SUCCESS = "SUCCESS"
+    PARTIAL = "PARTIAL"
+    FAILED = "FAILED"
+    DUPLICATE_IGNORED = "DUPLICATE_IGNORED"
+    RATE_LIMITED = "RATE_LIMITED"
+
+
+class SettlementBatchStatus(str, enum.Enum):
+    DRAFT = "DRAFT"
+    CALCULATED = "CALCULATED"
+    APPROVED = "APPROVED"
+    SETTLED = "SETTLED"
+    CANCELLED = "CANCELLED"
+
+
+# Domain 4: Multi-Currency Treasury & FX Hedging
+class FXContractDirection(str, enum.Enum):
+    BUY_BASE_SELL_QUOTE = "BUY_BASE_SELL_QUOTE"
+    SELL_BASE_BUY_QUOTE = "SELL_BASE_BUY_QUOTE"
+
+
+class FXContractStatus(str, enum.Enum):
+    DRAFT = "DRAFT"
+    APPROVED = "APPROVED"
+    ACTIVE = "ACTIVE"
+    SETTLED = "SETTLED"
+    CANCELLED = "CANCELLED"
+    EXPIRED = "EXPIRED"
+
+
+class FXRateSource(str, enum.Enum):
+    RBI = "RBI"
+    ECB = "ECB"
+    BLOOMBERG = "BLOOMBERG"
+    REUTERS = "REUTERS"
+    INTERNAL_TREASURY = "INTERNAL_TREASURY"
+
+
+class MarginBreachAction(str, enum.Enum):
+    ALERT_ONLY = "ALERT_ONLY"
+    REQUIRE_APPROVAL = "REQUIRE_APPROVAL"
+    BLOCK_PROCUREMENT = "BLOCK_PROCUREMENT"
+
+
+class FXAlertSeverity(str, enum.Enum):
+    INFO = "INFO"
+    WARNING = "WARNING"
+    CRITICAL = "CRITICAL"
+
+
+# Domain 5: Policy-as-Code & Compliance Engine
+class PolicyScope(str, enum.Enum):
+    OPTIMIZATION_RUN = "OPTIMIZATION_RUN"
+    RECOMMENDATION_APPROVAL = "RECOMMENDATION_APPROVAL"
+    PURCHASE_ORDER_CREATE = "PURCHASE_ORDER_CREATE"
+    PURCHASE_ORDER_SUBMIT = "PURCHASE_ORDER_SUBMIT"
+    FX_HEDGE_EXECUTION = "FX_HEDGE_EXECUTION"
+    SUPPLIER_ONBOARDING = "SUPPLIER_ONBOARDING"
+
+
+class PolicyOutcome(str, enum.Enum):
+    BLOCK = "BLOCK"
+    WARN = "WARN"
+    INFO = "INFO"
+
+
+class PolicyRuleStatus(str, enum.Enum):
+    DRAFT = "DRAFT"
+    ACTIVE = "ACTIVE"
+    ARCHIVED = "ARCHIVED"
+
+
+class PolicyExceptionStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    EXPIRED = "EXPIRED"
+    REVOKED = "REVOKED"
+
+
+class ComplianceAuditStatus(str, enum.Enum):
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
 # =============================================================================
 # SECTION 1: MASTER REFERENCE DATA
 # =============================================================================
@@ -1896,3 +2077,784 @@ class NotificationDelivery(Base, TimestampMixin):
         UniqueConstraint("notification_id", "channel", name="uq_notif_delivery_channel"),
         CheckConstraint("attempt_count >= 0", name="ck_delivery_attempts_nonneg"),
     )
+
+
+# =============================================================================
+# SECTION 13: DOMAIN 1 — ADVANCED PORTFOLIO RISK & SCENARIO ENGINE
+# =============================================================================
+
+class RiskScenario(Base, TimestampMixin):
+    """Named single-factor or correlated multivariate risk scenario definition."""
+    __tablename__ = "risk_scenarios"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    scenario_code: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(150), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    scenario_type: Mapped[RiskScenarioType] = mapped_column(
+        SAEnum(RiskScenarioType), nullable=False, index=True
+    )
+    probability_weight: Mapped[float] = mapped_column(Float, default=0.10, nullable=False)
+    demand_multiplier: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    cancellation_delta: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    fx_shock_pct: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    supplier_capacity_multiplier: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    correlation_matrix_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    shock_parameters_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    target_dest_id: Mapped[str | None] = mapped_column(
+        ForeignKey("destinations.dest_id", ondelete="SET NULL"), index=True
+    )
+    target_supplier_id: Mapped[str | None] = mapped_column(
+        ForeignKey("suppliers.supplier_id", ondelete="SET NULL"), index=True
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, index=True)
+    created_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+
+    stress_tests: Mapped[list["PortfolioStressTest"]] = relationship(
+        back_populates="scenario", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        CheckConstraint("probability_weight > 0.0 AND probability_weight <= 1.0", name="ck_risk_scen_prob"),
+        CheckConstraint("demand_multiplier > 0.0", name="ck_risk_scen_demand_mult"),
+        CheckConstraint("cancellation_delta >= -1.0 AND cancellation_delta <= 1.0", name="ck_risk_scen_cancel_delta"),
+        CheckConstraint("supplier_capacity_multiplier >= 0.0 AND supplier_capacity_multiplier <= 2.0", name="ck_risk_scen_sup_cap"),
+    )
+
+
+class PortfolioStressTest(Base, TimestampMixin):
+    """Stress test evaluation of an OptimizationRun against a RiskScenario."""
+    __tablename__ = "portfolio_stress_tests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    stress_test_uid: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True,
+        default=lambda: f"STRESS_{uuid.uuid4().hex[:10].upper()}",
+    )
+    run_id: Mapped[str] = mapped_column(
+        ForeignKey("optimization_runs.run_id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    scenario_id: Mapped[int] = mapped_column(
+        ForeignKey("risk_scenarios.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    status: Mapped[StressTestStatus] = mapped_column(
+        SAEnum(StressTestStatus), default=StressTestStatus.COMPLETED, nullable=False, index=True
+    )
+    baseline_profit_inr: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
+    stressed_profit_inr: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
+    profit_delta_inr: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
+    profit_drawdown_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    var_95_inr: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
+    cvar_95_inr: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
+    availability_fulfillment_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    demand_fulfillment_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    line_impacts_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False)
+    executed_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+
+    scenario: Mapped[RiskScenario] = relationship(back_populates="stress_tests")
+
+    __table_args__ = (
+        CheckConstraint("availability_fulfillment_pct >= 0.0 AND availability_fulfillment_pct <= 100.0", name="ck_stress_avail_pct"),
+        CheckConstraint("demand_fulfillment_pct >= 0.0 AND demand_fulfillment_pct <= 100.0", name="ck_stress_demand_pct"),
+        Index("ix_stress_run_scenario", "run_id", "scenario_id"),
+    )
+
+
+class CVaROptimizationRecord(Base, TimestampMixin):
+    """Stores CVaR optimization tail-risk metrics and targets linked to an OptimizationRun."""
+    __tablename__ = "cvar_optimization_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    run_id: Mapped[str] = mapped_column(
+        ForeignKey("optimization_runs.run_id", ondelete="CASCADE"), unique=True, nullable=False, index=True
+    )
+    confidence_level_alpha: Mapped[float] = mapped_column(Float, default=0.95, nullable=False)
+    risk_aversion_lambda: Mapped[float] = mapped_column(Float, default=0.50, nullable=False)
+    num_scenarios: Mapped[int] = mapped_column(Integer, nullable=False)
+    min_availability_target_pct: Mapped[float] = mapped_column(Float, default=80.0, nullable=False)
+    min_demand_fulfillment_pct: Mapped[float] = mapped_column(Float, default=75.0, nullable=False)
+    achieved_availability_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    achieved_demand_fulfillment_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    expected_profit_inr: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
+    var_inr: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
+    cvar_inr: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
+    risk_adjusted_profit_inr: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
+    scenario_outcomes_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False)
+    scenario_ids_json: Mapped[list[int]] = mapped_column(JSON, default=list, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("confidence_level_alpha > 0.5 AND confidence_level_alpha < 1.0", name="ck_cvar_alpha_range"),
+        CheckConstraint("risk_aversion_lambda >= 0.0 AND risk_aversion_lambda <= 1.0", name="ck_cvar_lambda_range"),
+        CheckConstraint("num_scenarios >= 1", name="ck_cvar_num_scenarios"),
+    )
+
+
+# =============================================================================
+# SECTION 14: DOMAIN 2 — MLOPS PRODUCTION GOVERNANCE
+# =============================================================================
+
+class ModelDriftReport(Base, TimestampMixin):
+    """Trusted monitoring workflow drift report (PSI & KS statistics)."""
+    __tablename__ = "model_drift_reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    report_uid: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True,
+        default=lambda: f"DRIFT_{uuid.uuid4().hex[:10].upper()}",
+    )
+    model_id: Mapped[int] = mapped_column(
+        ForeignKey("ml_models.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    model_type: Mapped[MLModelType] = mapped_column(
+        SAEnum(MLModelType), nullable=False, index=True
+    )
+    baseline_window_start: Mapped[date] = mapped_column(Date, nullable=False)
+    baseline_window_end: Mapped[date] = mapped_column(Date, nullable=False)
+    target_window_start: Mapped[date] = mapped_column(Date, nullable=False)
+    target_window_end: Mapped[date] = mapped_column(Date, nullable=False)
+    sample_size_baseline: Mapped[int] = mapped_column(Integer, nullable=False)
+    sample_size_target: Mapped[int] = mapped_column(Integer, nullable=False)
+    overall_psi: Mapped[float] = mapped_column(Float, nullable=False)
+    max_ks_statistic: Mapped[float] = mapped_column(Float, nullable=False)
+    min_ks_pvalue: Mapped[float] = mapped_column(Float, nullable=False)
+    severity: Mapped[DriftSeverity] = mapped_column(
+        SAEnum(DriftSeverity), nullable=False, index=True
+    )
+    feature_metrics_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    computed_by_service: Mapped[str] = mapped_column(String(64), default="mlops_monitoring_service", nullable=False)
+    retraining_recommended: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("overall_psi >= 0.0", name="ck_drift_psi_nonneg"),
+        CheckConstraint("max_ks_statistic >= 0.0 AND max_ks_statistic <= 1.0", name="ck_drift_ks_range"),
+        CheckConstraint("sample_size_baseline >= 1 AND sample_size_target >= 1", name="ck_drift_samples_pos"),
+    )
+
+
+class FeatureFreshnessMetric(Base, TimestampMixin):
+    """Tracks feature pipeline staleness against SLA thresholds."""
+    __tablename__ = "feature_freshness_metrics"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    feature_set_id: Mapped[int | None] = mapped_column(
+        ForeignKey("feature_sets.id", ondelete="SET NULL"), index=True
+    )
+    feature_group_name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    last_updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    lag_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    sla_threshold_seconds: Mapped[int] = mapped_column(Integer, default=86400, nullable=False)
+    status: Mapped[FreshnessStatus] = mapped_column(
+        SAEnum(FreshnessStatus), nullable=False, index=True
+    )
+    record_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    details_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("lag_seconds >= 0", name="ck_freshness_lag_nonneg"),
+        CheckConstraint("sla_threshold_seconds > 0", name="ck_freshness_sla_pos"),
+    )
+
+
+class ModelDeployment(Base, TimestampMixin):
+    """Manages SHADOW and CANARY model deployments separately from CHAMPION promotion."""
+    __tablename__ = "model_deployments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    deployment_uid: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True,
+        default=lambda: f"DEP_{uuid.uuid4().hex[:10].upper()}",
+    )
+    model_id: Mapped[int] = mapped_column(
+        ForeignKey("ml_models.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    model_type: Mapped[MLModelType] = mapped_column(
+        SAEnum(MLModelType), nullable=False, index=True
+    )
+    deployment_mode: Mapped[DeploymentMode] = mapped_column(
+        SAEnum(DeploymentMode), nullable=False, index=True
+    )
+    status: Mapped[DeploymentStatus] = mapped_column(
+        SAEnum(DeploymentStatus), default=DeploymentStatus.ACTIVE, nullable=False, index=True
+    )
+    traffic_percentage: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    influences_live_decisions: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    deployed_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    activated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rollback_reason: Mapped[str | None] = mapped_column(Text)
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    shadow_logs: Mapped[list["ShadowPredictionLog"]] = relationship(
+        back_populates="deployment", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        CheckConstraint("traffic_percentage >= 0.0 AND traffic_percentage <= 100.0", name="ck_deploy_traffic_pct"),
+        CheckConstraint(
+            "(deployment_mode = 'SHADOW' AND influences_live_decisions = false AND traffic_percentage = 0.0) OR "
+            "(deployment_mode = 'CANARY')",
+            name="ck_shadow_no_live_influence",
+        ),
+    )
+
+
+class ShadowPredictionLog(Base):
+    """Immutable log of shadow/canary predictions compared against champion predictions."""
+    __tablename__ = "shadow_prediction_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    deployment_id: Mapped[int] = mapped_column(
+        ForeignKey("model_deployments.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    model_id: Mapped[int] = mapped_column(
+        ForeignKey("ml_models.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    entity_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    champion_prediction: Mapped[float | None] = mapped_column(Float)
+    candidate_prediction: Mapped[float] = mapped_column(Float, nullable=False)
+    prediction_delta: Mapped[float | None] = mapped_column(Float)
+    latency_ms: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    features_hash: Mapped[str | None] = mapped_column(String(64))
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+
+    deployment: Mapped[ModelDeployment] = relationship(back_populates="shadow_logs")
+
+
+class ModelLifecycleEvent(Base):
+    """Immutable monitoring & promotion/rollback history for ML models."""
+    __tablename__ = "model_lifecycle_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    model_id: Mapped[int] = mapped_column(
+        ForeignKey("ml_models.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    model_type: Mapped[MLModelType] = mapped_column(
+        SAEnum(MLModelType), nullable=False, index=True
+    )
+    action: Mapped[ModelLifecycleAction] = mapped_column(
+        SAEnum(ModelLifecycleAction), nullable=False, index=True
+    )
+    previous_champion_model_id: Mapped[int | None] = mapped_column(
+        ForeignKey("ml_models.id", ondelete="SET NULL")
+    )
+    performed_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    reason: Mapped[str | None] = mapped_column(Text)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+
+
+class RetrainingTriggerConfig(Base, TimestampMixin):
+    """Admin-configured thresholds that trigger model retraining runs."""
+    __tablename__ = "retraining_trigger_configs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    model_type: Mapped[MLModelType] = mapped_column(
+        SAEnum(MLModelType), nullable=False, index=True
+    )
+    trigger_metric: Mapped[RetrainingTriggerMetric] = mapped_column(
+        SAEnum(RetrainingTriggerMetric), nullable=False
+    )
+    threshold_value: Mapped[float] = mapped_column(Float, nullable=False)
+    auto_trigger_training: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    cooldown_hours: Mapped[int] = mapped_column(Integer, default=24, nullable=False)
+    is_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    last_triggered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+
+    __table_args__ = (
+        UniqueConstraint("model_type", "trigger_metric", name="uq_retrain_trigger_type_metric"),
+        CheckConstraint("threshold_value > 0.0", name="ck_retrain_threshold_pos"),
+        CheckConstraint("cooldown_hours >= 1", name="ck_retrain_cooldown_pos"),
+    )
+
+
+# =============================================================================
+# SECTION 15: DOMAIN 3 — SUPPLIER COLLABORATION & CONNECTIVITY HUB
+# =============================================================================
+
+class SupplierVerificationProfile(Base, TimestampMixin):
+    """Supplier tiering and verification state (1-to-1 extension of Supplier)."""
+    __tablename__ = "supplier_verification_profiles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    supplier_id: Mapped[str] = mapped_column(
+        ForeignKey("suppliers.supplier_id", ondelete="CASCADE"), unique=True, nullable=False, index=True
+    )
+    tier: Mapped[SupplierTier] = mapped_column(
+        SAEnum(SupplierTier), default=SupplierTier.TIER_3_STANDARD, nullable=False, index=True
+    )
+    verification_status: Mapped[SupplierVerificationStatus] = mapped_column(
+        SAEnum(SupplierVerificationStatus), default=SupplierVerificationStatus.UNVERIFIED, nullable=False, index=True
+    )
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    verified_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    risk_score: Mapped[float] = mapped_column(Float, default=0.5, nullable=False)
+    sla_response_hours: Mapped[int] = mapped_column(Integer, default=24, nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    __table_args__ = (
+        CheckConstraint("risk_score >= 0.0 AND risk_score <= 1.0", name="ck_sup_profile_risk_score"),
+        CheckConstraint("sla_response_hours >= 1", name="ck_sup_profile_sla_hours"),
+    )
+
+
+class SupplierOnboardingWorkflow(Base, TimestampMixin):
+    """Tracks formal onboarding and compliance checks for a supplier."""
+    __tablename__ = "supplier_onboarding_workflows"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    onboarding_uid: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True,
+        default=lambda: f"ONB_{uuid.uuid4().hex[:10].upper()}",
+    )
+    supplier_id: Mapped[str] = mapped_column(
+        ForeignKey("suppliers.supplier_id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    stage: Mapped[OnboardingStage] = mapped_column(
+        SAEnum(OnboardingStage), default=OnboardingStage.INITIATED, nullable=False, index=True
+    )
+    checklist_json: Mapped[dict[str, bool]] = mapped_column(JSON, default=dict, nullable=False)
+    assigned_admin_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rejection_reason: Mapped[str | None] = mapped_column(Text)
+    notes: Mapped[str | None] = mapped_column(Text)
+
+
+class SupplierApiCredential(Base, TimestampMixin):
+    """Machine-to-machine API key credentials for suppliers. Secret stored only as SHA-256 hash."""
+    __tablename__ = "supplier_api_credentials"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    credential_uid: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True,
+        default=lambda: f"SCRED_{uuid.uuid4().hex[:10].upper()}",
+    )
+    supplier_id: Mapped[str] = mapped_column(
+        ForeignKey("suppliers.supplier_id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    key_prefix: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    secret_hash: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
+    label: Mapped[str] = mapped_column(String(100), nullable=False)
+    scopes_json: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    status: Mapped[SupplierCredentialStatus] = mapped_column(
+        SAEnum(SupplierCredentialStatus), default=SupplierCredentialStatus.ACTIVE, nullable=False, index=True
+    )
+    rate_limit_per_minute: Mapped[int] = mapped_column(Integer, default=60, nullable=False)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rotated_from_id: Mapped[int | None] = mapped_column(
+        ForeignKey("supplier_api_credentials.id", ondelete="SET NULL")
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+
+    __table_args__ = (
+        CheckConstraint("rate_limit_per_minute >= 1", name="ck_sup_cred_rate_limit"),
+    )
+
+
+class SupplierRateSyncLog(Base, TimestampMixin):
+    """Idempotent audit log of supplier rate & availability pushes."""
+    __tablename__ = "supplier_rate_sync_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    sync_uid: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True,
+        default=lambda: f"SYNC_{uuid.uuid4().hex[:10].upper()}",
+    )
+    supplier_id: Mapped[str] = mapped_column(
+        ForeignKey("suppliers.supplier_id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    credential_id: Mapped[int | None] = mapped_column(
+        ForeignKey("supplier_api_credentials.id", ondelete="SET NULL"), index=True
+    )
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[RateSyncStatus] = mapped_column(
+        SAEnum(RateSyncStatus), nullable=False, index=True
+    )
+    offers_received: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    offers_upserted: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    snapshots_updated: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    offers_rejected: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    error_details_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False)
+    synced_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+
+    __table_args__ = (
+        UniqueConstraint("supplier_id", "idempotency_key", name="uq_supplier_rate_sync_idem"),
+    )
+
+
+class SettlementNettingBatch(Base, TimestampMixin):
+    """Supplier settlement netting batch aggregating PO payables and refund receivables."""
+    __tablename__ = "settlement_netting_batches"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    batch_uid: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True,
+        default=lambda: f"NET_{uuid.uuid4().hex[:10].upper()}",
+    )
+    supplier_id: Mapped[str] = mapped_column(
+        ForeignKey("suppliers.supplier_id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    period_start: Mapped[date] = mapped_column(Date, nullable=False)
+    period_end: Mapped[date] = mapped_column(Date, nullable=False)
+    currency: Mapped[str] = mapped_column(String(8), default="INR", nullable=False)
+    gross_payable_inr: Mapped[Decimal] = mapped_column(Numeric(16, 2), default=Decimal("0.00"), nullable=False)
+    gross_receivable_refunds_inr: Mapped[Decimal] = mapped_column(Numeric(16, 2), default=Decimal("0.00"), nullable=False)
+    net_settlement_inr: Mapped[Decimal] = mapped_column(Numeric(16, 2), default=Decimal("0.00"), nullable=False)
+    po_numbers_json: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    status: Mapped[SettlementBatchStatus] = mapped_column(
+        SAEnum(SettlementBatchStatus), default=SettlementBatchStatus.DRAFT, nullable=False, index=True
+    )
+    created_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    approved_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    settled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    __table_args__ = (
+        CheckConstraint("period_start <= period_end", name="ck_netting_period_range"),
+        CheckConstraint("gross_payable_inr >= 0 AND gross_receivable_refunds_inr >= 0", name="ck_netting_amounts_nonneg"),
+    )
+
+
+# =============================================================================
+# SECTION 16: DOMAIN 4 — MULTI-CURRENCY TREASURY & FX HEDGING
+# =============================================================================
+
+class FXForwardContract(Base, TimestampMixin):
+    """FX forward hedge contract with strict direction, rate provenance, and approval separation."""
+    __tablename__ = "fx_forward_contracts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    contract_number: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True,
+        default=lambda: f"FXF_{uuid.uuid4().hex[:10].upper()}",
+    )
+    base_currency: Mapped[str] = mapped_column(String(8), nullable=False, index=True)
+    quote_currency: Mapped[str] = mapped_column(String(8), default="INR", nullable=False, index=True)
+    direction: Mapped[FXContractDirection] = mapped_column(
+        SAEnum(FXContractDirection), nullable=False
+    )
+    notional_amount_base: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
+    contracted_forward_rate: Mapped[Decimal] = mapped_column(Numeric(18, 8), nullable=False)
+    spot_rate_at_booking: Mapped[Decimal] = mapped_column(Numeric(18, 8), nullable=False)
+    rate_source: Mapped[FXRateSource] = mapped_column(SAEnum(FXRateSource), nullable=False)
+    trade_date: Mapped[date] = mapped_column(Date, nullable=False)
+    maturity_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    valuation_timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    counterparty: Mapped[str] = mapped_column(String(120), nullable=False)
+    status: Mapped[FXContractStatus] = mapped_column(
+        SAEnum(FXContractStatus), default=FXContractStatus.DRAFT, nullable=False, index=True
+    )
+    mark_to_market_inr: Mapped[Decimal] = mapped_column(Numeric(16, 2), default=Decimal("0.00"), nullable=False)
+    created_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    approved_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    executed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    effectiveness_records: Mapped[list["HedgeEffectivenessRecord"]] = relationship(
+        back_populates="contract", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        CheckConstraint("notional_amount_base > 0", name="ck_fx_notional_pos"),
+        CheckConstraint("contracted_forward_rate > 0 AND spot_rate_at_booking > 0", name="ck_fx_rates_pos"),
+        CheckConstraint("trade_date <= maturity_date", name="ck_fx_maturity_after_trade"),
+        CheckConstraint("base_currency != quote_currency", name="ck_fx_distinct_currencies"),
+    )
+
+
+class CurrencyExposureSnapshot(Base, TimestampMixin):
+    """Point-in-time currency exposure calculated from offers, POs, and active hedges."""
+    __tablename__ = "currency_exposure_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    snapshot_uid: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True,
+        default=lambda: f"FXEXP_{uuid.uuid4().hex[:10].upper()}",
+    )
+    currency_code: Mapped[str] = mapped_column(String(8), nullable=False, index=True)
+    target_currency: Mapped[str] = mapped_column(String(8), default="INR", nullable=False)
+    spot_rate_used: Mapped[Decimal] = mapped_column(Numeric(18, 8), nullable=False)
+    rate_source: Mapped[str] = mapped_column(String(64), nullable=False)
+    valuation_timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    gross_exposure_base: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
+    gross_exposure_inr: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
+    hedged_amount_base: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
+    net_unhedged_base: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
+    net_unhedged_inr: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
+    hedge_ratio_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    unrealized_fx_pnl_inr: Mapped[Decimal] = mapped_column(Numeric(16, 2), default=Decimal("0.00"), nullable=False)
+    breakdown_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("spot_rate_used > 0", name="ck_fx_exp_rate_pos"),
+        CheckConstraint("hedge_ratio_pct >= 0.0", name="ck_fx_exp_ratio_nonneg"),
+    )
+
+
+class HedgeEffectivenessRecord(Base, TimestampMixin):
+    """IFRS 9 / IAS 39 dollar-offset hedge effectiveness measurement."""
+    __tablename__ = "hedge_effectiveness_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    contract_id: Mapped[int] = mapped_column(
+        ForeignKey("fx_forward_contracts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    measurement_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    spot_rate_at_measurement: Mapped[Decimal] = mapped_column(Numeric(18, 8), nullable=False)
+    hedged_item_fv_change_inr: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
+    hedging_instrument_fv_change_inr: Mapped[Decimal] = mapped_column(Numeric(16, 2), nullable=False)
+    effectiveness_ratio_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    is_effective: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    contract: Mapped[FXForwardContract] = relationship(back_populates="effectiveness_records")
+
+    __table_args__ = (
+        CheckConstraint("spot_rate_at_measurement > 0", name="ck_hedge_eff_rate_pos"),
+    )
+
+
+class MarginProtectionRule(Base, TimestampMixin):
+    """Admin-managed FX margin protection thresholds and breach actions."""
+    __tablename__ = "margin_protection_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    rule_code: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(150), nullable=False)
+    currency_code: Mapped[str] = mapped_column(String(8), nullable=False, index=True)
+    min_gross_margin_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    max_fx_drawdown_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    min_hedge_coverage_pct: Mapped[float] = mapped_column(Float, default=50.0, nullable=False)
+    action_on_breach: Mapped[MarginBreachAction] = mapped_column(
+        SAEnum(MarginBreachAction), default=MarginBreachAction.ALERT_ONLY, nullable=False
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, index=True)
+    created_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+
+    __table_args__ = (
+        CheckConstraint("min_gross_margin_pct >= 0.0 AND min_gross_margin_pct <= 100.0", name="ck_mpr_min_margin"),
+        CheckConstraint("max_fx_drawdown_pct > 0.0 AND max_fx_drawdown_pct <= 100.0", name="ck_mpr_max_dd"),
+        CheckConstraint("min_hedge_coverage_pct >= 0.0 AND min_hedge_coverage_pct <= 100.0", name="ck_mpr_hedge_cov"),
+    )
+
+
+class FXAlert(Base, TimestampMixin):
+    """Treasury FX & margin erosion alerts."""
+    __tablename__ = "fx_alerts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    alert_uid: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True,
+        default=lambda: f"FXALT_{uuid.uuid4().hex[:10].upper()}",
+    )
+    currency_code: Mapped[str] = mapped_column(String(8), nullable=False, index=True)
+    rule_id: Mapped[int | None] = mapped_column(
+        ForeignKey("margin_protection_rules.id", ondelete="SET NULL"), index=True
+    )
+    severity: Mapped[FXAlertSeverity] = mapped_column(
+        SAEnum(FXAlertSeverity), nullable=False, index=True
+    )
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    observed_margin_pct: Mapped[float | None] = mapped_column(Float)
+    observed_fx_move_pct: Mapped[float | None] = mapped_column(Float)
+    is_acknowledged: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+    acknowledged_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# =============================================================================
+# SECTION 17: DOMAIN 5 — POLICY-AS-CODE & COMPLIANCE ENGINE
+# =============================================================================
+
+class PolicyRule(Base, TimestampMixin):
+    """Controlled, declarative policy rule header."""
+    __tablename__ = "policy_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    rule_code: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(150), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    scope: Mapped[PolicyScope] = mapped_column(SAEnum(PolicyScope), nullable=False, index=True)
+    outcome: Mapped[PolicyOutcome] = mapped_column(
+        SAEnum(PolicyOutcome), default=PolicyOutcome.BLOCK, nullable=False, index=True
+    )
+    priority: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
+    status: Mapped[PolicyRuleStatus] = mapped_column(
+        SAEnum(PolicyRuleStatus), default=PolicyRuleStatus.ACTIVE, nullable=False, index=True
+    )
+    active_version_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    created_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+
+    versions: Mapped[list["PolicyRuleVersion"]] = relationship(
+        back_populates="rule", cascade="all, delete-orphan", order_by="PolicyRuleVersion.version_number.desc()"
+    )
+    exceptions: Mapped[list["PolicyExceptionRequest"]] = relationship(
+        back_populates="rule", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        CheckConstraint("priority >= 1", name="ck_policy_priority_pos"),
+        CheckConstraint("active_version_number >= 1", name="ck_policy_version_pos"),
+    )
+
+
+class PolicyRuleVersion(Base):
+    """Immutable versioned declarative rule condition tree (validated AST, never eval/SQL)."""
+    __tablename__ = "policy_rule_versions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    rule_id: Mapped[int] = mapped_column(
+        ForeignKey("policy_rules.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    version_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    condition_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    remediation_hint: Mapped[str | None] = mapped_column(Text)
+    checksum_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    rule: Mapped[PolicyRule] = relationship(back_populates="versions")
+
+    __table_args__ = (
+        UniqueConstraint("rule_id", "version_number", name="uq_policy_rule_version"),
+        CheckConstraint("version_number >= 1", name="ck_policy_ver_num_pos"),
+    )
+
+
+class PolicyEvaluationLog(Base):
+    """Immutable append-only history of policy evaluations across workflows."""
+    __tablename__ = "policy_evaluation_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    evaluation_uid: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True,
+        default=lambda: f"PEVAL_{uuid.uuid4().hex[:10].upper()}",
+    )
+    rule_id: Mapped[int | None] = mapped_column(
+        ForeignKey("policy_rules.id", ondelete="SET NULL"), index=True
+    )
+    rule_code: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    rule_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    scope: Mapped[PolicyScope] = mapped_column(SAEnum(PolicyScope), nullable=False, index=True)
+    entity_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    entity_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    outcome: Mapped[PolicyOutcome] = mapped_column(SAEnum(PolicyOutcome), nullable=False, index=True)
+    passed: Mapped[bool] = mapped_column(Boolean, nullable=False, index=True)
+    exception_applied_id: Mapped[int | None] = mapped_column(
+        ForeignKey("policy_exception_requests.id", ondelete="SET NULL")
+    )
+    input_context_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    evaluation_detail: Mapped[str] = mapped_column(Text, nullable=False)
+    evaluated_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    evaluated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+
+    __table_args__ = (
+        Index("ix_policy_eval_entity", "entity_type", "entity_id"),
+    )
+
+
+class PolicyExceptionRequest(Base, TimestampMixin):
+    """Workflow for requesting and approving time-bound policy exceptions."""
+    __tablename__ = "policy_exception_requests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    exception_uid: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True,
+        default=lambda: f"PEX_{uuid.uuid4().hex[:10].upper()}",
+    )
+    rule_id: Mapped[int] = mapped_column(
+        ForeignKey("policy_rules.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    entity_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    entity_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    justification: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[PolicyExceptionStatus] = mapped_column(
+        SAEnum(PolicyExceptionStatus), default=PolicyExceptionStatus.PENDING, nullable=False, index=True
+    )
+    requested_by_user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    reviewed_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    review_notes: Mapped[str | None] = mapped_column(Text)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    rule: Mapped[PolicyRule] = relationship(back_populates="exceptions")
+
+
+class ComplianceAuditRecord(Base, TimestampMixin):
+    """Admin-initiated compliance audit run across procurement, optimization, FX, and suppliers."""
+    __tablename__ = "compliance_audit_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    audit_uid: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False, index=True,
+        default=lambda: f"CAUD_{uuid.uuid4().hex[:10].upper()}",
+    )
+    audit_scope: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    status: Mapped[ComplianceAuditStatus] = mapped_column(
+        SAEnum(ComplianceAuditStatus), default=ComplianceAuditStatus.COMPLETED, nullable=False, index=True
+    )
+    total_checks: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    passed_checks: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    blocked_violations: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    warnings_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    active_exceptions_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    findings_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False)
+    triggered_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

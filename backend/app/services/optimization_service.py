@@ -100,6 +100,25 @@ class OptimizationService:
                 raise BadRequestException("Default platform budget cannot be negative.")
             budget_amount = default_budget
 
+        # Enforce Policy-as-Code rules before running optimization
+        from backend.app.models.schema import PolicyScope
+        from backend.app.services.policy_service import PolicyService
+        PolicyService.enforce_workflow_policies(
+            db=db,
+            scope=PolicyScope.OPTIMIZATION_RUN,
+            entity_type="optimization_runs",
+            entity_id=run_id,
+            context={
+                "optimization_mode": req.optimization_mode.value,
+                "total_budget_inr": float(budget_amount),
+                "max_supplier_share": float(req.max_supplier_share or 0.40),
+                "max_destination_share": float(req.max_destination_share or 0.35),
+                "solver_backend": req.solver_backend.value if req.solver_backend else "SCIP",
+                "target_currency": req.target_currency or "INR",
+            },
+            user_id=user_id,
+        )
+
         # Configure real mathematical solver pipeline
         from optimization.config import (
             OptimizationConfig,
@@ -814,9 +833,30 @@ class OptimizationService:
         created_pos: List[str] = []
         total_amount = Decimal("0.00")
 
+        from backend.app.models.schema import PolicyScope
+        from backend.app.services.policy_service import PolicyService
+
+        planned_pos: List[Tuple[str, Any, List[ProcurementRecommendation], Decimal]] = []
         for supp_id, supplier_recs in by_supplier.items():
             po_num = f"PO-{datetime.utcnow().strftime('%Y%m%d')}-{supp_id}-{uuid.uuid4().hex[:4].upper()}"
             po_amount = sum(r.total_spend_inr for r in supplier_recs)
+            PolicyService.enforce_workflow_policies(
+                db=db,
+                scope=PolicyScope.PURCHASE_ORDER_CREATE,
+                entity_type="purchase_orders",
+                entity_id=po_num,
+                context={
+                    "supplier_id": str(supp_id),
+                    "budget_id": run.budget_id,
+                    "total_amount_inr": float(po_amount),
+                    "lines_count": len(supplier_recs),
+                    "optimization_run_id": run.run_id,
+                },
+                user_id=user_id,
+            )
+            planned_pos.append((po_num, supp_id, supplier_recs, po_amount))
+
+        for po_num, supp_id, supplier_recs, po_amount in planned_pos:
             total_amount += po_amount
 
             po = PurchaseOrder(

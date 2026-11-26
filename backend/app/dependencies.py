@@ -64,3 +64,15 @@ def get_idempotency_key(
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> str | None:
     return idempotency_key
+
+
+def get_authenticated_supplier(
+    db: Annotated[Session, Depends(get_db)],
+    x_supplier_key: Annotated[str | None, Header(alias="X-Supplier-Key")] = None,
+):
+    """
+    Machine-to-machine authentication dependency for Supplier Portal endpoints.
+    Strictly separated from human JWT authentication; never grants user JWT permissions.
+    """
+    from backend.app.services.supplier_portal_service import SupplierPortalService
+    return SupplierPortalService.authenticate_machine_credential(db, x_supplier_key)

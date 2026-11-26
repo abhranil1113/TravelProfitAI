@@ -67,6 +67,14 @@ from backend.app.api.v1.analytics import router as analytics_router
 from backend.app.api.v1.economics import router as economics_router
 from backend.app.api.v1.health import router as health_router
 
+# Stage 10: Enterprise Production Domains (Risk, MLOps, Supplier Hub, Treasury, Policy & Compliance)
+from backend.app.api.v1.risk import router as risk_router
+from backend.app.api.v1.mlops import router as mlops_router
+from backend.app.api.v1.supplier_portal import router as supplier_portal_router
+from backend.app.api.v1.treasury import router as treasury_router
+from backend.app.api.v1.policy import router as policy_router
+from backend.app.api.v1.compliance import router as compliance_router
+
 api_router = APIRouter()
 
 # Stage 1: Auth & User Management (1-19)
@@ -117,3 +125,11 @@ api_router.include_router(audit_logs_router)
 api_router.include_router(analytics_router)
 api_router.include_router(economics_router)
 api_router.include_router(health_router)
+
+# Stage 10: Enterprise Production Domains
+api_router.include_router(risk_router)
+api_router.include_router(mlops_router)
+api_router.include_router(supplier_portal_router)
+api_router.include_router(treasury_router)
+api_router.include_router(policy_router)
+api_router.include_router(compliance_router)

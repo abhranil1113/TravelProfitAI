@@ -42,7 +42,8 @@ def db():
         conn.execute(text("DROP INDEX IF EXISTS uq_supplier_primary_contact"))
         conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_supplier_primary_contact ON supplier_contacts (supplier_id) WHERE is_primary = 1"))
         conn.execute(text("DROP INDEX IF EXISTS uq_champion_model_per_type"))
-        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_champion_model_per_type ON ml_models (model_type) WHERE is_champion = 1"))
+        conn.execute(text("DROP INDEX IF EXISTS uq_ml_model_single_champion"))
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_ml_model_single_champion ON ml_models (model_type) WHERE is_champion = 1"))
         conn.commit()
     session: Session = TestingSessionLocal()
     try:
