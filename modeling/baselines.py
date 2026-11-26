@@ -33,6 +33,22 @@ class NaiveForecaster(BaseEstimator, RegressorMixin):
         self.last_value_: float = 0.0
         self.lag_col_idx_: Optional[int] = lag_col_idx
 
+    def __getattr__(self, name: str) -> Any:
+        if name == "lag_col_idx":
+            return getattr(self, "lag_col_idx_", None)
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+
+    def __setstate__(self, state: Dict[str, Any]) -> None:
+        if "lag_col_idx" not in state:
+            state["lag_col_idx"] = state.get("lag_col_idx_", None)
+        if "lag_col_idx_" not in state:
+            state["lag_col_idx_"] = state.get("lag_col_idx", None)
+        if "lag_col" not in state:
+            state["lag_col"] = "lag_1"
+        if "last_value_" not in state:
+            state["last_value_"] = 0.0
+        self.__dict__.update(state)
+
     def fit(self, X, y=None):
         if y is not None and len(y) > 0:
             self.last_value_ = float(np.asarray(y)[-1])
@@ -84,6 +100,24 @@ class SeasonalNaiveForecaster(BaseEstimator, RegressorMixin):
         self.lag_col_idx = lag_col_idx
         self.seasonal_history_: np.ndarray = np.array([])
         self.lag_col_idx_: Optional[int] = lag_col_idx
+
+    def __getattr__(self, name: str) -> Any:
+        if name == "lag_col_idx":
+            return getattr(self, "lag_col_idx_", None)
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+
+    def __setstate__(self, state: Dict[str, Any]) -> None:
+        if "lag_col_idx" not in state:
+            state["lag_col_idx"] = state.get("lag_col_idx_", None)
+        if "lag_col_idx_" not in state:
+            state["lag_col_idx_"] = state.get("lag_col_idx", None)
+        if "seasonal_period" not in state:
+            state["seasonal_period"] = 7
+        if "lag_col" not in state:
+            state["lag_col"] = "lag_7"
+        if "seasonal_history_" not in state:
+            state["seasonal_history_"] = np.array([])
+        self.__dict__.update(state)
 
     def fit(self, X, y=None):
         if y is not None and len(y) > 0:

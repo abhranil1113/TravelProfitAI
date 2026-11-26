@@ -75,21 +75,28 @@ class DemandForecastService:
             if daily.empty:
                 continue
 
-            last_row = daily.iloc[-1]
+            # Complete calendar daily grid up to cutoff_dt (matching training target_builder)
+            start_date = daily.index.min()
+            full_idx = pd.date_range(start=start_date, end=cutoff_dt, freq="D")
+            daily_reindexed = daily.reindex(full_idx)
+            daily_reindexed["vol"] = daily_reindexed["vol"].fillna(0.0)
+            daily_reindexed["travellers"] = daily_reindexed["travellers"].fillna(0.0)
+            daily_reindexed["price"] = daily_reindexed["price"].ffill().fillna(5000.0)
+
+            last_row = daily_reindexed.iloc[-1]
             s_vol = float(last_row["vol"])
             t_trav = float(last_row["travellers"])
             a_price = float(last_row["price"]) if np.isfinite(last_row["price"]) else 5000.0
 
-            vol_series = daily["vol"]
-            lag_1 = float(vol_series.iloc[-1]) if len(vol_series) >= 1 else 0.0
-            lag_7 = float(vol_series.iloc[-7]) if len(vol_series) >= 7 else lag_1
-            lag_14 = float(vol_series.iloc[-14]) if len(vol_series) >= 14 else lag_7
+            vol_series = daily_reindexed["vol"]
+            lag_1 = float(vol_series.shift(1).iloc[-1]) if len(vol_series) >= 2 else s_vol
+            lag_7 = float(vol_series.shift(7).iloc[-1]) if len(vol_series) >= 8 else lag_1
+            lag_14 = float(vol_series.shift(14).iloc[-1]) if len(vol_series) >= 15 else lag_7
 
-            r_mean_7 = float(vol_series.tail(7).mean()) if len(vol_series) >= 1 else lag_1
-            r_mean_14 = float(vol_series.tail(14).mean()) if len(vol_series) >= 1 else r_mean_7
-            r_std_7 = float(vol_series.tail(7).std()) if len(vol_series) >= 2 else 0.0
-            if not np.isfinite(r_std_7):
-                r_std_7 = 0.0
+            r_mean_7 = float(vol_series.shift(1).rolling(7, min_periods=1).mean().iloc[-1]) if len(vol_series) >= 2 else lag_1
+            r_mean_14 = float(vol_series.shift(1).rolling(14, min_periods=1).mean().iloc[-1]) if len(vol_series) >= 2 else r_mean_7
+            r_std_7_val = vol_series.shift(1).rolling(7, min_periods=1).std().iloc[-1] if len(vol_series) >= 2 else 0.0
+            r_std_7 = float(r_std_7_val) if np.isfinite(r_std_7_val) else 0.0
 
             cache[dest_key] = {
                 "destination_id": str(dest),

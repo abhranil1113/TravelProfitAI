@@ -39,6 +39,7 @@ class ModelArtifactRegistry:
     _TASK_TO_CACHE_KEY: Dict[str, str] = {}
     _TASK_GENERATIONS: Dict[str, int] = {}
     _CACHE_LOCK = threading.RLock()
+    _TASK_LOAD_LOCKS: Dict[str, threading.Lock] = {}
 
     def __init__(
         self,
@@ -159,21 +160,27 @@ class ModelArtifactRegistry:
                     if cache_key in self._CLASS_CACHE:
                         return self._CLASS_CACHE[cache_key]
 
-        # --- SLOW CACHE MISS PATH ---
-        with self._CACHE_LOCK:
-            # Double-check after acquiring lock to prevent redundant loading
-            start_gen = self._TASK_GENERATIONS.get(task_norm, 0)
-            if self.config.cache_models:
-                if model_version:
-                    v_str = str(model_version).strip()
-                    for k, val in self._CLASS_CACHE.items():
-                        parts = k.split("::")
-                        if len(parts) >= 3 and parts[0] == task_norm and parts[2] == v_str:
-                            return val
-                elif task_norm in self._TASK_TO_CACHE_KEY:
-                    cache_key = self._TASK_TO_CACHE_KEY[task_norm]
-                    if cache_key in self._CLASS_CACHE:
-                        return self._CLASS_CACHE[cache_key]
+            # Obtain or create per-task loading lock under _CACHE_LOCK
+            if task_norm not in self._TASK_LOAD_LOCKS:
+                self._TASK_LOAD_LOCKS[task_norm] = threading.Lock()
+            task_load_lock = self._TASK_LOAD_LOCKS[task_norm]
+
+        # --- SLOW CACHE MISS PATH (PER-TASK LOAD LOCK) ---
+        with task_load_lock:
+            # Double-check cache under _CACHE_LOCK
+            with self._CACHE_LOCK:
+                start_gen = self._TASK_GENERATIONS.get(task_norm, 0)
+                if self.config.cache_models:
+                    if model_version:
+                        v_str = str(model_version).strip()
+                        for k, val in self._CLASS_CACHE.items():
+                            parts = k.split("::")
+                            if len(parts) >= 3 and parts[0] == task_norm and parts[2] == v_str:
+                                return val
+                    elif task_norm in self._TASK_TO_CACHE_KEY:
+                        cache_key = self._TASK_TO_CACHE_KEY[task_norm]
+                        if cache_key in self._CLASS_CACHE:
+                            return self._CLASS_CACHE[cache_key]
 
             task_dir = self.resolve_task_dir(task_norm, model_version=model_version)
             meta_path = os.path.join(task_dir, "metadata.json")
@@ -256,19 +263,20 @@ class ModelArtifactRegistry:
                     raise ArtifactCorruptedError(f"Failed to load preprocessor from '{prep_path}': {exc}") from exc
 
             cached_tuple = (estimator, preprocessor, raw_metadata)
-            current_gen = self._TASK_GENERATIONS.get(task_norm, 0)
-            if current_gen == start_gen:
-                if self.config.cache_models:
-                    self._CLASS_CACHE[cache_key] = cached_tuple
-                    if not model_version:
-                        self._TASK_TO_CACHE_KEY[task_norm] = cache_key
-                logger.info(
-                    "Successfully loaded and cached model for task '%s' (%s, version=%s, trust=%s) from '%s'",
-                    task_norm, schema.model_name, version_str, trust_source, task_dir
-                )
-            else:
-                logger.warning(
-                    "Discarded loaded model for '%s' due to concurrent invalidation (start_gen=%d, current_gen=%d).",
-                    task_norm, start_gen, current_gen
-                )
+            with self._CACHE_LOCK:
+                current_gen = self._TASK_GENERATIONS.get(task_norm, 0)
+                if current_gen == start_gen:
+                    if self.config.cache_models:
+                        self._CLASS_CACHE[cache_key] = cached_tuple
+                        if not model_version:
+                            self._TASK_TO_CACHE_KEY[task_norm] = cache_key
+                    logger.info(
+                        "Successfully loaded and cached model for task '%s' (%s, version=%s, trust=%s) from '%s'",
+                        task_norm, schema.model_name, version_str, trust_source, task_dir
+                    )
+                else:
+                    logger.warning(
+                        "Discarded loaded model for '%s' due to concurrent invalidation (start_gen=%d, current_gen=%d).",
+                        task_norm, start_gen, current_gen
+                    )
             return cached_tuple

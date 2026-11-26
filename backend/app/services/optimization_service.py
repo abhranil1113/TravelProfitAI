@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from backend.app.core.exceptions import (
     BadRequestException,
     ConflictException,
+    EntityNotFoundError,
     NotFoundException,
 )
 from backend.app.core.notification_events import (
@@ -79,18 +80,25 @@ class OptimizationService:
 
         # Resolve total budget
         budget_amount = req.total_budget_inr
-        if not budget_amount and req.budget_id:
+        if budget_amount is not None:
+            if budget_amount < Decimal("0.00"):
+                raise BadRequestException("Total budget cannot be negative.")
+        elif req.budget_id is not None:
             budget = db.execute(
                 select(ProcurementBudget).where(ProcurementBudget.id == req.budget_id)
             ).scalar_one_or_none()
-            if budget:
-                budget_amount = budget.total_amount_inr - budget.spent_amount_inr - budget.reserved_amount_inr
-
-        if not budget_amount:
+            if not budget:
+                raise EntityNotFoundError("ProcurementBudget", req.budget_id)
+            unallocated = budget.total_amount_inr - budget.spent_amount_inr - budget.reserved_amount_inr
+            budget_amount = max(Decimal("0.00"), unallocated)
+        else:
             active_cfg = db.execute(
                 select(PlatformOptimizationConfig).where(PlatformOptimizationConfig.is_active.is_(True))
             ).scalar_one_or_none()
-            budget_amount = active_cfg.default_total_budget_inr if active_cfg else Decimal("10000000.00")
+            default_budget = active_cfg.default_total_budget_inr if active_cfg else Decimal("10000000.00")
+            if default_budget < Decimal("0.00"):
+                raise BadRequestException("Default platform budget cannot be negative.")
+            budget_amount = default_budget
 
         # Configure real mathematical solver pipeline
         from optimization.config import (

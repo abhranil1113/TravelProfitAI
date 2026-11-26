@@ -10,6 +10,8 @@ Candidate opportunity builder orchestrating Stage 2 data preparation:
 - Financial contribution calculation
 """
 
+import collections
+import threading
 from typing import List, Dict, Any, Tuple, Optional
 import pandas as pd
 from optimization.config import OptimizationConfig
@@ -26,7 +28,9 @@ from ml_engine.adapters import OptimizationMLAdapter
 class CandidateOpportunityBuilder:
     """End-to-end data preparation service producing candidate procurement opportunities."""
 
-    _CANDIDATE_CACHE: Dict[Tuple[Any, ...], Tuple[List[ProcurementOpportunity], List[CandidateOffer], Dict[str, Any]]] = {}
+    _CANDIDATE_CACHE_MAX_SIZE = 128
+    _CACHE_LOCK = threading.Lock()
+    _CANDIDATE_CACHE: collections.OrderedDict[Tuple[Any, ...], Tuple[List[ProcurementOpportunity], List[CandidateOffer], Dict[str, Any]]] = collections.OrderedDict()
 
     def __init__(self, config: OptimizationConfig, loader: Optional[DatasetLoader] = None, db: Optional[Any] = None):
         self.config = config
@@ -51,14 +55,21 @@ class CandidateOpportunityBuilder:
             float(self.config.financial.hotel_base_sell_through),
             float(self.config.financial.total_budget),
         )
-        if self.db is None and cache_key in self._CANDIDATE_CACHE:
-            cached_opps, cached_cands, cached_meta = self._CANDIDATE_CACHE[cache_key]
-            return [o.model_copy() for o in cached_opps], [c.model_copy() for c in cached_cands], dict(cached_meta)
+        if self.db is None:
+            with self._CACHE_LOCK:
+                if cache_key in self._CANDIDATE_CACHE:
+                    cached_opps, cached_cands, cached_meta = self._CANDIDATE_CACHE[cache_key]
+                    self._CANDIDATE_CACHE.move_to_end(cache_key)
+                    return (
+                        [o.model_copy(deep=True) for o in cached_opps],
+                        [c.model_copy(deep=True) for c in cached_cands],
+                        dict(cached_meta),
+                    )
 
         # 1. Load raw datasets
         raw_offers = self.loader.load_supplier_offers()
         raw_inventory = self.loader.load_inventory_availability()
-        raw_searches = self.loader.load_customer_searches()
+        raw_searches = self.loader.load_customer_searches(cutoff_timestamp=self.config.optimization_timestamp)
 
         # 2. Currency Validation
         curr_validator = CurrencyValidator(self.config)
@@ -236,5 +247,13 @@ class CandidateOpportunityBuilder:
             "database_backed": self.db is not None,
         }
         if self.db is None:
-            self._CANDIDATE_CACHE[cache_key] = ([o.model_copy() for o in opportunities], [c.model_copy() for c in candidates], dict(audit_meta))
+            with self._CACHE_LOCK:
+                self._CANDIDATE_CACHE[cache_key] = (
+                    [o.model_copy(deep=True) for o in opportunities],
+                    [c.model_copy(deep=True) for c in candidates],
+                    dict(audit_meta),
+                )
+                self._CANDIDATE_CACHE.move_to_end(cache_key)
+                if len(self._CANDIDATE_CACHE) > self._CANDIDATE_CACHE_MAX_SIZE:
+                    self._CANDIDATE_CACHE.popitem(last=False)
         return opportunities, candidates, audit_meta
