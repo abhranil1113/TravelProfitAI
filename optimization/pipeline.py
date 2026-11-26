@@ -39,14 +39,16 @@ logger = logging.getLogger(__name__)
 class OptimizationPipeline:
     """Master orchestrator for ML-powered travel inventory procurement optimization."""
 
-    def __init__(self, config: OptimizationConfig, base_dir: Optional[str] = None):
+    def __init__(self, config: OptimizationConfig, base_dir: Optional[str] = None, db: Optional[Any] = None):
         self.config = config
         self.base_dir = base_dir
+        self.db = db
         loader = DatasetLoader(
             base_dir=base_dir,
-            custom_paths=getattr(config, "data_paths", None)
+            custom_paths=getattr(config, "data_paths", None),
+            db=db,
         )
-        self.candidate_builder = CandidateOpportunityBuilder(config, loader=loader)
+        self.candidate_builder = CandidateOpportunityBuilder(config, loader=loader, db=db)
 
     def run(self, output_dir: Optional[str] = "data/optimization") -> OptimizationPlan:
         """

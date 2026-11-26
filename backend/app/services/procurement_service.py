@@ -46,7 +46,6 @@ from backend.app.schemas.procurement import (
 
 
 class ProcurementService:
-    _fulfillment_lock: threading.Lock = threading.Lock()
 
     @staticmethod
     def list_purchase_orders(
@@ -290,6 +289,21 @@ class ProcurementService:
         req: PurchaseOrderConfirmRequest,
         user_id: int,
     ) -> PurchaseOrder:
+        # Hierarchical lock ordering to prevent deadlocks: ProcurementBudget -> PurchaseOrder
+        po_brief = db.execute(
+            select(PurchaseOrder.budget_id).where(PurchaseOrder.po_number == po_number)
+        ).first()
+        if not po_brief:
+            raise NotFoundException(f"Purchase order '{po_number}' not found")
+
+        budget = None
+        if po_brief[0]:
+            budget = db.execute(
+                select(ProcurementBudget)
+                .where(ProcurementBudget.id == po_brief[0])
+                .with_for_update()
+            ).scalar_one_or_none()
+
         po = db.execute(
             select(PurchaseOrder)
             .where(PurchaseOrder.po_number == po_number)
@@ -305,27 +319,21 @@ class ProcurementService:
             po.notes = f"{po.notes or ''}\n[Confirmed]: {req.notes}".strip()
 
         # Update budget ledger from reservation to commitment if budget present
-        if po.budget_id:
-            budget = db.execute(
-                select(ProcurementBudget)
-                .where(ProcurementBudget.id == po.budget_id)
-                .with_for_update()
-            ).scalar_one_or_none()
-            if budget:
-                avail = budget.total_amount_inr - budget.spent_amount_inr - budget.reserved_amount_inr
-                budget.reserved_amount_inr -= po.total_committed_spend_inr
-                budget.spent_amount_inr += po.total_committed_spend_inr
-                ledger = BudgetLedgerEntry(
-                    budget_id=budget.id,
-                    transaction_type=BudgetTransactionType.COMMIT,
-                    amount_inr=po.total_committed_spend_inr,
-                    previous_balance_inr=avail,
-                    new_balance_inr=avail,
-                    po_number=po_number,
-                    created_by_user_id=user_id,
-                    description=f"Confirmed PO execution for {po_number}",
-                )
-                db.add(ledger)
+        if budget:
+            avail = budget.total_amount_inr - budget.spent_amount_inr - budget.reserved_amount_inr
+            budget.reserved_amount_inr -= po.total_committed_spend_inr
+            budget.spent_amount_inr += po.total_committed_spend_inr
+            ledger = BudgetLedgerEntry(
+                budget_id=budget.id,
+                transaction_type=BudgetTransactionType.COMMIT,
+                amount_inr=po.total_committed_spend_inr,
+                previous_balance_inr=avail,
+                new_balance_inr=avail,
+                po_number=po_number,
+                created_by_user_id=user_id,
+                description=f"Confirmed PO execution for {po_number}",
+            )
+            db.add(ledger)
 
         audit = AuditLog(
             user_id=user_id,
@@ -363,6 +371,21 @@ class ProcurementService:
         req: PurchaseOrderCancelRequest,
         user_id: int,
     ) -> PurchaseOrder:
+        # Hierarchical lock ordering: ProcurementBudget -> PurchaseOrder
+        po_brief = db.execute(
+            select(PurchaseOrder.budget_id).where(PurchaseOrder.po_number == po_number)
+        ).first()
+        if not po_brief:
+            raise NotFoundException(f"Purchase order '{po_number}' not found")
+
+        budget = None
+        if po_brief[0]:
+            budget = db.execute(
+                select(ProcurementBudget)
+                .where(ProcurementBudget.id == po_brief[0])
+                .with_for_update()
+            ).scalar_one_or_none()
+
         po = db.execute(
             select(PurchaseOrder)
             .where(PurchaseOrder.po_number == po_number)
@@ -374,42 +397,36 @@ class ProcurementService:
             raise BadRequestException(f"Cannot cancel PO in status '{po.status.value}'")
 
         # Release or refund budget allocation
-        if po.budget_id:
-            budget = db.execute(
-                select(ProcurementBudget)
-                .where(ProcurementBudget.id == po.budget_id)
-                .with_for_update()
-            ).scalar_one_or_none()
-            if budget:
-                avail = budget.total_amount_inr - budget.spent_amount_inr - budget.reserved_amount_inr
-                if po.status == POStatus.SUBMITTED:
-                    new_avail = avail + po.total_committed_spend_inr
-                    budget.reserved_amount_inr -= po.total_committed_spend_inr
-                    ledger = BudgetLedgerEntry(
-                        budget_id=budget.id,
-                        transaction_type=BudgetTransactionType.RELEASE,
-                        amount_inr=po.total_committed_spend_inr,
-                        previous_balance_inr=avail,
-                        new_balance_inr=new_avail,
-                        po_number=po_number,
-                        created_by_user_id=user_id,
-                        description=f"Released reservation for cancelled PO {po_number}: {req.reason}",
-                    )
-                    db.add(ledger)
-                elif po.status == POStatus.CONFIRMED:
-                    new_avail = avail + po.total_committed_spend_inr
-                    budget.spent_amount_inr -= po.total_committed_spend_inr
-                    ledger = BudgetLedgerEntry(
-                        budget_id=budget.id,
-                        transaction_type=BudgetTransactionType.REFUND,
-                        amount_inr=po.total_committed_spend_inr,
-                        previous_balance_inr=avail,
-                        new_balance_inr=new_avail,
-                        po_number=po_number,
-                        created_by_user_id=user_id,
-                        description=f"Refunded commitment for cancelled confirmed PO {po_number}: {req.reason}",
-                    )
-                    db.add(ledger)
+        if budget:
+            avail = budget.total_amount_inr - budget.spent_amount_inr - budget.reserved_amount_inr
+            if po.status == POStatus.SUBMITTED:
+                new_avail = avail + po.total_committed_spend_inr
+                budget.reserved_amount_inr -= po.total_committed_spend_inr
+                ledger = BudgetLedgerEntry(
+                    budget_id=budget.id,
+                    transaction_type=BudgetTransactionType.RELEASE,
+                    amount_inr=po.total_committed_spend_inr,
+                    previous_balance_inr=avail,
+                    new_balance_inr=new_avail,
+                    po_number=po_number,
+                    created_by_user_id=user_id,
+                    description=f"Released reservation for cancelled PO {po_number}: {req.reason}",
+                )
+                db.add(ledger)
+            elif po.status == POStatus.CONFIRMED:
+                new_avail = avail + po.total_committed_spend_inr
+                budget.spent_amount_inr -= po.total_committed_spend_inr
+                ledger = BudgetLedgerEntry(
+                    budget_id=budget.id,
+                    transaction_type=BudgetTransactionType.REFUND,
+                    amount_inr=po.total_committed_spend_inr,
+                    previous_balance_inr=avail,
+                    new_balance_inr=new_avail,
+                    po_number=po_number,
+                    created_by_user_id=user_id,
+                    description=f"Refunded commitment for cancelled confirmed PO {po_number}: {req.reason}",
+                )
+                db.add(ledger)
 
         po.status = POStatus.CANCELLED
         po.notes = f"{po.notes or ''}\n[Cancelled]: {req.reason}".strip()
@@ -502,88 +519,88 @@ class ProcurementService:
         req: FulfillmentCreateRequest,
         user_id: int,
     ) -> PurchaseOrderFulfillment:
-        with ProcurementService._fulfillment_lock:
-            po = db.execute(
-                select(PurchaseOrder)
-                .where(PurchaseOrder.po_number == po_number)
-                .with_for_update()
-            ).scalar_one_or_none()
-            if not po:
-                raise NotFoundException(f"Purchase order '{po_number}' not found")
-            if po.status == POStatus.CANCELLED:
-                raise BadRequestException(f"Cannot fulfill purchase order in status '{po.status.value}'")
+        # Hierarchical row locking across processes: PurchaseOrder -> PurchaseOrderLine -> PurchaseOrderFulfillment
+        po = db.execute(
+            select(PurchaseOrder)
+            .where(PurchaseOrder.po_number == po_number)
+            .with_for_update()
+        ).scalar_one_or_none()
+        if not po:
+            raise NotFoundException(f"Purchase order '{po_number}' not found")
+        if po.status == POStatus.CANCELLED:
+            raise BadRequestException(f"Cannot fulfill purchase order in status '{po.status.value}'")
 
-            line = db.execute(
-                select(PurchaseOrderLine).where(
-                    PurchaseOrderLine.id == line_id,
-                    PurchaseOrderLine.po_number == po_number,
-                ).with_for_update()
-            ).scalar_one_or_none()
-            if not line:
-                raise NotFoundException(f"Line {line_id} not found on PO '{po_number}'")
+        line = db.execute(
+            select(PurchaseOrderLine).where(
+                PurchaseOrderLine.id == line_id,
+                PurchaseOrderLine.po_number == po_number,
+            ).with_for_update()
+        ).scalar_one_or_none()
+        if not line:
+            raise NotFoundException(f"Line {line_id} not found on PO '{po_number}'")
 
-            # Validate against over-delivery
-            prior_delivered = db.execute(
+        # Validate against over-delivery using row-level locking
+        prior_delivered = db.execute(
+            select(func.coalesce(func.sum(PurchaseOrderFulfillment.delivered_qty), 0))
+            .where(PurchaseOrderFulfillment.po_line_id == line.id)
+        ).scalar_one()
+
+        if prior_delivered + req.delivered_qty > line.ordered_qty:
+            raise BadRequestException(
+                f"Over-delivery rejected. Line ordered quantity: {line.ordered_qty}, already delivered: {prior_delivered}, attempted: {req.delivered_qty}."
+            )
+
+        actual_cost = req.actual_unit_cost_inr or line.unit_cost_inr
+        total_cost = req.delivered_qty * actual_cost
+
+        new_total_delivered = prior_delivered + req.delivered_qty
+        is_line_complete = (new_total_delivered >= line.ordered_qty)
+
+        ful = PurchaseOrderFulfillment(
+            po_line_id=line.id,
+            delivered_qty=req.delivered_qty,
+            delivered_at=req.delivered_at or datetime.utcnow(),
+            actual_unit_cost_inr=actual_cost,
+            actual_total_cost_inr=total_cost,
+            fulfilled_units=req.delivered_qty,
+            status=FulfillmentStatus.DELIVERED if is_line_complete else FulfillmentStatus.PARTIALLY_DELIVERED,
+            notes=req.notes,
+        )
+        db.add(ful)
+        db.flush()
+
+        # Check if all lines for the purchase order are now completely fulfilled
+        all_lines = db.execute(
+            select(PurchaseOrderLine).where(PurchaseOrderLine.po_number == po_number).with_for_update()
+        ).scalars().all()
+
+        all_complete = True
+        for l in all_lines:
+            tot_deliv = db.execute(
                 select(func.coalesce(func.sum(PurchaseOrderFulfillment.delivered_qty), 0))
-                .where(PurchaseOrderFulfillment.po_line_id == line.id)
+                .where(PurchaseOrderFulfillment.po_line_id == l.id)
             ).scalar_one()
+            if tot_deliv < l.ordered_qty:
+                all_complete = False
+                break
 
-            if prior_delivered + req.delivered_qty > line.ordered_qty:
-                raise BadRequestException(
-                    f"Over-delivery rejected. Line ordered quantity: {line.ordered_qty}, already delivered: {prior_delivered}, attempted: {req.delivered_qty}."
-                )
+        if all_complete:
+            po.status = POStatus.COMPLETED
+            po.notes = f"{po.notes or ''}\n[Fulfillment Completed]: All lines fully delivered.".strip()
+        elif po.status != POStatus.CONFIRMED:
+            po.status = POStatus.CONFIRMED
 
-            actual_cost = req.actual_unit_cost_inr or line.unit_cost_inr
-            total_cost = req.delivered_qty * actual_cost
-
-            new_total_delivered = prior_delivered + req.delivered_qty
-            is_line_complete = (new_total_delivered >= line.ordered_qty)
-
-            ful = PurchaseOrderFulfillment(
-                po_line_id=line.id,
-                delivered_qty=req.delivered_qty,
-                delivered_at=req.delivered_at or datetime.utcnow(),
-                actual_unit_cost_inr=actual_cost,
-                actual_total_cost_inr=total_cost,
-                fulfilled_units=req.delivered_qty,
-                status=FulfillmentStatus.DELIVERED if is_line_complete else FulfillmentStatus.PARTIALLY_DELIVERED,
-                notes=req.notes,
-            )
-            db.add(ful)
-            db.flush()
-
-            # Check if all lines for the purchase order are now completely fulfilled
-            all_lines = db.execute(
-                select(PurchaseOrderLine).where(PurchaseOrderLine.po_number == po_number).with_for_update()
-            ).scalars().all()
-
-            all_complete = True
-            for l in all_lines:
-                tot_deliv = db.execute(
-                    select(func.coalesce(func.sum(PurchaseOrderFulfillment.delivered_qty), 0))
-                    .where(PurchaseOrderFulfillment.po_line_id == l.id)
-                ).scalar_one()
-                if tot_deliv < l.ordered_qty:
-                    all_complete = False
-                    break
-
-            if all_complete:
-                po.status = POStatus.COMPLETED
-                po.notes = f"{po.notes or ''}\n[Fulfillment Completed]: All lines fully delivered.".strip()
-            elif po.status != POStatus.CONFIRMED:
-                po.status = POStatus.CONFIRMED
-
-            audit = AuditLog(
-                user_id=user_id,
-                action="RECORD_FULFILLMENT",
-                entity_type="PURCHASE_ORDER_FULFILLMENT",
-                entity_id=str(ful.id),
-                new_value_json={"po_number": po_number, "delivered_qty": req.delivered_qty},
-            )
-            db.add(audit)
-            db.commit()
-            db.refresh(ful)
-            return ful
+        audit = AuditLog(
+            user_id=user_id,
+            action="RECORD_FULFILLMENT",
+            entity_type="PURCHASE_ORDER_FULFILLMENT",
+            entity_id=str(ful.id),
+            new_value_json={"po_number": po_number, "delivered_qty": req.delivered_qty},
+        )
+        db.add(audit)
+        db.commit()
+        db.refresh(ful)
+        return ful
 
     @staticmethod
     def update_fulfillment(
@@ -592,6 +609,33 @@ class ProcurementService:
         req: FulfillmentUpdateRequest,
         user_id: int,
     ) -> PurchaseOrderFulfillment:
+        # Hierarchical lock ordering: PurchaseOrder -> PurchaseOrderLine -> PurchaseOrderFulfillment
+        ful_query = db.execute(
+            select(PurchaseOrderFulfillment.po_line_id).where(PurchaseOrderFulfillment.id == fulfillment_id)
+        ).first()
+        if not ful_query:
+            raise NotFoundException(f"Fulfillment {fulfillment_id} not found")
+
+        line_id = ful_query[0]
+        line_brief = db.execute(
+            select(PurchaseOrderLine.po_number).where(PurchaseOrderLine.id == line_id)
+        ).first()
+        if not line_brief:
+            raise NotFoundException(f"Line {line_id} associated with fulfillment not found")
+
+        po_number = line_brief[0]
+        po = db.execute(
+            select(PurchaseOrder).where(PurchaseOrder.po_number == po_number).with_for_update()
+        ).scalar_one_or_none()
+        if not po:
+            raise NotFoundException(f"Purchase order '{po_number}' not found")
+
+        line = db.execute(
+            select(PurchaseOrderLine).where(PurchaseOrderLine.id == line_id).with_for_update()
+        ).scalar_one_or_none()
+        if not line:
+            raise NotFoundException(f"Line {line_id} associated with fulfillment not found")
+
         ful = db.execute(
             select(PurchaseOrderFulfillment)
             .where(PurchaseOrderFulfillment.id == fulfillment_id)
@@ -601,6 +645,22 @@ class ProcurementService:
             raise NotFoundException(f"Fulfillment {fulfillment_id} not found")
 
         update_data = req.model_dump(exclude_unset=True)
+
+        # Validate against over-delivery if quantity changed
+        if "delivered_qty" in update_data:
+            new_qty = update_data["delivered_qty"]
+            other_delivered = db.execute(
+                select(func.coalesce(func.sum(PurchaseOrderFulfillment.delivered_qty), 0))
+                .where(
+                    PurchaseOrderFulfillment.po_line_id == line.id,
+                    PurchaseOrderFulfillment.id != fulfillment_id,
+                )
+            ).scalar_one()
+            if other_delivered + new_qty > line.ordered_qty:
+                raise BadRequestException(
+                    f"Over-delivery rejected. Line ordered quantity: {line.ordered_qty}, already delivered by other records: {other_delivered}, updated: {new_qty}."
+                )
+
         for field, value in update_data.items():
             setattr(ful, field, value)
 
@@ -624,7 +684,9 @@ class ProcurementService:
         user_id: int,
     ) -> PurchaseOrderFulfillment:
         ful = db.execute(
-            select(PurchaseOrderFulfillment).where(PurchaseOrderFulfillment.id == fulfillment_id)
+            select(PurchaseOrderFulfillment)
+            .where(PurchaseOrderFulfillment.id == fulfillment_id)
+            .with_for_update()
         ).scalar_one_or_none()
         if not ful:
             raise NotFoundException(f"Fulfillment {fulfillment_id} not found")

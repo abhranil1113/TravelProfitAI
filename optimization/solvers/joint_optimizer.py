@@ -103,30 +103,54 @@ class JointProcurementOptimizer(BaseProcurementOptimizer):
         # Never pool physical room nights and seats into a common sum!
         # Hotel destination caps
         dest_hotel_opps: Dict[str, List[str]] = defaultdict(list)
-        dest_hotel_caps: Dict[str, int] = {}
+        dest_hotel_caps: Dict[str, Optional[int]] = {}
         for c in candidates:
             if c.inventory_type == "HOTEL":
                 dest_hotel_opps[c.destination_id].append(c.opportunity_id)
-                dest_hotel_caps[c.destination_id] = max(dest_hotel_caps.get(c.destination_id, 0), c.aggregate_demand)
+                if c.destination_id not in dest_hotel_caps:
+                    dest_hotel_caps[c.destination_id] = c.aggregate_demand
+                else:
+                    curr_cap = dest_hotel_caps[c.destination_id]
+                    if curr_cap is None or c.aggregate_demand is None:
+                        dest_hotel_caps[c.destination_id] = None
+                    else:
+                        dest_hotel_caps[c.destination_id] = max(curr_cap, c.aggregate_demand)
 
         for dest_id, opp_ids in dest_hotel_opps.items():
             cap = dest_hotel_caps[dest_id]
-            if cap > 0:
+            if cap is None or cap == 0:
+                # None (unavailable demand) blocks procurement; 0 forces quantity to zero
+                h_dest_c = solver.Constraint(0.0, 0.0, f"hotel_demand_cap_{dest_id}")
+                for opp_id in opp_ids:
+                    h_dest_c.SetCoefficient(q_vars[opp_id], 1.0)
+            elif cap > 0:
                 h_dest_c = solver.Constraint(0.0, float(cap), f"hotel_demand_cap_{dest_id}")
                 for opp_id in opp_ids:
                     h_dest_c.SetCoefficient(q_vars[opp_id], 1.0)
 
         # Flight destination caps
         dest_flight_opps: Dict[str, List[str]] = defaultdict(list)
-        dest_flight_caps: Dict[str, int] = {}
+        dest_flight_caps: Dict[str, Optional[int]] = {}
         for c in candidates:
             if c.inventory_type == "FLIGHT":
                 dest_flight_opps[c.destination_id].append(c.opportunity_id)
-                dest_flight_caps[c.destination_id] = max(dest_flight_caps.get(c.destination_id, 0), c.aggregate_demand)
+                if c.destination_id not in dest_flight_caps:
+                    dest_flight_caps[c.destination_id] = c.aggregate_demand
+                else:
+                    curr_cap = dest_flight_caps[c.destination_id]
+                    if curr_cap is None or c.aggregate_demand is None:
+                        dest_flight_caps[c.destination_id] = None
+                    else:
+                        dest_flight_caps[c.destination_id] = max(curr_cap, c.aggregate_demand)
 
         for dest_id, opp_ids in dest_flight_opps.items():
             cap = dest_flight_caps[dest_id]
-            if cap > 0:
+            if cap is None or cap == 0:
+                # None (unavailable demand) blocks procurement; 0 forces quantity to zero
+                f_dest_c = solver.Constraint(0.0, 0.0, f"flight_demand_cap_{dest_id}")
+                for opp_id in opp_ids:
+                    f_dest_c.SetCoefficient(q_vars[opp_id], 1.0)
+            elif cap > 0:
                 f_dest_c = solver.Constraint(0.0, float(cap), f"flight_demand_cap_{dest_id}")
                 for opp_id in opp_ids:
                     f_dest_c.SetCoefficient(q_vars[opp_id], 1.0)

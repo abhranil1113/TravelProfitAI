@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import logging
+import os
 import uuid
 from datetime import date, datetime, timezone
-from typing import Optional
+from pathlib import Path
+from typing import Optional, Dict, Any, Tuple
+import pandas as pd
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -20,8 +24,97 @@ from backend.app.schemas.pipeline import (
     QualitySummaryResponse,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class PipelineService:
+    @staticmethod
+    def _execute_batch_cleaning(batch: IngestionBatch, db: Session) -> None:
+        """
+        Executes real data cleaning on the dataset specified by the ingestion batch,
+        updating accurate counts and processed parquet paths.
+        """
+        try:
+            src = batch.source_uri.strip()
+            ds_name = batch.dataset_name.strip().lower()
+            resolved_path = None
+
+            if os.path.exists(src):
+                resolved_path = src
+            else:
+                candidates = [
+                    f"data/raw/{ds_name}.csv",
+                    f"data/raw/{ds_name}.parquet",
+                    f"data/processed/{ds_name}.parquet",
+                    f"data/processed/{ds_name}.csv",
+                ]
+                for c in candidates:
+                    if os.path.exists(c):
+                        resolved_path = c
+                        break
+
+            if not resolved_path:
+                batch.status = PipelineStatus.FAILED
+                batch.error_message = f"Source dataset file not found at '{src}' or candidate paths."
+                batch.processing_completed_at = datetime.now(timezone.utc)
+                return
+
+            # Read dataset
+            if resolved_path.endswith(".parquet"):
+                raw_df = pd.read_parquet(resolved_path)
+            else:
+                raw_df = pd.read_csv(resolved_path)
+
+            from data_pipeline.cleaning.clean_market_signals import clean_market_signals
+            from data_pipeline.cleaning.clean_inventory import clean_inventory_availability
+            from data_pipeline.cleaning.clean_supplier_offers import clean_supplier_offers
+            from data_pipeline.cleaning.clean_search_events import clean_search_events
+            from data_pipeline.cleaning.clean_flight_prices import clean_flight_prices
+            from data_pipeline.cleaning.clean_hotel_bookings import clean_hotel_bookings
+            from data_pipeline.cleaning.clean_flights import clean_airlines, clean_airports, clean_flights
+
+            cleaning_map = {
+                "market_seasonal_signals": clean_market_signals,
+                "market_signals": clean_market_signals,
+                "inventory_availability": clean_inventory_availability,
+                "supplier_offers": clean_supplier_offers,
+                "customer_search_events": clean_search_events,
+                "search_events": clean_search_events,
+                "flight_prices": clean_flight_prices,
+                "hotel_bookings": clean_hotel_bookings,
+                "airlines": clean_airlines,
+                "airports": clean_airports,
+                "flights": clean_flights,
+            }
+
+            cleaner = cleaning_map.get(ds_name)
+            if cleaner:
+                clean_df, meta = cleaner(raw_df)
+                dups = meta.get("duplicates_dropped", 0) if isinstance(meta, dict) else 0
+            else:
+                clean_df = raw_df.drop_duplicates()
+                dups = len(raw_df) - len(clean_df)
+                meta = {}
+
+            out_dir = Path("data/processed")
+            out_dir.mkdir(parents=True, exist_ok=True)
+            out_parquet = out_dir / f"{ds_name}.parquet"
+            clean_df.to_parquet(out_parquet, index=False)
+
+            batch.rows_ingested = len(clean_df)
+            batch.rows_rejected = max(0, len(raw_df) - len(clean_df))
+            batch.rows_duplicates_removed = dups
+            batch.processed_parquet_path = str(out_parquet)
+            batch.status = PipelineStatus.COMPLETED
+            batch.error_message = None
+            batch.processing_completed_at = datetime.now(timezone.utc)
+
+        except Exception as e:
+            logger.error("Batch processing failed for %s: %s", batch.batch_uid, e, exc_info=True)
+            batch.status = PipelineStatus.FAILED
+            batch.error_message = f"Ingestion batch processing failed: {str(e)}"
+            batch.processing_completed_at = datetime.now(timezone.utc)
+
     @staticmethod
     def list_batches(
         db: Session,
@@ -53,18 +146,29 @@ class PipelineService:
             dataset_name=payload.dataset_name.strip(),
             source_uri=payload.source_uri.strip(),
             batch_date=payload.batch_date or date.today(),
-            status=PipelineStatus.PENDING,
+            status=PipelineStatus.RUNNING,
             celery_task_id=pipeline_task,
             triggered_by_user_id=user_id,
             processing_started_at=datetime.now(timezone.utc),
         )
         db.add(batch)
+        db.flush()
+
+        # Execute data cleaning execution path
+        PipelineService._execute_batch_cleaning(batch, db)
+
         db.add(AuditLog(
             user_id=user_id,
             action="DATA_INGESTION_BATCH_TRIGGERED",
             entity_type="ingestion_batches",
             entity_id=batch_uid,
-            new_value_json={"dataset": batch.dataset_name, "execution_mode": "IN_PROCESS", "task_id": pipeline_task},
+            new_value_json={
+                "dataset": batch.dataset_name,
+                "status": batch.status.value,
+                "rows_ingested": batch.rows_ingested,
+                "rows_rejected": batch.rows_rejected,
+                "processed_parquet_path": batch.processed_parquet_path,
+            },
         ))
         db.commit()
         db.refresh(batch)
@@ -94,12 +198,18 @@ class PipelineService:
         batch.processing_completed_at = None
         batch.celery_task_id = f"task-retry-{uuid.uuid4().hex[:8]}"
 
+        PipelineService._execute_batch_cleaning(batch, db)
+
         db.add(AuditLog(
             user_id=user_id,
             action="DATA_INGESTION_BATCH_RETRIED",
             entity_type="ingestion_batches",
             entity_id=batch_uid,
-            new_value_json={"retry_count": batch.retry_count},
+            new_value_json={
+                "retry_count": batch.retry_count,
+                "status": batch.status.value,
+                "rows_ingested": batch.rows_ingested,
+            },
         ))
         db.commit()
         db.refresh(batch)

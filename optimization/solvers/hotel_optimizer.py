@@ -82,14 +82,26 @@ class HotelProcurementOptimizer(BaseProcurementOptimizer):
         # 4. Destination Demand Absorption Limits
         # For each destination, total room nights procured cannot exceed aggregate demand cap
         dest_opps: Dict[str, List[str]] = defaultdict(list)
-        dest_caps: Dict[str, int] = {}
+        dest_caps: Dict[str, Optional[int]] = {}
         for c in hotel_candidates:
             dest_opps[c.destination_id].append(c.opportunity_id)
-            dest_caps[c.destination_id] = max(dest_caps.get(c.destination_id, 0), c.aggregate_demand)
+            if c.destination_id not in dest_caps:
+                dest_caps[c.destination_id] = c.aggregate_demand
+            else:
+                curr_cap = dest_caps[c.destination_id]
+                if curr_cap is None or c.aggregate_demand is None:
+                    dest_caps[c.destination_id] = None
+                else:
+                    dest_caps[c.destination_id] = max(curr_cap, c.aggregate_demand)
 
         for dest_id, opp_ids in dest_opps.items():
             cap = dest_caps[dest_id]
-            if cap > 0:
+            if cap is None or cap == 0:
+                # None (unavailable demand) blocks procurement; 0 forces quantity to zero
+                dest_constraint = solver.Constraint(0.0, 0.0, f"dest_cap_{dest_id}")
+                for opp_id in opp_ids:
+                    dest_constraint.SetCoefficient(q_vars[opp_id], 1.0)
+            elif cap > 0:
                 dest_constraint = solver.Constraint(0.0, float(cap), f"dest_cap_{dest_id}")
                 for opp_id in opp_ids:
                     dest_constraint.SetCoefficient(q_vars[opp_id], 1.0)

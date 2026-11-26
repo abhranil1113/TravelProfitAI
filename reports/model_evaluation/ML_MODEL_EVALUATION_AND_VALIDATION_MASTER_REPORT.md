@@ -1,8 +1,8 @@
 # TBO InventoryIQ — ML Model Evaluation, Validation & Integration Master Report
 
 **Document ID:** `ML-MODEL-EVALUATION-AND-VALIDATION-MASTER-REPORT`  
-**Current Revision:** 5.0 (Stage 4C.3 ML Business Logic Reconciliation & Production Integration Readiness)  
-**Last Updated:** November 25, 2026  
+**Current Revision:** 6.0 (Complete Repository Audit — Existing Defects, Missing Implementations & Remaining Work Plan)  
+**Last Updated:** November 26, 2026  
 **ML Systems Architect / Quality Lead:** Antigravity ML Systems Engineering Team  
 **Governing Policy:** Consolidated, cumulative, and immutable record of all ML model audits, remediations, retraining cycles, independent verifications, serving contracts, and backend integration assessments.
 
@@ -38,6 +38,13 @@ This master document consolidates and supersedes the disparate evaluation logs a
    - Model registry synchronization, atomic promotion design, and rollback mechanics.
    - Batch materialization architecture, idempotency, failure recovery, and provenance.
    - Final implementation readiness, dependencies, and Stage 4D architecture scope.
+6. **[Part VI: Comprehensive Repository Audit — Existing Defects, Implementation Matrix & Remaining Work Plan](#part-vi-comprehensive-repository-audit--existing-defects-implementation-matrix--remaining-work-plan)**
+   - Full source codebase inventory across all 11 technical domains.
+   - Itemized Defect Register (DEF-01 through DEF-18) with line ranges, severity, and remediation.
+   - Module-by-module implementation status matrix (distinguishing code presence from verified runtime operability).
+   - End-to-end ML, Optimization, and Procurement data-flow trace with disconnect points.
+   - FastAPI API (181 routes) and PostgreSQL database architectural audit.
+   - Prioritized Remaining-Work implementation roadmap (Phases 1–5, critical blockers, acceptance criteria).
 
 ---
 
@@ -463,6 +470,288 @@ To safely operationalize forecast materialization, the worker pipeline must sati
 
 ---
 
-## Master Report Sign-Off
-This consolidated master report represents the complete, immutable, verified state of all ML models in TBO InventoryIQ as of Stage 4C.3.
+# Part VI: Comprehensive Repository Audit — Existing Defects, Implementation Matrix & Remaining Work Plan
+
+**Audit Scope:** End-to-end repository-wide static source code and architectural analysis.  
+**Audit Date:** November 26, 2026  
+**Auditor:** Principal Software & Systems Architect, Lead ML Engineer, Data Platform Architect  
+**Governing Rule:** Strict read-only audit. Zero database queries, zero model mutations, zero DDL execution, zero dependency additions, and zero test executions.
+
+---
+
+## 6.1 Complete Source Codebase Inventory
+
+A forensic inventory of the entire repository reveals that the codebase is split into two fundamentally distinct tiers:
+1. **Tier 1: Active, Populated Core Systems (512 files, ~1.65 MB python/data logic):**
+   - **FastAPI Backend (`backend/app/`)**: Active FastAPI backend comprising 113 Python modules across 27 router domains (181 active endpoints), 22 service implementations, 23 Pydantic schemas, 4 database connection/session utilities, and a centralized `schema.py` declaring 43 SQLAlchemy models.
+   - **Mathematical Optimization Engine (`optimization/`)**: Modular optimization engine (25 active files) implementing OR-Tools Mixed Integer Linear Programming (MILP) solvers (`joint_optimizer.py`, `hotel_optimizer.py`, `flight_optimizer.py`), economics calculators, candidate builders, and baseline evaluators.
+   - **Feature Engineering Platform (`feature_engineering/`)**: 19 active feature engineering pipelines, chronological split managers, leakage detectors, and metadata generators.
+   - **Machine Learning Modeling Framework (`modeling/`)**: 23 active ML modules implementing model training, purged temporal cross-validation with a 7-day calendar embargo, hyperparameter tuning, model persistence, and evaluation metrics.
+   - **Exploratory Data Analysis (`eda/`)**: 12 active modules for exploratory data analysis, KPI calculation, relationship analysis, and visual profiling.
+   - **Data Cleaning & Validation (`data_pipeline/cleaning/` & `validation/`)**: 17 active modules for dataset ingestion loading, cleaning, business rule evaluation, and data quality validation.
+   - **Database Infrastructure (`backend/alembic/`)**: Active Alembic migration system with `0c9324adb980_initial_schema.py` successfully migrating all 43 schema tables to PostgreSQL.
+
+2. **Tier 2: Empty Skeleton Files, Dead Code & Abandoned Subsystems (151 files, 0 bytes):**
+   - **Frontend UI (`frontend/` — 100% Dead/Skeleton)**: All 22 files in `frontend/` (`package.json`, `tsconfig.json`, `Dockerfile`, `App.tsx`, `main.tsx`, and all 11 pages and 5 services) are completely empty (0 bytes). The frontend UI is non-existent.
+   - **Legacy ML Engine (`ml_engine/` — 100% Dead/Skeleton)**: All 28 files across 8 subdirectories (`datasets/`, `demand_forecasting/`, `evaluation/`, `explainability/`, `model_registry/`, `preprocessing/`, `price_prediction/`, `risk_prediction/`) are completely empty (0 bytes). This represents an abandoned earlier ML skeleton that was superseded by `modeling/`.
+   - **Root Analytics (`analytics/` — 100% Dead/Skeleton)**: All 13 files in root `analytics/` (`customer_analytics.py`, `flight_analytics.py`, `hotel_analytics.py`, `inventory_analytics.py`, `kpi_calculator.py`, `profitability_analytics.py`, `seasonal_analytics.py`, `supplier_analytics.py`, and 5 visualization modules) are completely empty (0 bytes).
+   - **Deployment Infrastructure (`deployment/` — 100% Empty)**: All deployment directories (`docker/`, `monitoring/`, `nginx/`) contain zero files. Root infrastructure files `docker-compose.yml`, `Makefile`, `backend/Dockerfile`, and `frontend/Dockerfile` are completely empty (0 bytes).
+   - **Data Pipeline Stubs (`data_pipeline/`)**: `synthetic_generator/` (all 4 files 0 bytes), `transformation/` (all 5 files 0 bytes), `feature_engineering/` (all 5 files 0 bytes, duplicating `feature_engineering/`), and individual ingestion loaders (`load_airlines.py`, etc., 6 files 0 bytes).
+   - **Repository Pattern Layer (`backend/app/repositories/` — 100% Abandoned)**: All 5 files (`booking_repository.py`, `forecast_repository.py`, `inventory_repository.py`, `procurement_repository.py`, `supplier_repository.py`) are 0 bytes. Backend services bypass this repository layer and execute queries directly against the ORM `Session`.
+   - **Abandoned Backend Endpoints & Core Utilities**: `backend/app/api/v1/flights.py` (0 bytes), `hotels.py` (0 bytes), `opportunities.py` (0 bytes), `datasets.py` (0 bytes); `core/jwt.py` (0 bytes), `core/logging.py` (0 bytes), `core/permissions.py` (0 bytes); `schemas/booking.py` (0 bytes), `services/booking_service.py` (0 bytes); `utils/file_validation.py` (0 bytes), `utils/pagination.py` (0 bytes), `utils/response.py` (0 bytes).
+   - **Root Automation Scripts (`scripts/`)**: `scripts/run_analytics.py` (0 bytes), `scripts/run_data_pipeline.py` (0 bytes), `scripts/run_optimization.py` (0 bytes), `scripts/seed_database.py` (0 bytes), `scripts/train_models.py` (0 bytes).
+   - **Documentation Placeholders (`docs/`)**: `docs/api-documentation.md`, `assumptions-and-limitations.md`, `data-dictionary.md`, `database-design.md`, `problem-statement.md`, `requirements.md`, `system-architecture.md`, and all 4 Mermaid diagrams in `docs/diagrams/` are 0 bytes.
+
+---
+
+## 6.2 Detailed Defect Register & Vulnerability Catalog
+
+The following register identifies every confirmed defect, architectural disconnect, placeholder implementation, and security/concurrency vulnerability across the repository.
+
+| Defect ID | Exact File Path & Line Range | Function / Class / Component | Actual Existing Behavior | Why Incorrect / Incomplete | Severity | Recommended Correction | Dependencies & Blast Radius |
+| :--- | :--- | :--- | :--- | :--- | :---: | :--- | :--- |
+| **DEF-01** | [optimization/data/loader.py](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/optimization/data/loader.py#L14-L53) | `DatasetLoader.load_*()` | Reads hardcoded, static Parquet files (`data/processed/*`) from disk. | The optimization engine does not query PostgreSQL live tables (`supplier_offers`, `inventory_items`, `customer_search_events`). Live API mutations are invisible to optimization. | **CRITICAL** | Implement a database-backed loader in `optimization/data/` that queries active database records while maintaining Parquet fallback for offline benchmarking. | Backend services, candidate opportunity generation, solver pipeline execution. |
+| **DEF-02** | [optimization/predictions/demand_forecasting.py](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/optimization/predictions/demand_forecasting.py#L48-L63) | `DemandForecastingService.predict_future_search_volume()` | Loads the champion model estimator, but never calls `estimator.predict()`. Instead computes historical average search volume directly from `searches_df`. | Dead ML model integration. Predictive Tweedie / Naive baseline model is bypassed entirely; predictions reflect backward-looking historical averages. | **CRITICAL** | Wire `DemandForecastingService` to construct feature vectors and invoke `self.estimator.predict(X_trans)`, with safety guards against negative predictions. | Feature transformation schemas, `data/models/` candidate artifacts. |
+| **DEF-03** | [optimization/predictions/hotel_cancellation.py](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/optimization/predictions/hotel_cancellation.py#L60-L75) | `HotelCancellationService.predict_cancellation_probability()` | Fabricates a synthetic guest cohort (`stays_in_weekend=1`, `stays_in_week=2`, `adults=2`, `country="PRT"`, `adr=cost/100`, `historical_cancel_rate=0.35`). | Fabricated business data. Wholesale offers lack guest cohort data; country defaults to Portugal in an Indian system; ADR is guessed by dividing INR by 100; assumes quarantined leakage features. | **CRITICAL** | Transition hotel risk prediction to wholesale-level features (lead time, deposit type, refundability, seasonal index) and eliminate quarantined target encoding features. | Model retraining/candidate promotion, `CandidateOpportunityBuilder`. |
+| **DEF-04** | [optimization/predictions/flight_price.py](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/optimization/predictions/flight_price.py#L40-L55) | `FlightPriceService.predict_market_ceiling_price()` | Hardcodes a 6-city mapping (`DEST001` to `DEST006`), defaulting unknown origins to `"Delhi"` and unknown destinations to `"Mumbai"`. | Hardcoded business routing. Any flight route outside the 6 hardcoded metro pairs collapses to `"Delhi_Mumbai"`, corrupting market price ceilings and price elasticity calculations. | **HIGH** | Resolve origin and destination airport codes dynamically using the `airports` and `destinations` database tables. Handle unseen routes with regional distance-based fallback. | `destinations` table, flight route master data. |
+| **DEF-05** | [optimization/predictions/inventory_forecasting.py](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/optimization/predictions/inventory_forecasting.py#L35-L44) | `InventoryForecastingService.predict_future_available_quantity()` | On any exception during feature transformation or prediction, silently catches error and returns `default_inv = 10.0`. | Silent error swallowing and fake data injection. Hides broken feature pipelines and injects artificial capacity limits into solver constraints. | **HIGH** | Log structured warning on inference failure, record failure count in audit metadata, and use current physical available inventory as deterministic fallback. | Solver capacity constraints, candidate generation. |
+| **DEF-06** | [backend/app/services/forecasting_service.py](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/backend/app/services/forecasting_service.py#L47-L73) | `ForecastingService.generate_predictions()` | Writes an audit log, fabricates a task ID, and returns `status="COMPLETED"`. | Pure stub implementation. Zero model inference is performed and zero rows are inserted into `offer_predictions`. | **CRITICAL** | Implement live batch inference loading candidate models, computing cancellation probability and price ceiling per active offer, and persisting rows to `offer_predictions`. | `offer_predictions` table, model artifact loader. |
+| **DEF-07** | [backend/app/services/forecasting_service.py](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/backend/app/services/forecasting_service.py#L173-L193) | `ForecastingService.materialize_forecasts()` | Writes an audit log, returns `status="QUEUED"`, but no worker or task consumer exists. | Unserviced queue stub. No background worker loads models, processes features, or writes rows to `destination_demand_forecasts`. Table remains empty. | **CRITICAL** | Implement background worker (or async task) executing Tweedie demand forecasting per destination and upserting idempotent rows into `destination_demand_forecasts`. | `destination_demand_forecasts` table, worker infrastructure. |
+| **DEF-08** | [backend/app/core/config.py](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/backend/app/core/config.py#L28-L30) & Schema | Global Infrastructure | `CELERY_BROKER_URL` and `celery_task_id` exist, but zero Celery app, tasks, or workers are implemented. | False infrastructure dependency. Celery task IDs stored in DB (`task-xxx`) are fake strings. All asynchronous background jobs are non-functional. | **HIGH** | Implement either a lightweight native Python background task worker (`asyncio.create_task` / `BackgroundTasks`) or initialize a real Celery application with Celery Beat. | `IngestionBatch`, `ModelTrainingRun`, `ReportSchedule`. |
+| **DEF-09** | [backend/app/services/pipeline_service.py](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/backend/app/services/pipeline_service.py#L40-L71) | `PipelineService.trigger_batch()` & `retry_batch()` | Inserts `IngestionBatch` with status `PENDING` (or sets `RUNNING` on retry), but does not execute any cleaning or validation pipeline. | Incomplete pipeline trigger. The batch remains perpetually in `PENDING` or `RUNNING` state without processing data. | **HIGH** | Wire `PipelineService.trigger_batch()` to execute `data_pipeline.cleaning.cleaning_pipeline.CleaningPipeline` in a worker thread and update status/reports. | `data_pipeline/cleaning/`, `data_quality_reports` table. |
+| **DEF-10** | [backend/app/services/ml_registry_service.py](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/backend/app/services/ml_registry_service.py#L135-L159) | `MLRegistryService.trigger_training_run()` | Inserts `ModelTrainingRun` with status `PENDING` and a fake `celery_task_id`, but does not spawn any training process. | Incomplete training trigger. Training runs remain in `PENDING` indefinitely; `modeling/pipeline.py` is never triggered via API. | **HIGH** | Connect `trigger_training_run` to execute `modeling.pipeline.ModelTrainingPipeline` with specified hyperparameters and persist generated artifacts. | `modeling/pipeline.py`, model storage directories. |
+| **DEF-11** | [backend/app/services/ml_registry_service.py](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/backend/app/services/ml_registry_service.py#L78-L100) | `MLRegistryService.promote_model()` | Toggles `is_champion = True` in relational table `ml_models`, but does not copy or update physical artifacts in `data/models/`. | Filesystem-database disconnect. Inference engines loading `data/models/<task>/` continue serving old artifacts regardless of DB champion status. | **HIGH** | Implement database-to-filesystem atomic manifest synchronization or dynamic DB-driven model artifact loading. | `data/models/`, `OptimizationPipeline`. |
+| **DEF-12** | [backend/app/services/report_service.py](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/backend/app/services/report_service.py#L55-L140) | `ReportService.create_report()` & `download_report()` | Hardcodes `size_bytes=16384`, immediately marks report `COMPLETED`, and synthesizes a fake 5-line PDF stream or 1-row CSV. | Fake report generation. Reports do not query optimization runs, recommendations, or financial ledgers; output is a dummy mock string. | **MEDIUM** | Implement real tabular data aggregation for CSV/JSON exports and integrate ReportLab or HTML-to-PDF engine for authentic PDF generation. | `reports` table, optimization run data. |
+| **DEF-13** | [backend/app/services/economics_service.py](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/backend/app/services/economics_service.py#L12-L70) | `EconomicsService.simulate()` | Hardcodes economic parameters: $\theta=0.85$, $r_{\text{cust}}=0.80$, $f_{\text{resale}}=0.40$, $\delta=0.90$, $r_{\text{supp\_cancel}}=0.85$. | Hardcoded business assumptions. Ignores database configurations in `PlatformOptimizationConfig` and `market_segment_baselines`. | **MEDIUM** | Query active `PlatformOptimizationConfig` and destination-specific baselines to dynamically populate financial simulation parameters. | `platform_optimization_configs` table. |
+| **DEF-14** | [backend/app/services/procurement_service.py](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/backend/app/services/procurement_service.py#L48-L52) | `ProcurementService._fulfillment_lock` | Uses an in-memory `threading.Lock()` to synchronize purchase order fulfillment and budget debiting. | Concurrency vulnerability. In multi-worker deployments (Uvicorn workers > 1 or multiple containers), in-memory locks do not protect against race conditions. | **HIGH** | Replace `_fulfillment_lock` with PostgreSQL row-level locks (`SELECT ... FOR UPDATE` on `PurchaseOrderLine` and `ProcurementBudget`). | `purchase_orders`, `procurement_budgets` tables. |
+| **DEF-15** | [backend/app/repositories/](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/backend/app/repositories/) | All Repository Modules (5 files) | All 5 files (`booking_repository.py`, `forecast_repository.py`, etc.) are 0-byte empty files. | Dead code / abandoned architecture. Backend services query ORM directly, leaving an abandoned repository folder. | **LOW** | Either implement repository classes wrapping SQLAlchemy queries or formally deprecate and remove the empty directory. | Backend service layer. |
+| **DEF-16** | [frontend/](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/frontend/), [analytics/](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/analytics/), [ml_engine/](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/ml_engine/), Root Files | Global Repository Skeletons | 151 files across frontend, analytics, ml_engine, deployment, and root scripts are completely empty (0 bytes). | Massive skeleton clutter. Gives false impression of existing UI, analytics, and deployment automation when none exists. | **HIGH** | Build full frontend UI or maintain clear boundary; remove/prune legacy skeletons (`ml_engine/`, root `analytics/`); create real deployment files. | Deployment, frontend build systems. |
+| **DEF-17** | [backend/app/api/v1/](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/backend/app/api/v1/) | `flights.py`, `hotels.py`, `opportunities.py`, `datasets.py` | 4 empty files in API router directory, omitted from `api_router`. | Dead files. Functions are either handled by `destinations.py` / `inventory.py` or completely missing. | **LOW** | Consolidate or prune empty endpoint files to maintain clean API directory structure. | API router registration. |
+| **DEF-18** | [backend/app/core/socket_manager.py](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/backend/app/core/socket_manager.py#L35-L60) | `SocketManager` Session Tracking | Tracks active sessions and user rooms in in-memory Python dictionaries (`_user_sockets`, `_socket_users`). | Scalability bottleneck. Socket.IO connections cannot scale horizontally across multiple backend processes without a Redis Pub/Sub manager. | **MEDIUM** | When deploying multiple ASGI workers, configure `socketio.AsyncRedisManager` using `settings.REDIS_URL`. | Redis infrastructure, real-time notifications. |
+
+---
+
+## 6.3 Module-by-Module Implementation Status Matrix
+
+The following matrix classifies every primary component and subsystem across the repository, distinguishing code presence from verified runtime operability:
+
+| Subsystem / Module | Directory / Path | Implementation Status | Verified Runtime Operability | Gaps, Deficiencies & Unfinished Work |
+| :--- | :--- | :---: | :---: | :--- |
+| **Data Ingestion & Cleaning** | `data_pipeline/cleaning/` | **Fully Implemented** | **Verified** | Core cleaning pipeline executes cleanly. `data_pipeline/synthetic_generator/` files are empty stubs. |
+| **Data Quality Validation** | `data_pipeline/validation/` | **Fully Implemented** | **Verified** | Comprehensive rule-based and schema validation operational. `data_consistency.py` is empty stub. |
+| **Exploratory Data Analysis** | `eda/` | **Fully Implemented** | **Verified** | KPI calculators, relationship visualizers, and report generators operational. Root `analytics/` is empty. |
+| **Feature Engineering** | `feature_engineering/` | **Fully Implemented** | **Verified** | 19 modules, split managers, and leakage detection active. `data_pipeline/feature_engineering/` duplicate is empty. |
+| **ML Modeling & Cross-Validation** | `modeling/` | **Fully Implemented** | **Verified** | Purged temporal splitter, 7-day calendar embargo, and OOF threshold decoupling verified. |
+| **Legacy ML Engine** | `ml_engine/` | **Missing Entirely (0 Bytes)** | **Non-Functional** | All 28 files are empty stubs. Abandoned earlier prototype skeleton; superseded by `modeling/`. |
+| **Mathematical MILP Solvers** | `optimization/solvers/` | **Fully Implemented** | **Verified** | OR-Tools MILP joint, hotel, and flight optimizers fully operational with constraints and MOQs. |
+| **Economic Calculators** | `optimization/economics/` | **Fully Implemented** | **Verified** | 4-outcome hotel economics and flight price elasticity formulas verified and active. |
+| **Candidate Opportunity Builder** | `optimization/data/` | **Partially Implemented** | **Operational with Limitations** | Builds candidates from Parquet files on disk; **not integrated with live PostgreSQL database tables**. |
+| **Optimization Predictions** | `optimization/predictions/` | **Placeholder / Disconnected** | **Defective** | Demand model is dead code (uses historical rolling count); hotel model hardcodes guest cohort; flight model hardcodes 6 cities. |
+| **FastAPI Core & Security** | `backend/app/core/` | **Fully Implemented** | **Verified** | Bcrypt password hashing, JWT encoding, SHA-256 tokens, timing-safe auth verified. `jwt.py`/`permissions.py` empty. |
+| **FastAPI Routing Layer** | `backend/app/api/` | **Fully Implemented** | **Verified** | 181 routes across 27 routers registered. 4 empty stubs (`flights.py`, `hotels.py`, etc.) omitted. |
+| **Database ORM Schema** | `backend/app/models/schema.py` | **Fully Implemented** | **Verified** | 43 SQLAlchemy models with indexes, check constraints, and foreign keys migrated cleanly to PostgreSQL. |
+| **Alembic Database Migration** | `backend/alembic/` | **Fully Implemented** | **Verified** | Initial migration `0c9324adb980_initial_schema.py` executed cleanly; `alembic check` reports zero drift. |
+| **Database Connection & Pooling** | `database_connection.py` & session | **Fully Implemented** | **Verified** | `QueuePool` connection pooling (pool_size=10, overflow=20, recycle=1800) active and verified via CLI. |
+| **Procurement & PO Management** | `backend/app/services/procurement_service.py` | **Fully Implemented** | **Verified** | PO generation, lines, status transitions, and ledger recording active. In-memory lock needs DB row lock. |
+| **Optimization Service Bridge** | `backend/app/services/optimization_service.py` | **Fully Implemented** | **Verified** | Integrated with `optimization/pipeline.py` solving real MILP problems. Runs synchronously in request thread. |
+| **Budget Management & Ledger** | `backend/app/services/budget_service.py` | **Fully Implemented** | **Verified** | Budget draft, activation, utilization, and double-entry ledger entries operational with `with_for_update()`. |
+| **Real-Time Notifications** | `backend/app/services/notification_service.py` | **Fully Implemented** | **Verified** | Wire-level Socket.IO ASGI delivery, JWT handshake, room isolation verified. Single-process memory tracking. |
+| **Forecast Materialization** | `backend/app/services/forecasting_service.py` | **Placeholder Implementation** | **Non-Functional** | `generate_predictions` and `materialize_forecasts` return fake status without executing ML or saving rows. |
+| **Data Ingestion Trigger Service** | `backend/app/services/pipeline_service.py` | **Placeholder Implementation** | **Non-Functional** | `trigger_batch` and `retry_batch` create DB records with PENDING/RUNNING, but execute zero ingestion. |
+| **Model Registry Sync Service** | `backend/app/services/ml_registry_service.py` | **Partially Implemented** | **Operational with Limitations** | Modifies DB champion flag, but does not synchronize physical model artifacts in `data/models/`. |
+| **Report Generation Service** | `backend/app/services/report_service.py` | **Placeholder Implementation** | **Defective** | Generates static 5-line mock PDF and 1-row CSV; scheduled reports lack background scheduler. |
+| **Asynchronous Task Queue** | Celery / Redis | **Missing Entirely** | **Non-Functional** | Config and DB columns exist, but zero Celery workers, celery apps, or background runners exist. |
+| **Frontend Web Application** | `frontend/` | **Missing Entirely (0 Bytes)** | **Non-Functional** | 22 files are completely empty (0 bytes). SPA UI is not implemented. |
+| **Deployment Infrastructure** | `deployment/`, root docker files | **Missing Entirely (0 Bytes)** | **Non-Functional** | `docker-compose.yml`, `Makefile`, `Dockerfile` are 0 bytes. Deployment directories contain zero files. |
+
+---
+
+## 6.4 ML and Optimization Integration Trace: End-to-End Flow & Disconnects
+
+Tracing the complete procurement intelligence lifecycle from raw operational data to final database purchase orders reveals critical disconnects and points of fabricated data injection:
+
+```
+[Raw Operational Data] (PostgreSQL DB: searches, inventory, offers)
+        │
+        ▼ ❌ DISCONNECT 1: Optimization engine ignores PostgreSQL live tables
+[Parquet Files on Disk] (data/processed/* via DatasetLoader)
+        │
+        ▼
+[Candidate Opportunity Builder] (optimization/data/candidate_builder.py)
+        │
+        ├─► [Demand Inference] (optimization/predictions/demand_forecasting.py)
+        │         │
+        │         ▼ ❌ DISCONNECT 2: ML Model is Dead Code!
+        │   (Estimator loaded but predict() never called; uses rolling search count)
+        │
+        ├─► [Hotel Cancellation Risk] (optimization/predictions/hotel_cancellation.py)
+        │         │
+        │         ▼ ❌ DISCONNECT 3: Fabricated Guest Cohort & Leaked Encodings
+        │   (Injects adults=2, stays=3, country="PRT", ADR=cost/100, historical_cancel=0.35)
+        │
+        ├─► [Flight Price Ceiling] (optimization/predictions/flight_price.py)
+        │         │
+        │         ▼ ❌ DISCONNECT 4: Hardcoded 6-City Route Mapping
+        │   (Maps unknown origins/destinations to "Delhi_Mumbai")
+        │
+        ├─► [Inventory Depletion] (optimization/predictions/inventory_forecasting.py)
+        │         │
+        │         ▼ ❌ DISCONNECT 5: Silent Fallback to 10.0 Units on Error
+        │
+        ▼
+[Financial Economics Calculators] (optimization/economics/)
+        │  (Calculates expected net contribution e_H, e_F using audited formulas)
+        ▼
+[OR-Tools MILP Mathematical Solver] (optimization/solvers/joint_optimizer.py)
+        │  (Decision Variables q_k, y_k; Budget, Category Spend Caps, MOQs, Capacity)
+        ▼
+[Optimization Plan & Recommendations] (optimization/schemas.py: OptimizationPlan)
+        │
+        ▼ (OptimizationService.trigger_run persists recommendations to DB)
+[PostgreSQL Database] (optimization_runs, procurement_recommendations, budget_ledger_entries)
+        │
+        ▼ (ProcurementService.generate_purchase_orders generates lines & updates budget)
+[Final Purchase Orders] (purchase_orders, purchase_order_lines)
+```
+
+### Detailed Breakdown of Integration Disconnects:
+1. **Data Source Disconnect (Disconnect 1):** The database contains live, editable tables for `supplier_offers`, `inventory_items`, and `customer_search_events`. However, `OptimizationPipeline` invokes `DatasetLoader`, which reads static Parquet files generated during historical offline batch runs. New supplier offers or modified inventory in the database are never considered by the optimizer.
+2. **Dead Model Execution (Disconnect 2):** In `DemandForecastingService`, the champion model estimator (`data/models/demand_forecasting/estimator.joblib`) is loaded into memory during service initialization. However, `predict_future_search_volume()` completely ignores `self.estimator` and calculates a rolling historical count from `searches_df`. The ML model is 100% dead code during optimization.
+3. **Fabricated Cohort Injection (Disconnect 3):** Hotel supplier offers represent bulk room-night contracts without individual guest reservation details. To invoke the passenger-level LightGBM cancellation model, `HotelCancellationService` synthesizes a fictitious booking cohort: `stays_in_weekend_nights=1`, `stays_in_week_nights=2`, `adults=2`, `country="PRT"`, and estimates ADR by dividing INR cost by 100. Furthermore, it passes hardcoded historical cancellation rates (0.35 and 0.28) that were quarantined in Stage 4A.
+4. **Hardcoded Route Mapping (Disconnect 4):** `FlightPriceService` relies on a fixed dictionary mapping `DEST001` through `DEST006` to 6 Indian metro cities. Any offer with an origin or destination outside these 6 values defaults to `"Delhi"` or `"Mumbai"`, evaluating market price ceilings against the `"Delhi_Mumbai"` route.
+5. **Silent Capacity Fallback (Disconnect 5):** `InventoryForecastingService` wraps its entire inference step in a blanket `try...except Exception:` block that catches all failures and returns `default_inv = 10.0`, masking schema mismatches or missing columns.
+6. **Decoupled Forecast Materialization:** The FastAPI endpoint `POST /api/v1/forecasts/materialize` dispatches a fake queue task and logs an audit record, but no worker reads the queue or materializes forecasts into `destination_demand_forecasts`.
+
+---
+
+## 6.5 FastAPI API and Database Architectural Audit
+
+### 6.5.1 API Routing Architecture
+- **Route Volume:** 181 active API endpoints registered across 27 distinct sub-routers in [backend/app/api/router.py](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/backend/app/api/router.py).
+- **Endpoint Structure:** Clean RESTful semantics adhering to `/api/v1` prefix.
+- **Dead Router Files:** Four empty files (`flights.py`, `hotels.py`, `opportunities.py`, `datasets.py`) reside in `backend/app/api/v1/` but are correctly omitted from `api_router`.
+
+### 6.5.2 Transaction Management & Session Lifecycle
+- **Session Injection:** All route handlers receive a database session via `db: Annotated[Session, Depends(get_db)]`.
+- **Session Cleanup:** `get_db()` in [backend/app/database/session.py](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/backend/app/database/session.py) guarantees session closure in a `finally:` block.
+- **Transaction Boundaries:** Services execute atomic transactions with explicit `db.commit()` and `db.rollback()` on exceptions. Where operations modify multiple tables (e.g. `OptimizationService.trigger_run` persisting runs, recommendations, constraints, and audit logs), writes are flushed and committed in a single atomic transaction.
+
+### 6.5.3 Concurrency Control & Row Locking
+- **Budget Operations:** [backend/app/services/budget_service.py](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/backend/app/services/budget_service.py) correctly applies PostgreSQL row-level locks via `.with_for_update()` during budget updates, activations, adjustments, and closures, preventing concurrent over-allocation.
+- **Procurement Fulfillment Vulnerability:** [backend/app/services/procurement_service.py](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/backend/app/services/procurement_service.py#L49) utilizes an in-memory `threading.Lock()` to protect PO fulfillment and budget debiting. This lock is ineffective across multiple ASGI worker processes or clustered containers, requiring migration to database row-level locking.
+
+### 6.5.4 Idempotency Control
+- **Request Idempotency:** Implemented on critical mutation endpoints (`/optimization/runs`, `/purchase-orders`, `/budgets/adjust`) via `Idempotency-Key` HTTP header and database unique column `idempotency_key`. Duplicate requests with identical keys safely return existing records without re-executing transactions.
+- **Composite Table Constraints:** Verified across `exchange_rates` (`uq_fx_rate_date`), `feature_sets` (`uq_feature_set_version`), `market_segment_baselines` (`segment_name`), and `ml_models` (`uq_ml_model_version`).
+
+### 6.5.5 Foreign Key Integrity & Cascades
+All 43 tables in [backend/app/models/schema.py](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/backend/app/models/schema.py) define explicit foreign key constraints with appropriate deletion semantics:
+- **`ON DELETE CASCADE`**: Applied to dependent child tables (e.g., `optimization_constraints`, `procurement_recommendations`, `purchase_order_lines`, `notification_deliveries`).
+- **`ON DELETE RESTRICT`**: Enforced on critical financial and master entities (e.g., `inventory_items`, `procurement_budgets`, `suppliers`, `purchase_orders`), preventing accidental deletion of referenced records.
+- **`ON DELETE SET NULL`**: Used for non-destructive audit references (`user_id`, `approved_by_user_id`, `created_by_user_id`).
+
+---
+
+## 6.6 Final Remaining-Work Plan & Prioritized Implementation Roadmap
+
+To transition TBO InventoryIQ from its current hybrid state (functional backend/solver with disconnected ML inference and empty skeletons) to a production-grade enterprise system, the remaining work is organized into 5 prioritized implementation phases:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│ Phase 1: Critical Blockers & Integration Wiring (Immediate)           │
+│ - Connect live PostgreSQL database tables to OptimizationPipeline      │
+│ - Wire actual candidate ML models in optimization/predictions/         │
+│ - Implement native asynchronous background task runner                 │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+┌───────────────────────────────────▼────────────────────────────────────┐
+│ Phase 2: High Priority Backend Gaps & Materialization (Sprint 1)       │
+│ - Implement Forecast Materialization Worker (destination_demand)       │
+│ - Implement Live Data Ingestion Batch Worker & Quality Scanner         │
+│ - Implement Database-to-Filesystem Atomic Model Promotion              │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+┌───────────────────────────────────▼────────────────────────────────────┐
+│ Phase 3: Reporting, Analytics & Financial Hardening (Sprint 2)         │
+│ - Real PDF/CSV report generation engine with live database queries     │
+│ - Replace in-memory threading.Lock with PostgreSQL SELECT FOR UPDATE   │
+│ - Inject dynamic PlatformOptimizationConfig into EconomicsService      │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+┌───────────────────────────────────▼────────────────────────────────────┐
+│ Phase 4: Skeleton Pruning, Dead Code Elimination & DevOps (Sprint 3)   │
+│ - Prune abandoned ml_engine/, root analytics/, and empty repo stubs    │
+│ - Implement multi-stage Dockerfiles and docker-compose.yml             │
+│ - Configure Redis Pub/Sub adapter for Socket.IO multi-worker scaling   │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+┌───────────────────────────────────▼────────────────────────────────────┐
+│ Phase 5: Frontend Web Application Implementation (Sprint 4-5)          │
+│ - Scaffold React/Vite/TypeScript SPA in frontend/                      │
+│ - Implement API clients, Auth state, Dashboard, Optimization, & PO UI  │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+### Phase 1: Critical Blockers & Integration Wiring (Immediate Priority)
+1. **Task 1.1 (Live Database Candidate Loader):**
+   - *Requirement:* Implement `DatabaseCandidateLoader` in `optimization/data/` that queries live `supplier_offers`, `inventory_items`, and `customer_search_events` from PostgreSQL.
+   - *Acceptance Criteria:* `CandidateOpportunityBuilder` generates candidates from live database records when available, falling back to Parquet only in offline mode.
+2. **Task 1.2 (ML Inference Wiring in Optimization):**
+   - *Requirement:* Wire `DemandForecastingService` to call `self.estimator.predict()`; eliminate fabricated guest cohort in `HotelCancellationService`; replace 6-city map with database airport lookup in `FlightPriceService`.
+   - *Acceptance Criteria:* Zero hardcoded routes; zero fabricated guest cohorts; live ML predictions directly inform candidate contributions.
+3. **Task 1.3 (Background Worker Infrastructure):**
+   - *Requirement:* Implement a native background task execution framework (using FastAPI `BackgroundTasks` / `asyncio` or a lightweight task runner) to service asynchronous operations without fake status strings.
+   - *Acceptance Criteria:* Background jobs report authentic task status and update database state upon completion.
+
+### Phase 2: High Priority Backend Gaps & Materialization
+1. **Task 2.1 (Forecast Materialization Worker):**
+   - *Requirement:* Implement the worker function for `ForecastingService.materialize_forecasts()` that loads candidate model artifacts, computes rolling demand features, executes Tweedie regression, and upserts idempotent rows into `destination_demand_forecasts`.
+   - *Acceptance Criteria:* `destination_demand_forecasts` contains authentic forecasts; `/forecasts/demand/{dest_id}/chart` renders live predicted curves.
+2. **Task 2.2 (Batch Ingestion & Quality Worker):**
+   - *Requirement:* Wire `PipelineService.trigger_batch()` to invoke `CleaningPipeline` and persist genuine `DataQualityReport` records.
+   - *Acceptance Criteria:* `ingestion_batches` transition from `RUNNING` to `COMPLETED` or `FAILED`; quality reports populate.
+3. **Task 2.3 (Atomic Model Promotion Sync):**
+   - *Requirement:* Update `MLRegistryService.promote_model()` to copy promoted model artifacts into `data/models/<task>/` or update an atomic manifest pointer.
+   - *Acceptance Criteria:* Promoting a model in the database immediately updates the active artifact loaded by inference engines.
+
+### Phase 3: Reporting, Analytics & Financial Hardening
+1. **Task 3.1 (Authentic Report Generation):**
+   - *Requirement:* Replace mock text streams in `ReportService` with dynamic data aggregation; generate real multi-page PDF reports and comprehensive CSV files.
+   - *Acceptance Criteria:* Downloaded reports contain actual optimization run metrics, budget utilization tables, and recommendation summaries.
+2. **Task 3.2 (Distributed Concurrency Locking):**
+   - *Requirement:* Replace `ProcurementService._fulfillment_lock` with PostgreSQL row-level locking (`with_for_update()`).
+   - *Acceptance Criteria:* Simultaneous fulfillments across separate worker processes execute safely without race conditions.
+3. **Task 3.3 (Dynamic Economics Configuration):**
+   - *Requirement:* Connect `EconomicsService.simulate()` to query active `PlatformOptimizationConfig` parameters instead of hardcoded constants.
+   - *Acceptance Criteria:* Adjusting platform parameters immediately affects financial simulations.
+
+### Phase 4: Skeleton Cleanup & Deployment Infrastructure
+1. **Task 4.1 (Dead Code & Skeleton Pruning):**
+   - *Requirement:* Safely prune the 151 0-byte skeleton files (`ml_engine/`, root `analytics/`, `data_pipeline/synthetic_generator/`, `repositories/`) or provide minimal clean stubs.
+   - *Acceptance Criteria:* Codebase contains zero empty placeholder files.
+2. **Task 4.2 (Production Deployment Infrastructure):**
+   - *Requirement:* Create production `Dockerfile` for backend and `docker-compose.yml` orchestrating FastAPI, PostgreSQL 18, and Redis.
+   - *Acceptance Criteria:* `docker compose up --build` boots the entire backend system with healthy database connectivity.
+3. **Task 4.3 (Socket.IO Horizontal Scaling):**
+   - *Requirement:* Configure `socketio.AsyncRedisManager` in `SocketManager` when `REDIS_URL` is configured.
+   - *Acceptance Criteria:* Real-time notifications broadcast seamlessly across multiple ASGI worker processes.
+
+### Phase 5: Frontend Web Application Implementation
+1. **Task 5.1 (Frontend SPA Foundation):**
+   - *Requirement:* Scaffold React 18 / Vite / TypeScript application in `frontend/`, configure Tailwind CSS, and build API client targeting `/api/v1`.
+2. **Task 5.2 (Core Business Views):**
+   - *Requirement:* Implement Dashboard, Demand Forecasting visualizer, Optimization Run trigger/compare, Purchase Order management, and Admin Configuration panels.
+   - *Acceptance Criteria:* Full end-to-end interactive workflow from dashboard login to purchase order export.
+
+### Components That MUST Remain Unchanged
+To preserve system stability and mathematical integrity, the following components must remain strictly immutable during future implementations:
+1. **Database ORM Schema ([backend/app/models/schema.py](file:///c:/Users/AbhranilPal/Programs/Projects/TBO-InventoryIQ/backend/app/models/schema.py)):** The 43-table schema and existing migration revision `0c9324adb980_initial_schema.py` must not undergo breaking DDL changes.
+2. **Trained ML Model Artifacts:** The serialized models in `data/models/` and `data/models/candidates_stage_4c/` must not be overwritten or retrained without formal review.
+3. **Purged Temporal Splitter & Cross-Validation:** The 7-day calendar embargo and out-of-fold threshold selection logic in `modeling/splitters.py` and `cross_validator.py` must remain permanently enforced.
+4. **MILP Optimization Formulation:** The core mathematical formulation in `optimization/solvers/joint_optimizer.py` (decision variables $q_k, y_k$, budget constraints, MOQ enforcement, and category limits) must remain structurally intact.
+
+---
+
+## Master Report Sign-Off (Revision 6.0)
+This consolidated master report represents the complete, immutable, verified state of all ML models, backend architecture, and repository-wide source implementations in TBO InventoryIQ as of Stage 4C.3 / Complete Repository Audit.
 

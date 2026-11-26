@@ -31,9 +31,10 @@ class CandidateOpportunityBuilder:
 
     _CANDIDATE_CACHE: Dict[Tuple[str, str, bool], Tuple[List[ProcurementOpportunity], List[CandidateOffer], Dict[str, Any]]] = {}
 
-    def __init__(self, config: OptimizationConfig, loader: Optional[DatasetLoader] = None):
+    def __init__(self, config: OptimizationConfig, loader: Optional[DatasetLoader] = None, db: Optional[Any] = None):
         self.config = config
-        self.loader = loader or DatasetLoader()
+        self.db = db or getattr(loader, "db", None)
+        self.loader = loader or DatasetLoader(db=self.db)
         self.registry = ModelRegistry()
 
     def build_candidate_opportunities(self) -> Tuple[List[ProcurementOpportunity], List[CandidateOffer], Dict[str, Any]]:
@@ -47,7 +48,7 @@ class CandidateOpportunityBuilder:
             str(self.config.target_currency),
             bool(self.config.allow_prototype_currency_override),
         )
-        if cache_key in self._CANDIDATE_CACHE:
+        if self.db is None and cache_key in self._CANDIDATE_CACHE:
             cached_opps, cached_cands, cached_meta = self._CANDIDATE_CACHE[cache_key]
             return list(cached_opps), [c.model_copy() for c in cached_cands], dict(cached_meta)
         # 1. Load raw datasets
@@ -126,10 +127,12 @@ class CandidateOpportunityBuilder:
             offer_dict = offer.to_dict()
             if inv_type == "HOTEL":
                 p_cancel = hotel_cancel_service.predict_cohort_cancellation_probability(offer_dict)
+                # Wholesale offers lack individual passenger booking cohorts; use audited baseline prior for economics
+                p_cancel_econ = p_cancel if p_cancel is not None else float(self.config.risk.hotel_default_cancellation_prior)
                 econ = hotel_econ_calc.calculate_expected_contribution(
                     purchase_cost=float(offer["purchase_cost"]),
                     selling_price=float(offer["selling_price"]),
-                    cancellation_prob=p_cancel,
+                    cancellation_prob=p_cancel_econ,
                     is_supplier_refundable=bool(offer.get("refundable", False)),
                 )
                 sell_through = self.config.financial.hotel_base_sell_through
@@ -137,10 +140,13 @@ class CandidateOpportunityBuilder:
                 unit_type = "ROOM_NIGHT"
             else:  # FLIGHT
                 pred_market_price = flight_price_service.predict_market_ceiling_price(offer_dict)
-                sell_through = flight_econ_calc.calculate_adjusted_sell_through(
-                    contract_price=float(offer["selling_price"]),
-                    market_ceiling_price=pred_market_price
-                )
+                if pred_market_price is not None:
+                    sell_through = flight_econ_calc.calculate_adjusted_sell_through(
+                        contract_price=float(offer["selling_price"]),
+                        market_ceiling_price=pred_market_price
+                    )
+                else:
+                    sell_through = self.config.financial.flight_base_sell_through
                 econ = flight_econ_calc.calculate_expected_contribution(
                     purchase_cost=float(offer["purchase_cost"]),
                     contract_selling_price=float(offer["selling_price"]),
@@ -211,6 +217,8 @@ class CandidateOpportunityBuilder:
             "prior_searches_used": len(prior_searches),
             "opportunities_generated": len(opportunities),
             "flight_salvage_mode": "10% Optional" if self.config.use_flight_salvage_optional else "0% Baseline Spoilage",
+            "database_backed": self.db is not None,
         }
-        self._CANDIDATE_CACHE[cache_key] = (list(opportunities), [c.model_copy() for c in candidates], dict(audit_meta))
+        if self.db is None:
+            self._CANDIDATE_CACHE[cache_key] = (list(opportunities), [c.model_copy() for c in candidates], dict(audit_meta))
         return opportunities, candidates, audit_meta

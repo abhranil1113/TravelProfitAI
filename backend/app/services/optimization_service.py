@@ -140,7 +140,7 @@ class OptimizationService:
             allow_prototype_currency_override=True if req.allow_prototype_currency_override or (req.target_currency or "INR") == "INR" else False,
         )
 
-        pipeline = OptimizationPipeline(opt_config, base_dir=".")
+        pipeline = OptimizationPipeline(opt_config, base_dir=".", db=db)
         plan = pipeline.run(output_dir="data/optimization")
 
         # Map authentic solver results

@@ -74,9 +74,10 @@ class ExplanationEngine:
             )
         elif reason_code == RejectionReasonCode.MOQ_EXCEEDS_DEMAND:
             demand = opp.aggregate_demand_cap
+            demand_str = f"{demand} units" if demand is not None else "unavailable"
             return (
                 f"Minimum Order Quantity ({opp.minimum_purchase_qty} units) exceeds the destination "
-                f"historical demand ceiling ({demand} units). Procuring would violate demand absorption limits."
+                f"historical demand ceiling ({demand_str}). Procuring would violate demand absorption limits."
             )
         elif reason_code == RejectionReasonCode.INSUFFICIENT_SUPPLIER_CAPACITY:
             return (
@@ -84,6 +85,16 @@ class ExplanationEngine:
                 f"(available: {opp.available_quantity}, MOQ: {opp.minimum_purchase_qty})."
             )
         elif reason_code == RejectionReasonCode.DESTINATION_CAP_BINDING:
+            if opp.aggregate_demand_cap is None:
+                return (
+                    f"Destination {opp.destination_id} has no valid customer search history or demand forecast. "
+                    "Procurement is blocked until demand data becomes available."
+                )
+            elif opp.aggregate_demand_cap == 0:
+                return (
+                    f"Destination {opp.destination_id} has a forecasted demand absorption limit of 0 units. "
+                    "Procurement is blocked due to zero demand."
+                )
             return (
                 f"Destination {opp.destination_id} aggregate demand ceiling was exhausted by competing offers "
                 f"providing higher expected contribution density."

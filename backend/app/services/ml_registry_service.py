@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import hashlib
+import json
+import logging
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy.orm import Session
 
-from backend.app.core.exceptions import ConflictError, EntityNotFoundError
+from backend.app.core.exceptions import ConflictError, EntityNotFoundError, BadRequestException
 from backend.app.models.schema import (
     AuditLog,
     FeatureSet,
@@ -18,6 +22,9 @@ from backend.app.schemas.ml_registry import (
     FeatureSetCreateRequest,
     ModelTrainingTriggerRequest,
 )
+from optimization.predictions.model_registry import ModelRegistry
+
+logger = logging.getLogger(__name__)
 
 
 class MLRegistryService:
@@ -95,6 +102,40 @@ class MLRegistryService:
     def promote_model(db: Session, model_id: int, user_id: int) -> MLModel:
         model = MLRegistryService.get_model(db, model_id)
 
+        model_type_str = (
+            model.model_type.value
+            if hasattr(model.model_type, "value")
+            else str(model.model_type)
+        )
+
+        # Verify physical model artifacts on disk before promoting
+        art_dir = model.artifact_dir
+        if not art_dir or not os.path.exists(art_dir):
+            # Check standard fallback directory
+            fallback_dir = os.path.join("data", "models", model_type_str.lower())
+            if os.path.exists(fallback_dir):
+                art_dir = fallback_dir
+                model.artifact_dir = fallback_dir
+            else:
+                raise ConflictError(
+                    f"Cannot promote model {model_id}: Artifact directory '{art_dir}' not found on disk."
+                )
+
+        est_file = os.path.join(art_dir, "estimator.joblib")
+        meta_file = os.path.join(art_dir, "metadata.json")
+
+        if not os.path.exists(est_file) or not os.path.exists(meta_file):
+            raise ConflictError(
+                f"Cannot promote model {model_id}: Required artifact files (estimator.joblib / metadata.json) missing in '{art_dir}'."
+            )
+
+        # Calculate artifact checksum
+        sha256 = hashlib.sha256()
+        with open(est_file, "rb") as f:
+            while chunk := f.read(65536):
+                sha256.update(chunk)
+        model.artifact_checksum = sha256.hexdigest()
+
         # Demote current champion of same model_type
         db.query(MLModel).filter(
             MLModel.model_type == model.model_type,
@@ -106,15 +147,33 @@ class MLRegistryService:
         model.model_status = "PROMOTED"
         model.promoted_at = datetime.now(timezone.utc)
 
+        model_type_str = (
+            model.model_type.value
+            if hasattr(model.model_type, "value")
+            else str(model.model_type)
+        )
+
         db.add(AuditLog(
             user_id=user_id,
             action="ML_MODEL_PROMOTED_CHAMPION",
             entity_type="ml_models",
             entity_id=str(model.id),
-            new_value_json={"model_type": model.model_type.value, "version": model.version},
+            new_value_json={
+                "model_type": model_type_str,
+                "version": model.version,
+                "artifact_checksum": model.artifact_checksum,
+            },
         ))
         db.commit()
-        db.refresh(model)
+
+        # Invalidate in-memory ModelRegistry cache immediately after successful database commit
+        ModelRegistry.invalidate_cache(model_type_str.lower())
+
+        try:
+            db.refresh(model)
+        except Exception as e:
+            logger.warning("Failed to refresh model %s after promotion commit: %s", model.id, e)
+
         return model
 
     @staticmethod
@@ -123,6 +182,13 @@ class MLRegistryService:
         model.is_champion = False
         model.model_status = "RETIRED"
 
+        # Resolve task key before commit while model attributes are in active session scope
+        model_type_str = (
+            model.model_type.value
+            if hasattr(model.model_type, "value")
+            else str(model.model_type)
+        )
+
         db.add(AuditLog(
             user_id=user_id,
             action="ML_MODEL_RETIRED",
@@ -130,7 +196,15 @@ class MLRegistryService:
             entity_id=str(model.id),
         ))
         db.commit()
-        db.refresh(model)
+
+        # Invalidate in-memory ModelRegistry cache immediately after successful database commit
+        ModelRegistry.invalidate_cache(model_type_str.lower())
+
+        try:
+            db.refresh(model)
+        except Exception as e:
+            logger.warning("Failed to refresh model %s after retirement commit: %s", model.id, e)
+
         return model
 
     # --- Training Runs (78-81) ---
@@ -154,7 +228,21 @@ class MLRegistryService:
 
     @staticmethod
     def trigger_training_run(db: Session, payload: ModelTrainingTriggerRequest, user_id: int) -> ModelTrainingRun:
-        celery_task = f"train-task-{uuid.uuid4().hex[:8]}"
+        # Validate feature set exists
+        fs = db.query(FeatureSet).filter(FeatureSet.id == payload.feature_set_id).first()
+        if not fs:
+            raise EntityNotFoundError("FeatureSet", payload.feature_set_id)
+
+        # Validate algorithm
+        allowed_algorithms = {"lightgbm", "xgboost", "random_forest", "linear_regression", "logistic_regression", "naive"}
+        algo_norm = payload.algorithm.lower().strip()
+        if algo_norm not in allowed_algorithms:
+            raise BadRequestException(f"Unsupported algorithm '{payload.algorithm}'. Allowed: {sorted(list(allowed_algorithms))}")
+
+        batch_task = f"train-run-{uuid.uuid4().hex[:8]}"
+        run_notes = (payload.notes or "").strip()
+        audit_note = f"Registered training run request. Awaiting administrative execution batch. {run_notes}".strip()
+
         run = ModelTrainingRun(
             model_type=payload.model_type,
             feature_set_id=payload.feature_set_id,
@@ -162,17 +250,17 @@ class MLRegistryService:
             hyperparameters_json=payload.hyperparameters or {},
             cv_folds=payload.cv_folds,
             status=TrainingStatus.PENDING,
-            celery_task_id=celery_task,
+            celery_task_id=batch_task,
             started_by_user_id=user_id,
-            notes=payload.notes,
+            notes=audit_note,
         )
         db.add(run)
         db.add(AuditLog(
             user_id=user_id,
             action="ML_TRAINING_RUN_TRIGGERED",
             entity_type="model_training_runs",
-            entity_id=str(celery_task),
-            new_value_json={"model_type": payload.model_type.value, "algorithm": payload.algorithm},
+            entity_id=str(batch_task),
+            new_value_json={"model_type": payload.model_type.value, "algorithm": payload.algorithm, "status": "PENDING"},
         ))
         db.commit()
         db.refresh(run)

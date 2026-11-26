@@ -110,7 +110,9 @@ class RecommendationGenerator:
                 reason_code = RejectionReasonCode.INSUFFICIENT_SUPPLIER_CAPACITY
             elif (opp.minimum_purchase_qty * opp.purchase_cost) > config.total_budget:
                 reason_code = RejectionReasonCode.MOQ_EXCEEDS_BUDGET
-            elif opp.aggregate_demand_cap > 0 and opp.minimum_purchase_qty > opp.aggregate_demand_cap:
+            elif opp.aggregate_demand_cap is None or opp.aggregate_demand_cap == 0:
+                reason_code = RejectionReasonCode.DESTINATION_CAP_BINDING
+            elif opp.aggregate_demand_cap is not None and opp.minimum_purchase_qty > opp.aggregate_demand_cap:
                 reason_code = RejectionReasonCode.MOQ_EXCEEDS_DEMAND
             else:
                 # Check binding portfolio constraints
@@ -120,7 +122,7 @@ class RecommendationGenerator:
                     reason_code = RejectionReasonCode.SUPPLIER_CAP_BINDING
                 # Destination cap binding?
                 elif (
-                    opp.aggregate_demand_cap > 0 and
+                    opp.aggregate_demand_cap is not None and
                     dest_procured_units.get((opp.destination_id, opp.inventory_type), 0) >= opp.aggregate_demand_cap
                 ):
                     reason_code = RejectionReasonCode.DESTINATION_CAP_BINDING

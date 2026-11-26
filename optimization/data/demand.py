@@ -62,13 +62,20 @@ class DemandService:
     def get_aggregate_demand_bound(self,
                                    destination_id: str,
                                    inventory_type: str,
-                                   predicted_search_volume: float) -> int:
+                                   predicted_search_volume: Optional[float]) -> Optional[int]:
         """
         Calculates the aggregate destination procurement demand ceiling.
+        Returns:
+            None: When predicted search volume is unavailable/unsupported (blocks procurement).
+            0: When predicted search volume is zero or conversion is zero (genuine zero demand).
+            int > 0: Positive procurement demand ceiling.
         Units:
             HOTEL: room-nights
             FLIGHT: seats
         """
+        if predicted_search_volume is None:
+            return None
+
         if predicted_search_volume <= 0:
             return 0
 

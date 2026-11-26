@@ -43,7 +43,7 @@ class ProcurementOpportunity(BaseModel):
     expected_unit_revenue: float
 
     # Aggregate destination demand cap
-    aggregate_demand_cap: int
+    aggregate_demand_cap: Optional[int] = None
 
 
 class CandidateOffer(BaseModel):
@@ -62,7 +62,7 @@ class CandidateOffer(BaseModel):
     moq: int
     unit_contribution: float
     unit_type: str
-    aggregate_demand: int
+    aggregate_demand: Optional[int] = None
 
 
 class SolverTerminationStatus(str):

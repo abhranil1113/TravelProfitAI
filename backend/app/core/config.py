@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "sqlite:///./inventoryiq.db"
     DATABASE_TEST_URL: str = "sqlite:///:memory:"
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 20
+    DB_POOL_TIMEOUT: int = 30
+    DB_POOL_RECYCLE: int = 1800
+    DB_ECHO: bool = False
     
     # Security & Auth
     SECRET_KEY: str = "tbo_inventoryiq_super_secret_jwt_key_2026_sabuj_sangha"
