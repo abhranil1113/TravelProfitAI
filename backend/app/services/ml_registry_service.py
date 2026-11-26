@@ -166,8 +166,13 @@ class MLRegistryService:
         ))
         db.commit()
 
-        # Invalidate in-memory ModelRegistry cache immediately after successful database commit
+        # Invalidate in-memory ModelRegistry and ML Engine caches immediately after successful database commit
         ModelRegistry.invalidate_cache(model_type_str.lower())
+        try:
+            from ml_engine.model_registry.registry import ModelArtifactRegistry
+            ModelArtifactRegistry.invalidate_cache(model_type_str.lower())
+        except Exception as e:
+            logger.warning("Failed to invalidate ModelArtifactRegistry cache for %s: %s", model_type_str, e)
 
         try:
             db.refresh(model)
@@ -197,8 +202,13 @@ class MLRegistryService:
         ))
         db.commit()
 
-        # Invalidate in-memory ModelRegistry cache immediately after successful database commit
+        # Invalidate in-memory ModelRegistry and ML Engine caches immediately after successful database commit
         ModelRegistry.invalidate_cache(model_type_str.lower())
+        try:
+            from ml_engine.model_registry.registry import ModelArtifactRegistry
+            ModelArtifactRegistry.invalidate_cache(model_type_str.lower())
+        except Exception as e:
+            logger.warning("Failed to invalidate ModelArtifactRegistry cache for %s: %s", model_type_str, e)
 
         try:
             db.refresh(model)

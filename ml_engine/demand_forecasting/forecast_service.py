@@ -4,6 +4,7 @@ ml_engine/demand_forecasting/forecast_service.py
 Production demand forecasting service.
 Predicts future 7-day search volume observations using the 15-feature model.
 Handles unseen destinations safely without fabricating synthetic historical baselines.
+Uses consistent lowercase inventory_type matching trained transformers.
 """
 
 import logging
@@ -64,7 +65,7 @@ class DemandForecastService:
 
         grouped = df.groupby(["destination_id", "inventory_type"])
         for (dest, itype), group in grouped:
-            dest_key = (str(dest), str(itype).upper())
+            dest_key = (str(dest), str(itype).lower())
             daily = group.groupby("search_date_dt").agg(
                 vol=("search_id", "count"),
                 travellers=("travellers_count", "sum"),
@@ -92,7 +93,7 @@ class DemandForecastService:
 
             cache[dest_key] = {
                 "destination_id": str(dest),
-                "inventory_type": str(itype).upper(),
+                "inventory_type": str(itype).lower(),
                 "search_volume": s_vol,
                 "total_travellers": t_trav,
                 "avg_search_price": a_price,
@@ -115,7 +116,7 @@ class DemandForecastService:
         Executes genuine ML inference for destination and inventory type.
         Returns None when no prior search history exists.
         """
-        key = (str(destination_id), str(inventory_type).upper())
+        key = (str(destination_id), str(inventory_type).lower())
         if key in self._prediction_cache:
             return self._prediction_cache[key]
 
@@ -142,7 +143,7 @@ class DemandForecastService:
     def handle_prediction_request(self, request: PredictionRequest) -> PredictionResult:
         """PredictionRouter adapter implementing the unified prediction interface."""
         dest_id = request.features.get("destination_id")
-        inv_type = request.features.get("inventory_type", "HOTEL")
+        inv_type = request.features.get("inventory_type", "hotel")
 
         if not dest_id:
             raise UnsupportedPredictionError("Missing 'destination_id' in prediction features")
@@ -153,14 +154,33 @@ class DemandForecastService:
                 task=request.task,
                 status=InferenceStatus.UNSUPPORTED,
                 prediction=None,
+                prediction_type="MODEL",
                 model_name=self.metadata.get("model_name", "naive"),
-                error_message=f"No customer search history available for destination '{dest_id}'"
+                model_version=self.metadata.get("saved_timestamp"),
+                artifact_checksum=self.metadata.get("_artifact_sha256"),
+                checksum_verified=bool(self.metadata.get("_checksum_verified", False)),
+                is_independently_trusted=bool(self.metadata.get("_is_independently_trusted", False)),
+                error_message=f"No customer search history available for destination '{dest_id}'",
+                metadata={
+                    "destination_id": str(dest_id),
+                    "inventory_type": str(inv_type).lower(),
+                    "checksum_trust_source": self.metadata.get("_checksum_trust_source"),
+                },
             )
 
         return PredictionResult(
             task=request.task,
             status=InferenceStatus.SUCCESS,
             prediction=pred_val,
+            prediction_type="MODEL",
             model_name=self.metadata.get("model_name", "naive"),
-            metadata={"destination_id": str(dest_id), "inventory_type": str(inv_type).upper()},
+            model_version=self.metadata.get("saved_timestamp"),
+            artifact_checksum=self.metadata.get("_artifact_sha256"),
+            checksum_verified=bool(self.metadata.get("_checksum_verified", False)),
+            is_independently_trusted=bool(self.metadata.get("_is_independently_trusted", False)),
+            metadata={
+                "destination_id": str(dest_id),
+                "inventory_type": str(inv_type).lower(),
+                "checksum_trust_source": self.metadata.get("_checksum_trust_source"),
+            },
         )

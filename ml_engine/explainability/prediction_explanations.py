@@ -2,14 +2,22 @@
 ml_engine/explainability/prediction_explanations.py
 
 Local prediction driver explanation and attribution.
-Translates model outputs into human-readable business factors.
+Translates domain observations into human-readable business factors.
+
+Note: These explanations represent analytical business-rule summaries and
+expert-curated factors, NOT mathematical model feature attributions (e.g. SHAP or TreeSHAP).
 """
 
 from typing import Dict, Any, List, Optional
 
 
 class PredictionExplainer:
-    """Generates localized explanations for individual inference results."""
+    """
+    Generates localized business factor explanations for individual inference results.
+    Explicitly tags results as HEURISTIC_RULE to distinguish from ML attribution.
+    """
+
+    EXPLANATION_TYPE = "HEURISTIC_RULE"
 
     @staticmethod
     def explain_hotel_cancellation(
@@ -38,6 +46,8 @@ class PredictionExplainer:
 
         verdict = "HIGH_RISK" if probability >= threshold else "LOW_RISK"
         return {
+            "explanation_type": PredictionExplainer.EXPLANATION_TYPE,
+            "is_model_attribution": False,
             "prediction_probability": round(probability, 4),
             "risk_verdict": verdict,
             "threshold_applied": threshold,
@@ -66,6 +76,8 @@ class PredictionExplainer:
             drivers.append(f"Premium cabin tier ({cabin_class}) contributes to high contract ceiling.")
 
         return {
+            "explanation_type": PredictionExplainer.EXPLANATION_TYPE,
+            "is_model_attribution": False,
             "predicted_price_inr": round(predicted_price, 2),
             "route": route,
             "cabin_class": cabin_class,

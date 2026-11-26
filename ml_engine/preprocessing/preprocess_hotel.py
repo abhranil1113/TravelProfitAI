@@ -2,39 +2,78 @@
 ml_engine/preprocessing/preprocess_hotel.py
 
 Domain feature preprocessing for hotel cancellation risk prediction.
-Derives ratios, seasonal indicators, and log ADR required by the 47-feature model.
+Derives ratios, seasonal indicators, and log ADR from authentic booking reservations.
+Strictly eliminates target leakage: never requires or fabricates full-dataset cancellation rate priors.
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import numpy as np
 import pandas as pd
+from ml_engine.exceptions import FeatureValidationError
 
 
 class HotelFeaturePreprocessor:
-    """Constructs the canonical 47 features required by the hotel cancellation LightGBM model."""
+    """
+    Constructs the canonical features required by the hotel cancellation LightGBM models.
+    Supports both the 45-feature leakage-free candidate schema and the legacy 47-feature schema
+    (only if rates are authentically provided).
+    """
 
-    # Fields that must be genuinely provided by a booking record
+    # Authentic passenger booking fields genuinely available at reservation time
     REQUIRED_BOOKING_FIELDS = [
         "adults", "stays_in_weekend_nights", "stays_in_week_nights",
         "market_segment", "customer_type", "deposit_type"
     ]
 
+    # The 45 authentic feature names (excluding the two target-leaked columns)
+    FEATURE_NAMES_45 = [
+        "lead_time_days", "lead_time_bucket", "lead_time_log", "arrival_year",
+        "arrival_month", "arrival_day", "arrival_day_of_week", "arrival_week_of_year",
+        "arrival_quarter", "arrival_is_weekend", "arrival_is_peak_season",
+        "arrival_is_month_start", "arrival_is_month_end", "total_stay_nights",
+        "stays_in_weekend_nights", "stays_in_week_nights", "weekend_nights_ratio",
+        "weekday_nights_ratio", "total_guests", "adults", "children", "babies",
+        "is_solo_traveller", "is_family_booking", "is_repeated_guest",
+        "previous_cancellations", "previous_bookings_not_canceled",
+        "has_cancellation_history", "special_requests_count", "has_special_requests",
+        "days_in_waiting_list", "required_car_parking_spaces", "has_agent",
+        "has_company", "reserved_room_type", "adr", "adr_log", "adr_per_guest",
+        "hotel", "meal", "country", "market_segment", "distribution_channel",
+        "deposit_type", "customer_type"
+    ]
+
+    FEATURE_NAMES = FEATURE_NAMES_45
+
     @staticmethod
     def has_required_booking_context(raw_record: Dict[str, Any]) -> bool:
-        """Checks if the observation possesses passenger booking fields."""
-        return all(f in raw_record and raw_record[f] is not None for f in HotelFeaturePreprocessor.REQUIRED_BOOKING_FIELDS)
+        """Checks if the observation possesses authentic reservation-level attributes."""
+        return all(
+            f in raw_record and raw_record[f] is not None
+            for f in HotelFeaturePreprocessor.REQUIRED_BOOKING_FIELDS
+        )
 
     @staticmethod
     def build_features(raw_record: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Builds the complete 47-feature dictionary for hotel cancellation risk.
+        Builds the feature dictionary from authentic reservation attributes.
+        Does not require or fabricate historical cancellation rates.
         """
+        missing = [
+            f for f in HotelFeaturePreprocessor.REQUIRED_BOOKING_FIELDS
+            if f not in raw_record or raw_record[f] is None
+        ]
+        if missing:
+            raise FeatureValidationError(
+                f"Missing required authentic booking reservation fields: {missing}",
+                missing_features=missing
+            )
+
         lead_time = float(raw_record.get("lead_time_days", raw_record.get("lead_time", 30)))
-        w_nights = float(raw_record.get("stays_in_weekend_nights", 0))
-        d_nights = float(raw_record.get("stays_in_week_nights", 2))
+        w_nights = float(raw_record["stays_in_weekend_nights"])
+        d_nights = float(raw_record["stays_in_week_nights"])
         total_stay = max(1.0, w_nights + d_nights)
 
-        adults = float(raw_record.get("adults", 2))
+        adults = float(raw_record["adults"])
         children = float(raw_record.get("children", 0))
         babies = float(raw_record.get("babies", 0))
         total_guests = max(1.0, adults + children + babies)
@@ -59,10 +98,10 @@ class HotelFeaturePreprocessor:
         else:
             lt_bucket = "181+ days"
 
-        mkt_seg = str(raw_record.get("market_segment", "Online TA"))
-        dep_type = str(raw_record.get("deposit_type", "No Deposit"))
+        mkt_seg = str(raw_record["market_segment"]).strip()
+        dep_type = str(raw_record["deposit_type"]).strip()
 
-        return {
+        features = {
             "lead_time_days": lead_time,
             "lead_time_bucket": lt_bucket,
             "lead_time_log": float(np.log1p(max(0.0, lead_time))),
@@ -108,6 +147,12 @@ class HotelFeaturePreprocessor:
             "distribution_channel": str(raw_record.get("distribution_channel", "TA/TO")),
             "deposit_type": dep_type,
             "customer_type": str(raw_record.get("customer_type", "Transient")),
-            "market_segment_historical_cancel_rate": 0.35,
-            "deposit_type_historical_cancel_rate": 0.28,
         }
+
+        # If rate metrics are explicitly provided by the caller, include them
+        if "market_segment_historical_cancel_rate" in raw_record and raw_record["market_segment_historical_cancel_rate"] is not None:
+            features["market_segment_historical_cancel_rate"] = float(raw_record["market_segment_historical_cancel_rate"])
+        if "deposit_type_historical_cancel_rate" in raw_record and raw_record["deposit_type_historical_cancel_rate"] is not None:
+            features["deposit_type_historical_cancel_rate"] = float(raw_record["deposit_type_historical_cancel_rate"])
+
+        return features

@@ -12,7 +12,9 @@ from ml_engine.exceptions import (
     FeatureValidationError,
     SchemaMismatchError,
     ModelInferenceError,
+    InferenceTimeoutError,
     ArtifactCorruptedError,
+    ChecksumMismatchError,
     UnsupportedPredictionError,
 )
 from ml_engine.schemas import (
@@ -51,6 +53,8 @@ __all__ = [
     "FeatureValidationError",
     "SchemaMismatchError",
     "ModelInferenceError",
+    "InferenceTimeoutError",
     "ArtifactCorruptedError",
+    "ChecksumMismatchError",
     "UnsupportedPredictionError",
 ]

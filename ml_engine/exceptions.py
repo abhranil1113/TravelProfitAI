@@ -5,6 +5,8 @@ Custom exception hierarchy for the centralized ML Engine.
 Provides distinct domain exceptions for registry, preprocessing, and inference failures.
 """
 
+from typing import List, Dict, Optional, Any
+
 
 class MLEngineError(Exception):
     """Base exception for all ML Engine operational failures."""
@@ -18,10 +20,17 @@ class ModelNotFoundError(MLEngineError):
 
 class FeatureValidationError(MLEngineError):
     """Raised when input features fail schema validation, type checks, or value bounds."""
-    def __init__(self, message: str, missing_features: list[str] = None, invalid_types: dict = None):
+    def __init__(
+        self,
+        message: str,
+        missing_features: Optional[List[str]] = None,
+        invalid_types: Optional[Dict[str, str]] = None,
+        invalid_values: Optional[Dict[str, Any]] = None,
+    ):
         super().__init__(message)
         self.missing_features = missing_features or []
         self.invalid_types = invalid_types or {}
+        self.invalid_values = invalid_values or {}
 
 
 class SchemaMismatchError(FeatureValidationError):
@@ -34,8 +43,18 @@ class ModelInferenceError(MLEngineError):
     pass
 
 
+class InferenceTimeoutError(MLEngineError):
+    """Raised when inference execution exceeds the configured timeout threshold."""
+    pass
+
+
 class ArtifactCorruptedError(MLEngineError):
     """Raised when a serialized model artifact fails checksum verification or deserialization."""
+    pass
+
+
+class ChecksumMismatchError(ArtifactCorruptedError):
+    """Raised when an artifact file SHA-256 does not match the expected metadata checksum."""
     pass
 
 

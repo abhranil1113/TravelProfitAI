@@ -10,7 +10,7 @@ from typing import Dict, Any, List, Optional
 import numpy as np
 import pandas as pd
 
-from ml_engine.exceptions import ModelInferenceError, UnsupportedPredictionError
+from ml_engine.exceptions import ModelInferenceError, UnsupportedPredictionError, FeatureValidationError
 from ml_engine.model_registry.registry import ModelArtifactRegistry
 from ml_engine.schemas import PredictionTask, PredictionRequest, PredictionResult, InferenceStatus
 
@@ -40,10 +40,11 @@ class InventoryForecastService:
     def predict_future_available_quantity(self, snapshot_record: Dict[str, Any]) -> Optional[float]:
         """
         Predicts remaining capacity bounded within [0, total_capacity].
+        Returns None if required engineered snapshot features are missing.
         """
-        missing = [f for f in self.expected_features if f not in snapshot_record]
+        missing = [f for f in self.expected_features if f not in snapshot_record or snapshot_record[f] is None]
         if missing:
-            logger.info("Snapshot record missing required features: %s", missing)
+            logger.info("Snapshot record missing required features: %s", missing[:5])
             return None
 
         row_df = pd.DataFrame([snapshot_record])[self.expected_features]
@@ -70,14 +71,28 @@ class InventoryForecastService:
                 task=request.task,
                 status=InferenceStatus.UNSUPPORTED,
                 prediction=None,
+                prediction_type="MODEL",
                 model_name=self.metadata.get("model_name"),
-                error_message="Snapshot lacks required features for inventory forecasting.",
+                model_version=self.metadata.get("saved_timestamp"),
+                artifact_checksum=self.metadata.get("_artifact_sha256"),
+                checksum_verified=bool(self.metadata.get("_checksum_verified", False)),
+                is_independently_trusted=bool(self.metadata.get("_is_independently_trusted", False)),
+                error_message="Snapshot lacks required engineered features for inventory forecasting.",
+                metadata={"checksum_trust_source": self.metadata.get("_checksum_trust_source")},
             )
 
         return PredictionResult(
             task=request.task,
             status=InferenceStatus.SUCCESS,
             prediction=pred,
+            prediction_type="MODEL",
             model_name=self.metadata.get("model_name"),
-            metadata={"target_column": "future_available_quantity"},
+            model_version=self.metadata.get("saved_timestamp"),
+            artifact_checksum=self.metadata.get("_artifact_sha256"),
+            checksum_verified=bool(self.metadata.get("_checksum_verified", False)),
+            is_independently_trusted=bool(self.metadata.get("_is_independently_trusted", False)),
+            metadata={
+                "target_column": "future_available_quantity",
+                "checksum_trust_source": self.metadata.get("_checksum_trust_source"),
+            },
         )

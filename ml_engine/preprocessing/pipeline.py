@@ -20,7 +20,7 @@ class MLPreprocessingPipeline:
     """
     Standardizes inference data preparation.
     Ensures that input dictionaries or DataFrames pass strict feature contracts,
-    missing-value imputation, and serialization through trained preprocessors.
+    missing-value imputation controls, and serialization through trained preprocessors.
     """
 
     def __init__(
@@ -28,7 +28,7 @@ class MLPreprocessingPipeline:
         expected_features: List[str],
         preprocessor: Optional[Any] = None,
         strict_validation: bool = True,
-        allow_imputation: bool = True,
+        allow_imputation: bool = False,
     ):
         self.expected_features = expected_features
         self.preprocessor = preprocessor
@@ -38,6 +38,7 @@ class MLPreprocessingPipeline:
     def transform(self, input_data: Union[Dict[str, Any], List[Dict[str, Any]], pd.DataFrame]) -> Any:
         """
         Converts raw input records into validated, preprocessed feature matrices.
+        Raises FeatureValidationError if features are missing and allow_imputation is False.
         """
         # Convert to DataFrame
         if isinstance(input_data, dict):

@@ -3,6 +3,7 @@ ml_engine/adapters.py
 
 Integration adapters connecting the central ML Engine with the Optimization Engine
 and backend services while preserving existing contracts.
+Routes all requests through MLEngine to ensure centralized validation, metrics, and timeouts.
 """
 
 import logging
@@ -11,18 +12,14 @@ import pandas as pd
 
 from ml_engine.engine import MLEngine
 from ml_engine.model_registry.registry import ModelArtifactRegistry
-from ml_engine.demand_forecasting.forecast_service import DemandForecastService
-from ml_engine.price_prediction.price_prediction_service import PricePredictionService
-from ml_engine.risk_prediction.risk_prediction_service import RiskPredictionService
-from ml_engine.inventory_forecasting.inventory_forecast_service import InventoryForecastService
-from ml_engine.schemas import PredictionTask, PredictionRequest
+from ml_engine.schemas import PredictionTask, PredictionRequest, InferenceStatus
 
 logger = logging.getLogger(__name__)
 
 
 class OptimizationMLAdapter:
     """
-    Adapter providing standard optimization prediction interfaces backed by the ML Engine.
+    Adapter providing standard optimization prediction interfaces backed by the central ML Engine.
     Allows candidate_builder and solvers to interact seamlessly with centralized ML models.
     """
 
@@ -40,27 +37,65 @@ class OptimizationMLAdapter:
             optimization_timestamp=optimization_timestamp,
         )
 
-        self.demand_service = DemandForecastService(
-            registry=self.registry,
-            searches_df=searches_df,
-            optimization_timestamp=optimization_timestamp,
-        )
-        self.price_service = PricePredictionService(registry=self.registry)
-        self.risk_service = RiskPredictionService(registry=self.registry)
-        self.inventory_service = InventoryForecastService(registry=self.registry)
-
     def predict_demand_search_volume(self, destination_id: str, inventory_type: str) -> Optional[float]:
-        """Maps demand forecasting query to centralized engine/service."""
-        return self.demand_service.predict_search_volume(destination_id, inventory_type)
+        """
+        Maps demand forecasting query to centralized engine.
+        Returns None for unsupported or missing history.
+        """
+        req = PredictionRequest(
+            task=PredictionTask.DEMAND_FORECASTING,
+            features={
+                "destination_id": str(destination_id),
+                "inventory_type": str(inventory_type).lower(),
+            },
+            entity_id=f"dest_{destination_id}_{inventory_type}",
+        )
+        res = self.engine.predict(req)
+        if res.status == InferenceStatus.SUCCESS and res.prediction is not None:
+            return float(res.prediction)
+        return None
 
     def predict_flight_ceiling_price(self, offer_dict: Dict[str, Any]) -> Optional[float]:
-        """Maps flight price ceiling query to centralized engine/service."""
-        return self.price_service.predict_market_price(offer_dict)
+        """
+        Maps flight price ceiling query to centralized engine.
+        Returns None for unsupported routes, carriers, or missing attributes.
+        """
+        req = PredictionRequest(
+            task=PredictionTask.FLIGHT_PRICE,
+            features=offer_dict,
+            entity_id=str(offer_dict.get("offer_id", "flight_offer")),
+        )
+        res = self.engine.predict(req)
+        if res.status == InferenceStatus.SUCCESS and res.prediction is not None:
+            return float(res.prediction)
+        return None
 
     def predict_hotel_cancellation_risk(self, offer_dict: Dict[str, Any]) -> Optional[float]:
-        """Maps hotel cancellation probability query to centralized engine/service."""
-        return self.risk_service.predict_cancellation_probability(offer_dict)
+        """
+        Maps hotel cancellation probability query to centralized engine.
+        Returns None when passenger booking cohort fields are absent.
+        """
+        req = PredictionRequest(
+            task=PredictionTask.HOTEL_CANCELLATION,
+            features=offer_dict,
+            entity_id=str(offer_dict.get("offer_id", "hotel_offer")),
+        )
+        res = self.engine.predict(req)
+        if res.status == InferenceStatus.SUCCESS and res.prediction is not None:
+            return float(res.prediction)
+        return None
 
     def predict_inventory_available_quantity(self, snapshot_dict: Dict[str, Any]) -> Optional[float]:
-        """Maps inventory depletion query to centralized engine/service."""
-        return self.inventory_service.predict_future_available_quantity(snapshot_dict)
+        """
+        Maps inventory depletion query to centralized engine.
+        Returns None when required snapshot metrics are absent.
+        """
+        req = PredictionRequest(
+            task=PredictionTask.INVENTORY_FORECASTING,
+            features=snapshot_dict,
+            entity_id=str(snapshot_dict.get("inventory_id", "inventory_snapshot")),
+        )
+        res = self.engine.predict(req)
+        if res.status == InferenceStatus.SUCCESS and res.prediction is not None:
+            return float(res.prediction)
+        return None

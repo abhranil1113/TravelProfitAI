@@ -24,6 +24,7 @@ class InferenceStatus(str, Enum):
     SUCCESS = "SUCCESS"
     UNSUPPORTED = "UNSUPPORTED"
     FAILED = "FAILED"
+    TIMEOUT = "TIMEOUT"
 
 
 class PredictionRequest(BaseModel):
@@ -39,12 +40,16 @@ class PredictionResult(BaseModel):
     task: PredictionTask
     status: InferenceStatus
     prediction: Optional[Any] = None
+    prediction_type: Optional[str] = "MODEL"  # MODEL | HEURISTIC_RULE | BASELINE
     prediction_label: Optional[str] = None
     confidence_score: Optional[float] = None
     probabilities: Optional[Dict[str, float]] = None
     latency_ms: float = 0.0
     model_name: Optional[str] = None
     model_version: Optional[str] = None
+    artifact_checksum: Optional[str] = None
+    checksum_verified: bool = False
+    is_independently_trusted: bool = False
     error_message: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
@@ -53,6 +58,7 @@ class BatchPredictionRequest(BaseModel):
     """Unified multi-record prediction request payload."""
     task: PredictionTask
     records: List[Dict[str, Any]]
+    batch_timeout_seconds: Optional[float] = None
     context: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 
@@ -64,6 +70,7 @@ class BatchPredictionResult(BaseModel):
     successful_records: int
     failed_records: int
     unsupported_records: int
+    timeout_records: int = 0
     total_latency_ms: float
 
 
@@ -77,6 +84,7 @@ class ModelMetadataSchema(BaseModel):
     feature_count: int
     saved_timestamp: Optional[str] = None
     random_seed: Optional[int] = 42
+    artifact_checksum: Optional[str] = None
     test_metrics: Optional[Dict[str, Any]] = Field(default_factory=dict)
     cv_summary: Optional[Dict[str, Any]] = Field(default_factory=dict)
     business_params: Optional[Dict[str, Any]] = Field(default_factory=dict)

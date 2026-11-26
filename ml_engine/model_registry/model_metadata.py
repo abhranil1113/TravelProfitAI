@@ -55,6 +55,7 @@ class ModelMetadataValidator:
             feature_count=declared_count,
             saved_timestamp=raw_data.get("saved_timestamp"),
             random_seed=raw_data.get("random_seed", 42),
+            artifact_checksum=raw_data.get("artifact_checksum"),
             test_metrics=raw_data.get("test_metrics", {}),
             cv_summary=raw_data.get("cv_summary", {}),
             business_params=raw_data.get("business_params", {}),
