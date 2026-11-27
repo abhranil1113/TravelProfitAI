@@ -23,6 +23,9 @@ from backend.app.models.schema import (
     FreshnessStatus,
     InventoryCategory,
     InventoryItem,
+    InventorySnapshot,
+    OfferPrediction,
+    DestinationDemandForecast,
     MLModel,
     MLModelType,
     OfferStatus,
@@ -1063,3 +1066,191 @@ def test_stage12_audit_remediation_regressions(db, tmp_path):
     assert rec_ok.approval_status == ApprovalStatus.PENDING
     assert rec_bad.approval_status == ApprovalStatus.PENDING
     assert db.query(PolicyEvaluationLog).filter(PolicyEvaluationLog.entity_id == str(rec_bad.id)).count() >= 1
+
+
+def test_stage15_supplier_identity_and_scope_regressions(db):
+    _seed_market_data(db)
+    SupplierPortalService.reset_rate_limits()
+
+    cred = SupplierPortalService.create_credential(
+        db,
+        SupplierCredentialCreateRequest(
+            supplier_id="SUP_H1",
+            label="Rates Only",
+            scopes=["rates:write"],
+            rate_limit_per_minute=100,
+        ),
+        user_id=1,
+    )
+    raw_key = cred.raw_api_secret
+    machine = SupplierPortalService.authenticate_machine_credential(db, raw_key)
+
+    created = SupplierPortalService.push_rates_and_availability(
+        db,
+        machine,
+        SupplierRatePushRequest(
+            idempotency_key="ST15_CREATE_1",
+            offers=[SupplierRatePushOfferItem(
+                offer_id="ST15_OFF_1",
+                inventory_id="INV_GOI_H1",
+                dest_id="GOI",
+                inventory_category=InventoryCategory.HOTEL,
+                unit_type=UnitType.ROOM_NIGHT,
+                unit_cost=Decimal("4200.00"),
+                list_price=Decimal("6800.00"),
+                currency_code="INR",
+                moq=2,
+                max_capacity=40,
+                valid_from=date.today(),
+                valid_until=date.today() + timedelta(days=30),
+                travel_date=date.today() + timedelta(days=30),
+            )],
+        ),
+    )
+    assert created.status.value == "SUCCESS"
+
+    offer = db.query(SupplierOffer).filter(SupplierOffer.offer_id == "ST15_OFF_1").one()
+    original_cost = offer.unit_cost_inr
+    db.add(InventoryItem(
+        inventory_id="INV_GOI_H2",
+        inventory_category=InventoryCategory.HOTEL,
+        unit_type=UnitType.ROOM_NIGHT,
+        dest_id="GOI",
+        is_active=True,
+    ))
+    db.commit()
+
+    wrong_inventory_log = SupplierPortalService.push_rates_and_availability(
+        db,
+        machine,
+        SupplierRatePushRequest(
+            idempotency_key="ST15_WRONG_INVENTORY",
+            offers=[SupplierRatePushOfferItem(
+                offer_id="ST15_OFF_1",
+                inventory_id="INV_GOI_H2",
+                dest_id="GOI",
+                inventory_category=InventoryCategory.HOTEL,
+                unit_type=UnitType.ROOM_NIGHT,
+                unit_cost=Decimal("4300.00"),
+                list_price=Decimal("6900.00"),
+                currency_code="INR",
+                moq=2,
+                max_capacity=40,
+                available_units=30,
+                valid_from=date.today(),
+                valid_until=date.today() + timedelta(days=30),
+                travel_date=date.today() + timedelta(days=30),
+            )],
+        ),
+    )
+    assert wrong_inventory_log.status.value == "FAILED"
+    assert wrong_inventory_log.offers_rejected == 1
+    db.refresh(offer)
+    assert offer.unit_cost_inr == original_cost
+    assert offer.inventory_id == "INV_GOI_H1"
+
+    availability_log = SupplierPortalService.push_rates_and_availability(
+        db,
+        machine,
+        SupplierRatePushRequest(
+            idempotency_key="ST15_AVAIL_ONLY_REJECT",
+            offers=[SupplierRatePushOfferItem(
+                offer_id="ST15_OFF_1",
+                inventory_id="INV_GOI_H1",
+                dest_id="GOI",
+                inventory_category=InventoryCategory.HOTEL,
+                unit_type=UnitType.ROOM_NIGHT,
+                unit_cost=Decimal("4200.00"),
+                list_price=Decimal("6800.00"),
+                currency_code="INR",
+                moq=2,
+                max_capacity=40,
+                available_units=20,
+                valid_from=date.today(),
+                valid_until=date.today() + timedelta(days=30),
+                travel_date=date.today() + timedelta(days=30),
+            )],
+        ),
+    )
+    assert availability_log.status.value == "FAILED"
+    assert availability_log.offers_rejected == 1
+
+    cross_supplier_log = SupplierPortalService.push_rates_and_availability(
+        db,
+        machine,
+        SupplierRatePushRequest(
+            idempotency_key="ST15_CROSS_SUPPLIER",
+            offers=[SupplierRatePushOfferItem(
+                offer_id="OFF_DXB_H1",
+                inventory_id="INV_DXB_H1",
+                dest_id="DXB",
+                inventory_category=InventoryCategory.HOTEL,
+                unit_type=UnitType.ROOM_NIGHT,
+                unit_cost=Decimal("5000.00"),
+                list_price=Decimal("7000.00"),
+                currency_code="INR",
+                moq=1,
+                max_capacity=20,
+                valid_from=date.today(),
+                valid_until=date.today() + timedelta(days=30),
+                travel_date=date.today() + timedelta(days=30),
+            )],
+        ),
+    )
+    assert cross_supplier_log.status.value == "FAILED"
+    assert cross_supplier_log.offers_rejected == 1
+
+
+def test_stage15_forecasting_unavailable_metadata_and_inventory_separation(db):
+    from backend.app.services.forecasting_service import ForecastingService
+    from backend.app.schemas.forecast import PredictionGenerateRequest, ForecastMaterializeRequest
+
+    dest = Destination(dest_id="ST15D", name="Stage 15", city="Test", country="India", airport_code="S15")
+    sup = Supplier(
+        supplier_id="ST15SUP",
+        name="Stage 15 Supplier",
+        supplier_type=SupplierType.HOTEL,
+        is_active=True,
+    )
+    inv = InventoryItem(
+        inventory_id="ST15_INV",
+        inventory_category=InventoryCategory.HOTEL,
+        unit_type=UnitType.ROOM_NIGHT,
+        dest_id="ST15D",
+        is_active=True,
+    )
+    off = SupplierOffer(
+        offer_id="ST15_OFFER",
+        supplier_id="ST15SUP",
+        inventory_id="ST15_INV",
+        dest_id="ST15D",
+        inventory_category=InventoryCategory.HOTEL,
+        unit_type=UnitType.ROOM_NIGHT,
+        unit_cost_inr=Decimal("1000.00"),
+        list_price_inr=Decimal("1500.00"),
+        currency_code="INR",
+        moq=17,
+        max_capacity=100,
+        valid_from=date.today(),
+        valid_until=date.today() + timedelta(days=30),
+        travel_date=date.today() + timedelta(days=30),
+        status=OfferStatus.ACTIVE,
+    )
+    db.add_all([dest, sup, inv, off])
+    db.commit()
+
+    result = ForecastingService.generate_predictions(
+        db,
+        PredictionGenerateRequest(as_of_date=date.today(), offer_ids=["ST15_OFFER"]),
+        user_id=1,
+    )
+    assert result.status == "INSUFFICIENT_DATA"
+    assert db.query(OfferPrediction).count() == 0
+
+    mat = ForecastingService.materialize_forecasts(
+        db,
+        ForecastMaterializeRequest(horizon_days=7, as_of_date=date.today(), dest_ids=["ST15D"]),
+        user_id=1,
+    )
+    assert mat.status == "INSUFFICIENT_DATA"
+    assert db.query(DestinationDemandForecast).filter(DestinationDemandForecast.dest_id == "ST15D").count() == 0

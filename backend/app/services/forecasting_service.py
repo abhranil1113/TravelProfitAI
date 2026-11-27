@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+import pandas as pd
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional, List, Dict, Any
@@ -15,6 +16,11 @@ from backend.app.models.schema import (
     DestinationDemandForecast,
     DestinationInventoryForecast,
     InventoryCategory,
+    InventorySnapshot,
+    InventoryItem,
+    CustomerSearchEvent,
+    MLModel,
+    MLModelType,
     OfferPrediction,
     OfferStatus,
     SupplierOffer,
@@ -32,8 +38,27 @@ from optimization.config import OptimizationConfig
 from optimization.predictions.flight_price import FlightPriceService
 from optimization.predictions.hotel_cancellation import HotelCancellationService
 from optimization.predictions.model_registry import ModelRegistry
+from optimization.predictions.demand_forecasting import DemandForecastingService
+from optimization.predictions.inventory_forecasting import InventoryForecastingService
 
 logger = logging.getLogger(__name__)
+
+
+def _champion_metadata(db: Session, model_type: MLModelType) -> Optional[Dict[str, Any]]:
+    model = db.query(MLModel).filter(
+        MLModel.model_type == model_type,
+        MLModel.is_champion == True,
+    ).first()
+    if not model:
+        return None
+    return {
+        "name": f"{model.algorithm}:{model.model_type.value}",
+        "version": model.version,
+        "algorithm": model.algorithm,
+        "artifact_dir": model.artifact_dir,
+        "feature_schema_version": model.feature_schema_version,
+        "framework_version": model.framework_version,
+    }
 
 
 class ForecastingService:
@@ -87,6 +112,7 @@ class ForecastingService:
 
         persisted_count = 0
         now = datetime.now(timezone.utc)
+        unavailable_count = 0
 
         for offer in active_offers:
             oid = str(offer.offer_id)
@@ -96,35 +122,54 @@ class ForecastingService:
 
             inv_cat = offer.inventory_category
             if inv_cat == InventoryCategory.HOTEL:
-                if hotel_service is None:
-                    hotel_service = HotelCancellationService(registry, opt_config)
-                offer_dict = {
-                    "offer_id": oid,
-                    "destination_id": str(offer.dest_id),
-                    "purchase_cost": float(offer.unit_cost_inr),
-                    "selling_price": float(offer.list_price_inr),
-                    "travel_date": str(offer.travel_date),
-                }
-                p_cancel = hotel_service.predict_cohort_cancellation_probability(offer_dict)
+                hotel_metadata = _champion_metadata(db, MLModelType.HOTEL_CANCELLATION)
+                if hotel_metadata is None:
+                    p_cancel = None
+                else:
+                    if hotel_service is None:
+                        hotel_service = HotelCancellationService(registry, opt_config)
+                    offer_dict = {
+                        "offer_id": oid,
+                        "destination_id": str(offer.dest_id),
+                        "purchase_cost": float(offer.unit_cost_inr),
+                        "selling_price": float(offer.list_price_inr),
+                        "travel_date": str(offer.travel_date),
+                    }
+                    p_cancel = hotel_service.predict_cohort_cancellation_probability(offer_dict)
                 mkt_price = offer.list_price_inr
                 theta = opt_config.financial.hotel_base_sell_through
-                demand_units = int(offer.moq)
+                demand_units = None
+                model_metadata = hotel_metadata
             else:  # FLIGHT
-                if flight_service is None:
-                    flight_service = FlightPriceService(registry, opt_config)
-                offer_dict = {
-                    "offer_id": oid,
-                    "origin_id": str(offer.origin_dest_id) if offer.origin_dest_id else "DEL",
-                    "destination_id": str(offer.dest_id),
-                    "purchase_cost": float(offer.unit_cost_inr),
-                    "selling_price": float(offer.list_price_inr),
-                    "travel_date": str(offer.travel_date),
-                }
-                pred_ceiling = flight_service.predict_market_ceiling_price(offer_dict)
+                flight_metadata = _champion_metadata(db, MLModelType.FLIGHT_PRICE)
+                if flight_metadata is None:
+                    pred_ceiling = None
+                else:
+                    if flight_service is None:
+                        flight_service = FlightPriceService(registry, opt_config)
+                    offer_dict = {
+                        "offer_id": oid,
+                        "origin_id": str(offer.origin_dest_id),
+                        "destination_id": str(offer.dest_id),
+                        "purchase_cost": float(offer.unit_cost_inr),
+                        "selling_price": float(offer.list_price_inr),
+                        "travel_date": str(offer.travel_date),
+                    }
+                    if offer.origin_dest_id is None:
+                        pred_ceiling = None
+                    else:
+                        pred_ceiling = flight_service.predict_market_ceiling_price(offer_dict)
                 mkt_price = Decimal(str(round(pred_ceiling, 2))) if pred_ceiling is not None else offer.list_price_inr
                 p_cancel = None
                 theta = opt_config.financial.flight_base_sell_through
-                demand_units = int(offer.moq)
+                demand_units = None
+                model_metadata = flight_metadata
+
+            if model_metadata is None:
+                unavailable_count += 1
+                continue
+
+            model_version = f"{model_metadata['name']}:{model_metadata['version']}"
 
             if oid in existing_preds:
                 rec = existing_preds[oid]
@@ -133,17 +178,23 @@ class ForecastingService:
                 rec.predicted_sell_through_theta = theta
                 rec.predicted_demand_units = demand_units
                 rec.prediction_timestamp = now
-                rec.model_version = "CHAMPION_V1"
+                rec.model_version = model_version
+                rec.expected_unit_contribution_inr = Decimal("0.00")
+                rec.break_even_sell_through = theta
+                rec.model_versions_json = {model_metadata["name"]: model_metadata["version"]}
             else:
                 new_pred = OfferPrediction(
                     offer_id=oid,
                     as_of_date=as_of,
                     prediction_timestamp=now,
-                    model_version="CHAMPION_V1",
+                    model_version=model_version,
                     predicted_cancellation_prob=p_cancel,
                     predicted_market_price_inr=mkt_price,
                     predicted_sell_through_theta=theta,
                     predicted_demand_units=demand_units,
+                    expected_unit_contribution_inr=Decimal("0.00"),
+                    break_even_sell_through=theta,
+                    model_versions_json={model_metadata["name"]: model_metadata["version"]},
                 )
                 db.add(new_pred)
                 existing_preds[oid] = new_pred
@@ -163,12 +214,20 @@ class ForecastingService:
         ))
         db.commit()
 
+        status = "COMPLETED"
+        if unavailable_count > 0:
+            status = "PARTIAL" if persisted_count > 0 else "INSUFFICIENT_DATA"
         return PredictionGenerateResponse(
             batch_task_id=batch_id,
             as_of_date=as_of,
             target_offers_count=persisted_count,
-            status="COMPLETED",
-            message=f"Evaluated and persisted {persisted_count} offer predictions for as_of_date={as_of}.",
+            status=status,
+            message=(
+                f"Evaluated and persisted {persisted_count} offer predictions for as_of_date={as_of}; "
+                f"{unavailable_count} offers lacked a usable champion model or required features."
+                if unavailable_count
+                else f"Evaluated and persisted {persisted_count} offer predictions for as_of_date={as_of}."
+            ),
         )
 
     @staticmethod
@@ -299,6 +358,21 @@ class ForecastingService:
         total_demand_rows = 0
         total_inv_rows = 0
 
+        search_rows = db.query(CustomerSearchEvent).filter(
+            CustomerSearchEvent.search_date <= as_of,
+        ).all()
+        search_df = pd.DataFrame([
+            {
+                "search_id": s.search_id,
+                "search_date": s.search_date,
+                "destination_id": s.dest_id,
+                "inventory_type": s.inventory_category.value,
+                "travellers_count": s.travellers_count,
+                "search_price": float(s.search_price) if s.search_price is not None else 0.0,
+            }
+            for s in search_rows
+        ])
+
         for dest in destinations:
             did = dest.dest_id
 
@@ -308,12 +382,10 @@ class ForecastingService:
                 DestinationDailyMetrics.metric_date <= as_of,
             ).order_by(DestinationDailyMetrics.metric_date.desc()).limit(14).all()
 
-            if recent_metrics:
-                base_searches = float(sum(m.search_count for m in recent_metrics) / len(recent_metrics))
-                base_bookings = float(sum(m.booking_count for m in recent_metrics) / len(recent_metrics))
-            else:
+            if not recent_metrics:
                 logger.warning("No recent daily metrics found for destination %s prior to %s. Skipping baseline materialization.", did, as_of)
-                continue
+            demand_registry = ModelRegistry(db=db)
+            demand_model = _champion_metadata(db, MLModelType.DEMAND_FORECASTING)
 
             # Step in weekly horizon increments
             horizon_steps = list(range(1, horizon_days + 1, 7))
@@ -325,8 +397,24 @@ class ForecastingService:
 
                 for cat, u_type in categories:
                     multiplier = 1.0 + 0.02 * (step % 5)
-                    pred_search = int(round(base_searches * multiplier))
-                    pred_units = int(round(max(1.0, base_bookings * multiplier)))
+                    pred_units = None
+                    pred_search = None
+                    if demand_model is not None:
+                        try:
+                            demand_service = DemandForecastingService(
+                                demand_registry,
+                                OptimizationConfig(run_id=task_id, optimization_timestamp=as_of.isoformat()),
+                                search_df,
+                            )
+                            predicted = demand_service.predict_future_search_volume(did, cat.value)
+                            if predicted is not None:
+                                pred_units = int(round(max(0.0, predicted)))
+                                pred_search = int(round(max(0.0, predicted)))
+                        except Exception as exc:
+                            logger.warning("Demand model unavailable for %s/%s: %s", did, cat.value, exc)
+
+                    if pred_units is None:
+                        continue
                     conf_lower = max(0.0, float(pred_units * 0.8))
                     conf_upper = float(pred_units * 1.25)
 
@@ -343,7 +431,7 @@ class ForecastingService:
                         existing_dfc.predicted_search_volume = pred_search
                         existing_dfc.confidence_lower = conf_lower
                         existing_dfc.confidence_upper = conf_upper
-                        existing_dfc.model_version = "HEURISTIC_BASELINE_V1"
+                        existing_dfc.model_version = f"{demand_model['name']}:{demand_model['version']}"
                     else:
                         db.add(DestinationDemandForecast(
                             dest_id=did,
@@ -356,13 +444,59 @@ class ForecastingService:
                             confidence_lower=conf_lower,
                             confidence_upper=conf_upper,
                             demand_multiplier=round(multiplier, 2),
-                            model_version="HEURISTIC_BASELINE_V1",
+                            model_version=f"{demand_model['name']}:{demand_model['version']}",
                         ))
                     total_demand_rows += 1
 
-                    # Upsert inventory depletion forecast
-                    pred_avail = max(0, int(round(base_bookings * multiplier)))
-                    depletion_velocity = round(base_bookings / 7.0, 2)
+                    # Inventory availability comes only from the latest authoritative snapshot.
+                    inventory_items = db.query(InventoryItem).filter(
+                        InventoryItem.dest_id == did,
+                        InventoryItem.inventory_category == cat,
+                        InventoryItem.is_active == True,
+                    ).all()
+                    pred_avail = 0
+                    depletion_velocity = 0.0
+                    inventory_id = None
+                    snapshot_found = False
+                    inventory_model = _champion_metadata(db, MLModelType.INVENTORY_FORECASTING)
+                    for inv in inventory_items:
+                        snapshot = db.query(InventorySnapshot).filter(
+                            InventorySnapshot.inventory_id == inv.inventory_id,
+                            InventorySnapshot.snapshot_at <= datetime.combine(as_of, datetime.min.time()).replace(tzinfo=timezone.utc),
+                        ).order_by(InventorySnapshot.snapshot_at.desc()).first()
+                        if snapshot is None:
+                            continue
+                        snapshot_found = True
+                        inventory_id = inv.inventory_id
+                        tot = snapshot.total_units
+                        avail = snapshot.available_units
+                        booked = snapshot.booked_units
+                        pred_avail += avail
+                        depletion_velocity += max(0.0, float(booked) / 7.0)
+                        if inventory_model is not None:
+                            try:
+                                inv_service = InventoryForecastingService(
+                                    demand_registry,
+                                    OptimizationConfig(run_id=task_id, optimization_timestamp=as_of.isoformat()),
+                                )
+                                predicted_avail = inv_service.predict_future_available_quantity({
+                                    "inventory_id": inv.inventory_id,
+                                    "inventory_type": cat.value,
+                                    "supplier_id": snapshot.supplier_id or "UNKNOWN",
+                                    "destination_id": did,
+                                    "unit_type": u_type.value,
+                                    "travel_date": snapshot.travel_date.isoformat(),
+                                    "snapshot_date": as_of.isoformat(),
+                                    "total_capacity": tot,
+                                    "available_quantity": avail,
+                                    "booked_quantity": booked,
+                                })
+                                if predicted_avail is not None:
+                                    pred_avail = max(0, int(round(predicted_avail)))
+                            except Exception as exc:
+                                logger.warning("Inventory model unavailable for %s: %s", inv.inventory_id, exc)
+                    if not snapshot_found:
+                        continue
 
                     existing_ifc = db.query(DestinationInventoryForecast).filter(
                         DestinationInventoryForecast.dest_id == did,
@@ -376,7 +510,12 @@ class ForecastingService:
                         existing_ifc.predicted_depletion_velocity = depletion_velocity
                         existing_ifc.confidence_lower = conf_lower
                         existing_ifc.confidence_upper = conf_upper
-                        existing_ifc.model_version = "HEURISTIC_BASELINE_V1"
+                        existing_ifc.inventory_id = inventory_id
+                        existing_ifc.model_version = (
+                            f"{inventory_model['name']}:{inventory_model['version']}"
+                            if inventory_model is not None
+                            else "INSUFFICIENT_DATA"
+                        )
                     else:
                         db.add(DestinationInventoryForecast(
                             dest_id=did,
@@ -388,7 +527,11 @@ class ForecastingService:
                             predicted_depletion_velocity=depletion_velocity,
                             confidence_lower=conf_lower,
                             confidence_upper=conf_upper,
-                            model_version="HEURISTIC_BASELINE_V1",
+                            model_version=(
+                                f"{inventory_model['name']}:{inventory_model['version']}"
+                                if inventory_model is not None
+                                else "INSUFFICIENT_DATA"
+                            ),
                         ))
                     total_inv_rows += 1
 
@@ -410,5 +553,8 @@ class ForecastingService:
             task_id=task_id,
             destinations_queued=dest_count,
             horizon_days=horizon_days,
-            status="COMPLETED",
+            status=(
+                "COMPLETED" if (total_demand_rows + total_inv_rows) > 0
+                else "INSUFFICIENT_DATA"
+            ),
         )

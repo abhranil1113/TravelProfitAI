@@ -369,7 +369,9 @@ class SupplierPortalService:
                             )
 
                     existing_offer = db.execute(
-                        select(SupplierOffer).where(SupplierOffer.offer_id == item.offer_id)
+                        select(SupplierOffer)
+                        .where(SupplierOffer.offer_id == item.offer_id)
+                        .with_for_update()
                     ).scalar_one_or_none()
 
                     has_rates_write = "rates:write" in scopes
@@ -380,6 +382,29 @@ class SupplierPortalService:
                             raise PermissionDeniedError(
                                 f"Offer '{item.offer_id}' belongs to another supplier; cross-supplier mutation forbidden."
                             )
+
+                        identity_fields = (
+                            ("inventory_id", existing_offer.inventory_id, item.inventory_id),
+                            ("dest_id", existing_offer.dest_id, item.dest_id),
+                            ("inventory_category", existing_offer.inventory_category, item.inventory_category),
+                            ("unit_type", existing_offer.unit_type, item.unit_type),
+                        )
+                        for field_name, existing_value, incoming_value in identity_fields:
+                            if incoming_value is not None and existing_value != incoming_value:
+                                raise BadRequestException(
+                                    f"Immutable offer identity field '{field_name}' conflicts: "
+                                    f"existing={existing_value}, incoming={incoming_value}."
+                                )
+
+                        if inv_item is not None:
+                            if inv_item.inventory_category != existing_offer.inventory_category:
+                                raise BadRequestException(
+                                    f"InventoryItem '{inv_item.inventory_id}' category conflicts with existing offer."
+                                )
+                            if inv_item.unit_type != existing_offer.unit_type:
+                                raise BadRequestException(
+                                    f"InventoryItem '{inv_item.inventory_id}' unit type conflicts with existing offer."
+                                )
 
                         existing_orig_cost = (
                             existing_offer.original_unit_cost
