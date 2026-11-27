@@ -136,10 +136,10 @@ class DemandForecastingService:
             val = float(raw_pred[0]) if hasattr(raw_pred, "__len__") else float(raw_pred)
 
             if not np.isfinite(val):
-                logger.warning("Demand model returned non-finite prediction (%s) for %s. Bounding to 0.0.", val, key)
-                val = 0.0
-            else:
-                val = max(0.0, val)
+                logger.warning("Demand model returned non-finite prediction (%s) for %s.", val, key)
+                self._prediction_cache[key] = None
+                return None
+            val = max(0.0, val)
 
             self._prediction_cache[key] = val
             return val

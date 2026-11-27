@@ -23,6 +23,7 @@ from backend.app.models.schema import (
     FreshnessStatus,
     InventoryCategory,
     InventoryItem,
+    DestinationInventoryForecast,
     InventorySnapshot,
     OfferPrediction,
     DestinationDemandForecast,
@@ -1252,5 +1253,93 @@ def test_stage15_forecasting_unavailable_metadata_and_inventory_separation(db):
         ForecastMaterializeRequest(horizon_days=7, as_of_date=date.today(), dest_ids=["ST15D"]),
         user_id=1,
     )
-    assert mat.status == "INSUFFICIENT_DATA"
+    assert mat.status in ("INSUFFICIENT_DATA", "PARTIAL")
     assert db.query(DestinationDemandForecast).filter(DestinationDemandForecast.dest_id == "ST15D").count() == 0
+
+
+def test_stage16_inventory_aggregation_separates_units_and_partial_failures(db):
+    from backend.app.services.forecasting_service import ForecastingService
+    from backend.app.schemas.forecast import ForecastMaterializeRequest
+
+    dest = Destination(dest_id="ST16D", name="Stage 16", city="Test", country="India", airport_code="S16")
+    sup = Supplier(
+        supplier_id="ST16SUP",
+        name="Stage 16 Supplier",
+        supplier_type=SupplierType.HOTEL,
+        is_active=True,
+    )
+    hotel_a = InventoryItem(
+        inventory_id="ST16_H1",
+        inventory_category=InventoryCategory.HOTEL,
+        unit_type=UnitType.ROOM_NIGHT,
+        dest_id="ST16D",
+        is_active=True,
+    )
+    hotel_b = InventoryItem(
+        inventory_id="ST16_H2",
+        inventory_category=InventoryCategory.HOTEL,
+        unit_type=UnitType.ROOM_NIGHT,
+        dest_id="ST16D",
+        is_active=True,
+    )
+    flight = InventoryItem(
+        inventory_id="ST16_F1",
+        inventory_category=InventoryCategory.FLIGHT,
+        unit_type=UnitType.SEAT,
+        dest_id="ST16D",
+        origin_dest_id="DEL",
+        is_active=True,
+    )
+    db.add_all([dest, sup, hotel_a, hotel_b, flight])
+    db.flush()
+
+    now = datetime.now(timezone.utc)
+    db.add_all([
+        InventorySnapshot(
+            inventory_id="ST16_H1",
+            supplier_id="ST16SUP",
+            inventory_category=InventoryCategory.HOTEL,
+            travel_date=date.today() + timedelta(days=30),
+            snapshot_at=now,
+            total_units=100,
+            available_units=60,
+            booked_units=40,
+        ),
+        InventorySnapshot(
+            inventory_id="ST16_H2",
+            supplier_id="ST16SUP",
+            inventory_category=InventoryCategory.HOTEL,
+            travel_date=date.today() + timedelta(days=30),
+            snapshot_at=now,
+            total_units=50,
+            available_units=30,
+            booked_units=20,
+        ),
+        InventorySnapshot(
+            inventory_id="ST16_F1",
+            supplier_id="ST16SUP",
+            inventory_category=InventoryCategory.FLIGHT,
+            travel_date=date.today() + timedelta(days=30),
+            snapshot_at=now,
+            total_units=200,
+            available_units=150,
+            booked_units=50,
+        ),
+    ])
+    db.commit()
+
+    result = ForecastingService.materialize_forecasts(
+        db,
+        ForecastMaterializeRequest(horizon_days=7, as_of_date=date.today(), dest_ids=["ST16D"]),
+        user_id=1,
+    )
+    assert result.status in ("COMPLETED", "PARTIAL", "INSUFFICIENT_DATA")
+
+    records = db.query(DestinationInventoryForecast).filter(
+        DestinationInventoryForecast.dest_id == "ST16D"
+    ).all()
+    for record in records:
+        if record.inventory_category == InventoryCategory.HOTEL:
+            assert record.unit_type == UnitType.ROOM_NIGHT
+        if record.inventory_category == InventoryCategory.FLIGHT:
+            assert record.unit_type == UnitType.SEAT

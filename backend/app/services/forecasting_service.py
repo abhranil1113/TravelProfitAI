@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 import uuid
 import pandas as pd
+import os
+import json
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional, List, Dict, Any
@@ -51,8 +53,27 @@ def _champion_metadata(db: Session, model_type: MLModelType) -> Optional[Dict[st
     ).first()
     if not model:
         return None
+    if not model.artifact_dir or not os.path.isdir(model.artifact_dir):
+        return None
+    if not os.path.isfile(os.path.join(model.artifact_dir, "metadata.json")):
+        return None
+    if not os.path.isfile(os.path.join(model.artifact_dir, "estimator.joblib")):
+        return None
+    model_name = model.algorithm
+    metadata_path = os.path.join(model.artifact_dir, "metadata.json")
+    try:
+        if os.path.isfile(metadata_path):
+            with open(metadata_path, "r", encoding="utf-8") as metadata_file:
+                artifact_metadata = json.load(metadata_file)
+            model_name = str(
+                artifact_metadata.get("model_name")
+                or artifact_metadata.get("algorithm")
+                or model.algorithm
+            )
+    except Exception as exc:
+        logger.warning("Unable to read registry model metadata for %s: %s", model_type.value, exc)
     return {
-        "name": f"{model.algorithm}:{model.model_type.value}",
+        "name": model_name,
         "version": model.version,
         "algorithm": model.algorithm,
         "artifact_dir": model.artifact_dir,
@@ -126,16 +147,23 @@ class ForecastingService:
                 if hotel_metadata is None:
                     p_cancel = None
                 else:
-                    if hotel_service is None:
-                        hotel_service = HotelCancellationService(registry, opt_config)
-                    offer_dict = {
-                        "offer_id": oid,
-                        "destination_id": str(offer.dest_id),
-                        "purchase_cost": float(offer.unit_cost_inr),
-                        "selling_price": float(offer.list_price_inr),
-                        "travel_date": str(offer.travel_date),
-                    }
-                    p_cancel = hotel_service.predict_cohort_cancellation_probability(offer_dict)
+                    try:
+                        if hotel_service is None:
+                            hotel_service = HotelCancellationService(registry, opt_config)
+                        offer_dict = {
+                            "offer_id": oid,
+                            "destination_id": str(offer.dest_id),
+                            "purchase_cost": float(offer.unit_cost_inr),
+                            "selling_price": float(offer.list_price_inr),
+                            "travel_date": str(offer.travel_date),
+                        }
+                        p_cancel = hotel_service.predict_cohort_cancellation_probability(offer_dict)
+                    except Exception as exc:
+                        logger.warning("Hotel cancellation inference failed for %s: %s", oid, exc)
+                        p_cancel = None
+                if p_cancel is None:
+                    unavailable_count += 1
+                    continue
                 mkt_price = offer.list_price_inr
                 theta = opt_config.financial.hotel_base_sell_through
                 demand_units = None
@@ -145,21 +173,28 @@ class ForecastingService:
                 if flight_metadata is None:
                     pred_ceiling = None
                 else:
-                    if flight_service is None:
-                        flight_service = FlightPriceService(registry, opt_config)
-                    offer_dict = {
-                        "offer_id": oid,
-                        "origin_id": str(offer.origin_dest_id),
-                        "destination_id": str(offer.dest_id),
-                        "purchase_cost": float(offer.unit_cost_inr),
-                        "selling_price": float(offer.list_price_inr),
-                        "travel_date": str(offer.travel_date),
-                    }
                     if offer.origin_dest_id is None:
                         pred_ceiling = None
                     else:
-                        pred_ceiling = flight_service.predict_market_ceiling_price(offer_dict)
-                mkt_price = Decimal(str(round(pred_ceiling, 2))) if pred_ceiling is not None else offer.list_price_inr
+                        try:
+                            if flight_service is None:
+                                flight_service = FlightPriceService(registry, opt_config)
+                            offer_dict = {
+                                "offer_id": oid,
+                                "origin_id": str(offer.origin_dest_id),
+                                "destination_id": str(offer.dest_id),
+                                "purchase_cost": float(offer.unit_cost_inr),
+                                "selling_price": float(offer.list_price_inr),
+                                "travel_date": str(offer.travel_date),
+                            }
+                            pred_ceiling = flight_service.predict_market_ceiling_price(offer_dict)
+                        except Exception as exc:
+                            logger.warning("Flight price inference failed for %s: %s", oid, exc)
+                            pred_ceiling = None
+                if pred_ceiling is None:
+                    unavailable_count += 1
+                    continue
+                mkt_price = Decimal(str(round(pred_ceiling, 2)))
                 p_cancel = None
                 theta = opt_config.financial.flight_base_sell_through
                 demand_units = None
@@ -310,7 +345,7 @@ class ForecastingService:
                 actual_bookings=h.booking_count,
             ))
 
-        model_version = "persist_baseline_v1"
+        model_version = "INSUFFICIENT_DATA"
         for f in forecasts:
             model_version = f.model_version
             chart_points.append(ChartDataPoint(
@@ -346,7 +381,7 @@ class ForecastingService:
                 task_id=task_id,
                 destinations_queued=0,
                 horizon_days=payload.horizon_days,
-                status="COMPLETED",
+                status="INSUFFICIENT_DATA",
             )
 
         horizon_days = max(1, min(90, payload.horizon_days))
@@ -357,6 +392,10 @@ class ForecastingService:
 
         total_demand_rows = 0
         total_inv_rows = 0
+        successful_demand_predictions = 0
+        failed_demand_predictions = 0
+        successful_inventory_predictions = 0
+        failed_inventory_predictions = 0
 
         search_rows = db.query(CustomerSearchEvent).filter(
             CustomerSearchEvent.search_date <= as_of,
@@ -376,127 +415,110 @@ class ForecastingService:
         for dest in destinations:
             did = dest.dest_id
 
-            # Retrieve recent metrics for historical baseline
-            recent_metrics = db.query(DestinationDailyMetrics).filter(
-                DestinationDailyMetrics.dest_id == did,
-                DestinationDailyMetrics.metric_date <= as_of,
-            ).order_by(DestinationDailyMetrics.metric_date.desc()).limit(14).all()
-
-            if not recent_metrics:
-                logger.warning("No recent daily metrics found for destination %s prior to %s. Skipping baseline materialization.", did, as_of)
             demand_registry = ModelRegistry(db=db)
             demand_model = _champion_metadata(db, MLModelType.DEMAND_FORECASTING)
 
-            # Step in weekly horizon increments
-            horizon_steps = list(range(1, horizon_days + 1, 7))
-            if horizon_days not in horizon_steps:
-                horizon_steps.append(horizon_days)
+            # The registered demand artifact explicitly predicts future_search_volume_7d.
+            # It does not provide booking demand, so materialization emits no demand
+            # records for this model. Horizon dates are inventory-model driven below.
+            if demand_model is not None:
+                failed_demand_predictions += 1
 
-            for step in horizon_steps:
-                fc_date = as_of + timedelta(days=step)
+            fc_dates = [as_of + timedelta(days=step) for step in range(1, horizon_days + 1)]
 
+            for fc_date in fc_dates:
                 for cat, u_type in categories:
-                    multiplier = 1.0 + 0.02 * (step % 5)
-                    pred_units = None
-                    pred_search = None
-                    if demand_model is not None:
-                        try:
-                            demand_service = DemandForecastingService(
-                                demand_registry,
-                                OptimizationConfig(run_id=task_id, optimization_timestamp=as_of.isoformat()),
-                                search_df,
-                            )
-                            predicted = demand_service.predict_future_search_volume(did, cat.value)
-                            if predicted is not None:
-                                pred_units = int(round(max(0.0, predicted)))
-                                pred_search = int(round(max(0.0, predicted)))
-                        except Exception as exc:
-                            logger.warning("Demand model unavailable for %s/%s: %s", did, cat.value, exc)
-
-                    if pred_units is None:
-                        continue
-                    conf_lower = max(0.0, float(pred_units * 0.8))
-                    conf_upper = float(pred_units * 1.25)
-
-                    # Upsert demand forecast
-                    existing_dfc = db.query(DestinationDemandForecast).filter(
-                        DestinationDemandForecast.dest_id == did,
-                        DestinationDemandForecast.inventory_category == cat,
-                        DestinationDemandForecast.forecast_date == fc_date,
-                        DestinationDemandForecast.as_of_date == as_of,
-                    ).first()
-
-                    if existing_dfc:
-                        existing_dfc.predicted_demand_units = pred_units
-                        existing_dfc.predicted_search_volume = pred_search
-                        existing_dfc.confidence_lower = conf_lower
-                        existing_dfc.confidence_upper = conf_upper
-                        existing_dfc.model_version = f"{demand_model['name']}:{demand_model['version']}"
-                    else:
-                        db.add(DestinationDemandForecast(
-                            dest_id=did,
-                            inventory_category=cat,
-                            unit_type=u_type,
-                            forecast_date=fc_date,
-                            as_of_date=as_of,
-                            predicted_demand_units=pred_units,
-                            predicted_search_volume=pred_search,
-                            confidence_lower=conf_lower,
-                            confidence_upper=conf_upper,
-                            demand_multiplier=round(multiplier, 2),
-                            model_version=f"{demand_model['name']}:{demand_model['version']}",
-                        ))
-                    total_demand_rows += 1
-
-                    # Inventory availability comes only from the latest authoritative snapshot.
+                    # Inventory forecasts receive the actual forecast date.
                     inventory_items = db.query(InventoryItem).filter(
                         InventoryItem.dest_id == did,
                         InventoryItem.inventory_category == cat,
+                        InventoryItem.unit_type == u_type,
                         InventoryItem.is_active == True,
                     ).all()
-                    pred_avail = 0
-                    depletion_velocity = 0.0
-                    inventory_id = None
-                    snapshot_found = False
+                    if not inventory_items:
+                        continue
+
                     inventory_model = _champion_metadata(db, MLModelType.INVENTORY_FORECASTING)
+                    if inventory_model is None:
+                        failed_inventory_predictions += len(inventory_items)
+                        continue
+
+                    successful_item_predictions: List[int] = []
+                    failed_item_predictions = 0
+                    depletion_velocity = 0.0
                     for inv in inventory_items:
                         snapshot = db.query(InventorySnapshot).filter(
                             InventorySnapshot.inventory_id == inv.inventory_id,
                             InventorySnapshot.snapshot_at <= datetime.combine(as_of, datetime.min.time()).replace(tzinfo=timezone.utc),
                         ).order_by(InventorySnapshot.snapshot_at.desc()).first()
                         if snapshot is None:
+                            failed_item_predictions += 1
                             continue
-                        snapshot_found = True
-                        inventory_id = inv.inventory_id
                         tot = snapshot.total_units
                         avail = snapshot.available_units
                         booked = snapshot.booked_units
-                        pred_avail += avail
+                        if avail + booked != tot:
+                            failed_item_predictions += 1
+                            continue
+                        try:
+                            inv_service = InventoryForecastingService(
+                                demand_registry,
+                                OptimizationConfig(run_id=task_id, optimization_timestamp=fc_date.isoformat()),
+                            )
+                            days_to_travel = (snapshot.travel_date - fc_date).days
+                            previous_snapshots = db.query(InventorySnapshot).filter(
+                                InventorySnapshot.inventory_id == inv.inventory_id,
+                                InventorySnapshot.snapshot_at < snapshot.snapshot_at,
+                            ).order_by(InventorySnapshot.snapshot_at.desc()).limit(1).all()
+                            prev = previous_snapshots[0] if previous_snapshots else None
+                            days_since_prev = (
+                                (snapshot.snapshot_at.date() - prev.snapshot_at.date()).days
+                                if prev is not None else 0
+                            )
+                            change_booked = (
+                                snapshot.booked_units - prev.booked_units
+                                if prev is not None else 0
+                            )
+                            change_available = (
+                                snapshot.available_units - prev.available_units
+                                if prev is not None else 0
+                            )
+                            predicted_avail = inv_service.predict_future_available_quantity({
+                                "inventory_id": inv.inventory_id,
+                                "inventory_type": cat.value,
+                                "supplier_id": snapshot.supplier_id or "UNKNOWN",
+                                "origin_id": "None",
+                                "destination_id": did,
+                                "unit_type": u_type.value,
+                                "travel_date": snapshot.travel_date.isoformat(),
+                                "snapshot_date": fc_date.isoformat(),
+                                "days_to_travel": float(days_to_travel),
+                                "total_capacity": tot,
+                                "available_quantity": avail,
+                                "booked_quantity": booked,
+                                "days_since_prev_snapshot": float(max(0, days_since_prev)),
+                                "change_in_booked_quantity": float(change_booked),
+                                "change_in_available_quantity": float(change_available),
+                                "booking_velocity_units_per_day": float(max(0, change_booked)),
+                                "inventory_depletion_velocity": float(max(0, change_available)),
+                            }, raise_on_error=True)
+                        except Exception as exc:
+                            logger.warning("Inventory inference failed for %s: %s", inv.inventory_id, exc)
+                            failed_item_predictions += 1
+                            continue
+
+                        if predicted_avail is None:
+                            failed_item_predictions += 1
+                            continue
+                        successful_item_predictions.append(max(0, int(round(predicted_avail))))
                         depletion_velocity += max(0.0, float(booked) / 7.0)
-                        if inventory_model is not None:
-                            try:
-                                inv_service = InventoryForecastingService(
-                                    demand_registry,
-                                    OptimizationConfig(run_id=task_id, optimization_timestamp=as_of.isoformat()),
-                                )
-                                predicted_avail = inv_service.predict_future_available_quantity({
-                                    "inventory_id": inv.inventory_id,
-                                    "inventory_type": cat.value,
-                                    "supplier_id": snapshot.supplier_id or "UNKNOWN",
-                                    "destination_id": did,
-                                    "unit_type": u_type.value,
-                                    "travel_date": snapshot.travel_date.isoformat(),
-                                    "snapshot_date": as_of.isoformat(),
-                                    "total_capacity": tot,
-                                    "available_quantity": avail,
-                                    "booked_quantity": booked,
-                                })
-                                if predicted_avail is not None:
-                                    pred_avail = max(0, int(round(predicted_avail)))
-                            except Exception as exc:
-                                logger.warning("Inventory model unavailable for %s: %s", inv.inventory_id, exc)
-                    if not snapshot_found:
+
+                    if not successful_item_predictions:
+                        failed_inventory_predictions += len(inventory_items)
                         continue
+                    pred_avail = sum(successful_item_predictions)
+                    successful_inventory_predictions += len(successful_item_predictions)
+                    failed_inventory_predictions += failed_item_predictions
 
                     existing_ifc = db.query(DestinationInventoryForecast).filter(
                         DestinationInventoryForecast.dest_id == did,
@@ -508,14 +530,10 @@ class ForecastingService:
                     if existing_ifc:
                         existing_ifc.predicted_available_units = pred_avail
                         existing_ifc.predicted_depletion_velocity = depletion_velocity
-                        existing_ifc.confidence_lower = conf_lower
-                        existing_ifc.confidence_upper = conf_upper
-                        existing_ifc.inventory_id = inventory_id
-                        existing_ifc.model_version = (
-                            f"{inventory_model['name']}:{inventory_model['version']}"
-                            if inventory_model is not None
-                            else "INSUFFICIENT_DATA"
-                        )
+                        existing_ifc.confidence_lower = None
+                        existing_ifc.confidence_upper = None
+                        existing_ifc.inventory_id = None
+                        existing_ifc.model_version = f"{inventory_model['name']}:{inventory_model['version']}"
                     else:
                         db.add(DestinationInventoryForecast(
                             dest_id=did,
@@ -525,13 +543,9 @@ class ForecastingService:
                             as_of_date=as_of,
                             predicted_available_units=pred_avail,
                             predicted_depletion_velocity=depletion_velocity,
-                            confidence_lower=conf_lower,
-                            confidence_upper=conf_upper,
-                            model_version=(
-                                f"{inventory_model['name']}:{inventory_model['version']}"
-                                if inventory_model is not None
-                                else "INSUFFICIENT_DATA"
-                            ),
+                            confidence_lower=None,
+                            confidence_upper=None,
+                            model_version=f"{inventory_model['name']}:{inventory_model['version']}",
                         ))
                     total_inv_rows += 1
 
@@ -545,16 +559,27 @@ class ForecastingService:
                 "destinations_count": dest_count,
                 "demand_forecast_rows_written": total_demand_rows,
                 "inventory_forecast_rows_written": total_inv_rows,
+                "successful_demand_predictions": successful_demand_predictions,
+                "failed_demand_predictions": failed_demand_predictions,
+                "successful_inventory_predictions": successful_inventory_predictions,
+                "failed_inventory_predictions": failed_inventory_predictions,
             },
         ))
         db.commit()
+
+        total_attempted_inventory = (
+            successful_inventory_predictions + failed_inventory_predictions
+        )
+        if total_attempted_inventory == 0:
+            materialization_status = "INSUFFICIENT_DATA"
+        elif failed_inventory_predictions > 0:
+            materialization_status = "PARTIAL"
+        else:
+            materialization_status = "COMPLETED"
 
         return ForecastMaterializeResponse(
             task_id=task_id,
             destinations_queued=dest_count,
             horizon_days=horizon_days,
-            status=(
-                "COMPLETED" if (total_demand_rows + total_inv_rows) > 0
-                else "INSUFFICIENT_DATA"
-            ),
+            status=materialization_status,
         )

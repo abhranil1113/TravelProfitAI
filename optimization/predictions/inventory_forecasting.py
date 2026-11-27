@@ -54,10 +54,34 @@ class InventoryForecastingService:
         try:
             record = dict(snapshot_record)
 
-            # Derive capacity and quantities if needed
-            tot_cap = float(record.get("total_capacity") or record.get("available_quantity") or 0.0)
-            avail_qty = float(record.get("available_quantity") or 0.0)
-            booked_qty = float(record.get("booked_quantity") or max(0.0, tot_cap - avail_qty))
+            required = [
+                "inventory_id", "inventory_type", "supplier_id", "origin_id",
+                "destination_id", "unit_type", "travel_date", "snapshot_date",
+                "days_to_travel", "total_capacity", "booked_quantity",
+                "available_quantity", "days_since_prev_snapshot",
+                "change_in_booked_quantity", "change_in_available_quantity",
+                "booking_velocity_units_per_day", "inventory_depletion_velocity",
+            ]
+            missing = [key for key in required if record.get(key) is None]
+            if missing:
+                if raise_on_error:
+                    raise ModelInferenceError(
+                        f"Missing authoritative inventory forecasting features for {inv_id}: {missing}"
+                    )
+                return None
+
+            tot_cap = float(record["total_capacity"])
+            avail_qty = float(record["available_quantity"])
+            booked_qty = float(record["booked_quantity"])
+            if tot_cap < 0 or avail_qty < 0 or booked_qty < 0:
+                return None
+            if avail_qty + booked_qty != tot_cap:
+                if raise_on_error:
+                    raise ModelInferenceError(
+                        f"Inventory snapshot conservation failed for {inv_id}: "
+                        f"{avail_qty} + {booked_qty} != {tot_cap}"
+                    )
+                return None
 
             occ_rate = (booked_qty / tot_cap) if tot_cap > 0 else 0.0
             avail_rate = (avail_qty / tot_cap) if tot_cap > 0 else 0.0
@@ -79,17 +103,8 @@ class InventoryForecastingService:
                     return val.strip().lower() in ("true", "1", "yes")
                 return bool(val)
 
-            # Derive standard features if missing
-            defaults = {
+            derived = {
                 "inventory_id": inv_id,
-                "inventory_type": record.get("inventory_type", "HOTEL"),
-                "supplier_id": record.get("supplier_id", "UNKNOWN"),
-                "origin_id": record.get("origin_id", "None"),
-                "destination_id": record.get("destination_id", "NONE"),
-                "unit_type": record.get("unit_type", "ROOM_NIGHT"),
-                "travel_date": str(record.get("travel_date", "")),
-                "snapshot_date": str(record.get("snapshot_date", "")),
-                "days_to_travel": float(record.get("days_to_travel", 7.0)),
                 "total_capacity": tot_cap,
                 "booked_quantity": booked_qty,
                 "available_quantity": avail_qty,
@@ -97,20 +112,13 @@ class InventoryForecastingService:
                 "inventory_utilization_rate": occ_rate,
                 "availability_rate": avail_rate,
                 "availability_percentage": avail_rate * 100.0,
-                "availability_bucket": record.get("availability_bucket", derived_bucket),
-                "days_since_prev_snapshot": float(record.get("days_since_prev_snapshot", 1.0)),
-                "change_in_booked_quantity": float(record.get("change_in_booked_quantity", 0.0)),
-                "change_in_available_quantity": float(record.get("change_in_available_quantity", 0.0)),
-                "booking_velocity_units_per_day": float(record.get("booking_velocity_units_per_day", 0.0)),
-                "inventory_depletion_velocity": float(record.get("inventory_depletion_velocity", 0.0)),
+                "availability_bucket": derived_bucket,
                 "high_occupancy_indicator": _to_bool(record.get("high_occupancy_indicator"), occ_rate >= 0.8),
                 "low_availability_indicator": _to_bool(record.get("low_availability_indicator"), avail_qty < 5),
                 "rapid_depletion_indicator": _to_bool(record.get("rapid_depletion_indicator"), False),
             }
-
-            for k, v in defaults.items():
-                if k not in record or record[k] is None:
-                    record[k] = v
+            for key, value in derived.items():
+                record[key] = value
 
             row_df = pd.DataFrame([record])
 
