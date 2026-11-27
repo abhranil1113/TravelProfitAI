@@ -1257,89 +1257,165 @@ def test_stage15_forecasting_unavailable_metadata_and_inventory_separation(db):
     assert db.query(DestinationDemandForecast).filter(DestinationDemandForecast.dest_id == "ST15D").count() == 0
 
 
-def test_stage16_inventory_aggregation_separates_units_and_partial_failures(db):
+def test_stage16_inventory_aggregation_separates_units_and_partial_failures(db, monkeypatch):
     from backend.app.services.forecasting_service import ForecastingService
     from backend.app.schemas.forecast import ForecastMaterializeRequest
+    from optimization.predictions.model_registry import ModelRegistry
 
     dest = Destination(dest_id="ST16D", name="Stage 16", city="Test", country="India", airport_code="S16")
+    origin_del = Destination(dest_id="ST16DEL", name="Delhi", city="Delhi", country="India", airport_code="DEL")
+    origin_bom = Destination(dest_id="ST16BOM", name="Mumbai", city="Mumbai", country="India", airport_code="BOM")
     sup = Supplier(
         supplier_id="ST16SUP",
         name="Stage 16 Supplier",
         supplier_type=SupplierType.HOTEL,
         is_active=True,
     )
-    hotel_a = InventoryItem(
-        inventory_id="ST16_H1",
-        inventory_category=InventoryCategory.HOTEL,
-        unit_type=UnitType.ROOM_NIGHT,
-        dest_id="ST16D",
-        is_active=True,
-    )
-    hotel_b = InventoryItem(
-        inventory_id="ST16_H2",
-        inventory_category=InventoryCategory.HOTEL,
-        unit_type=UnitType.ROOM_NIGHT,
-        dest_id="ST16D",
-        is_active=True,
-    )
-    flight = InventoryItem(
-        inventory_id="ST16_F1",
-        inventory_category=InventoryCategory.FLIGHT,
-        unit_type=UnitType.SEAT,
-        dest_id="ST16D",
-        origin_dest_id="DEL",
-        is_active=True,
-    )
-    db.add_all([dest, sup, hotel_a, hotel_b, flight])
+    inventory = [
+        InventoryItem(
+            inventory_id="ST16_H1", inventory_category=InventoryCategory.HOTEL,
+            unit_type=UnitType.ROOM_NIGHT, dest_id="ST16D", is_active=True,
+        ),
+        InventoryItem(
+            inventory_id="ST16_H2", inventory_category=InventoryCategory.HOTEL,
+            unit_type=UnitType.ROOM_NIGHT, dest_id="ST16D", is_active=True,
+        ),
+        InventoryItem(
+            inventory_id="ST16_H3", inventory_category=InventoryCategory.HOTEL,
+            unit_type=UnitType.ROOM_NIGHT, dest_id="ST16D", is_active=True,
+        ),
+        InventoryItem(
+            inventory_id="ST16_F_DEL", inventory_category=InventoryCategory.FLIGHT,
+            unit_type=UnitType.SEAT, dest_id="ST16D", origin_dest_id="ST16DEL", is_active=True,
+        ),
+        InventoryItem(
+            inventory_id="ST16_F_BOM", inventory_category=InventoryCategory.FLIGHT,
+            unit_type=UnitType.SEAT, dest_id="ST16D", origin_dest_id="ST16BOM", is_active=True,
+        ),
+    ]
+    db.add_all([dest, origin_del, origin_bom, sup, *inventory])
     db.flush()
 
-    now = datetime.now(timezone.utc)
-    db.add_all([
-        InventorySnapshot(
-            inventory_id="ST16_H1",
-            supplier_id="ST16SUP",
-            inventory_category=InventoryCategory.HOTEL,
-            travel_date=date.today() + timedelta(days=30),
-            snapshot_at=now,
-            total_units=100,
-            available_units=60,
-            booked_units=40,
-        ),
-        InventorySnapshot(
-            inventory_id="ST16_H2",
-            supplier_id="ST16SUP",
-            inventory_category=InventoryCategory.HOTEL,
-            travel_date=date.today() + timedelta(days=30),
-            snapshot_at=now,
-            total_units=50,
-            available_units=30,
-            booked_units=20,
-        ),
-        InventorySnapshot(
-            inventory_id="ST16_F1",
-            supplier_id="ST16SUP",
-            inventory_category=InventoryCategory.FLIGHT,
-            travel_date=date.today() + timedelta(days=30),
-            snapshot_at=now,
-            total_units=200,
-            available_units=150,
-            booked_units=50,
-        ),
-    ])
+    current_at = datetime.now(timezone.utc).replace(microsecond=0)
+    as_of = current_at.date()
+    travel = as_of + timedelta(days=30)
+    previous_at = current_at - timedelta(days=1)
+    snapshot_values = {
+        "ST16_H1": (100, 70, 30, 60, 40),
+        "ST16_H2": (50, 35, 15, 30, 20),
+        "ST16_H3": (80, 50, 30, 40, 40),
+        "ST16_F_DEL": (200, 160, 40, 150, 50),
+        "ST16_F_BOM": (100, 80, 20, 75, 25),
+    }
+    for inv in inventory:
+        capacity, prior_available, prior_booked, available, booked = snapshot_values[inv.inventory_id]
+        db.add_all([
+            InventorySnapshot(
+                inventory_id=inv.inventory_id,
+                supplier_id="ST16SUP",
+                inventory_category=inv.inventory_category,
+                travel_date=travel,
+                snapshot_at=previous_at,
+                total_units=capacity,
+                available_units=prior_available,
+                booked_units=prior_booked,
+            ),
+            InventorySnapshot(
+                inventory_id=inv.inventory_id,
+                supplier_id="ST16SUP",
+                inventory_category=inv.inventory_category,
+                travel_date=travel,
+                snapshot_at=current_at,
+                total_units=capacity,
+                available_units=available,
+                booked_units=booked,
+            ),
+        ])
     db.commit()
+
+    class IdentityPreprocessor:
+        def transform(self, frame):
+            return frame
+
+    inference_inputs = []
+
+    class ControlledEstimator:
+        def predict(self, frame):
+            predictions = []
+            for record in frame.to_dict(orient="records"):
+                inventory_id = record["inventory_id"]
+                inference_inputs.append(record)
+                if inventory_id == "ST16_H2":
+                    raise RuntimeError("Simulated per-item inference failure")
+                predictions.append({
+                    "ST16_H1": 40.2,
+                    "ST16_H3": 20.7,
+                    "ST16_F_DEL": 120.5,
+                    "ST16_F_BOM": 80.2,
+                }[inventory_id])
+            return predictions
+
+    feature_names = [
+        "inventory_id", "inventory_type", "supplier_id", "origin_id",
+        "destination_id", "unit_type", "travel_date", "snapshot_date",
+        "days_to_travel", "total_capacity", "booked_quantity",
+        "available_quantity", "occupancy_rate", "inventory_utilization_rate",
+        "availability_rate", "availability_percentage", "availability_bucket",
+        "days_since_prev_snapshot", "change_in_booked_quantity",
+        "change_in_available_quantity", "booking_velocity_units_per_day",
+        "inventory_depletion_velocity", "high_occupancy_indicator",
+        "low_availability_indicator", "rapid_depletion_indicator",
+    ]
+    monkeypatch.setattr(
+        ModelRegistry,
+        "get_model",
+        lambda self, task_name: (
+            ControlledEstimator(),
+            IdentityPreprocessor(),
+            {
+                "feature_names": feature_names,
+                "target_column": "future_available_quantity",
+                "_registry_model_name": "stage17_inventory",
+                "_registry_model_version": "test-version",
+            },
+        ),
+    )
 
     result = ForecastingService.materialize_forecasts(
         db,
-        ForecastMaterializeRequest(horizon_days=7, as_of_date=date.today(), dest_ids=["ST16D"]),
+        ForecastMaterializeRequest(horizon_days=3, as_of_date=as_of, dest_ids=["ST16D"]),
         user_id=1,
     )
-    assert result.status in ("COMPLETED", "PARTIAL", "INSUFFICIENT_DATA")
+    assert result.status == "PARTIAL"
+    assert {record["inventory_id"] for record in inference_inputs} == set(snapshot_values)
+    assert all(record["snapshot_date"] == as_of.isoformat() for record in inference_inputs)
+    hotel_h1_input = next(
+        record for record in inference_inputs if record["inventory_id"] == "ST16_H1"
+    )
+    assert hotel_h1_input["available_quantity"] == 60
+    assert hotel_h1_input["booking_velocity_units_per_day"] == pytest.approx(10.0)
+    assert hotel_h1_input["inventory_depletion_velocity"] == pytest.approx(10.0)
+    assert next(record for record in inference_inputs if record["inventory_id"] == "ST16_F_DEL")[
+        "origin_id"
+    ] == "ST16DEL"
 
     records = db.query(DestinationInventoryForecast).filter(
         DestinationInventoryForecast.dest_id == "ST16D"
     ).all()
-    for record in records:
-        if record.inventory_category == InventoryCategory.HOTEL:
-            assert record.unit_type == UnitType.ROOM_NIGHT
-        if record.inventory_category == InventoryCategory.FLIGHT:
-            assert record.unit_type == UnitType.SEAT
+    assert len(records) == 3
+    by_identity = {
+        (record.inventory_category, record.unit_type, record.origin_dest_id): record
+        for record in records
+    }
+    hotel = by_identity[(InventoryCategory.HOTEL, UnitType.ROOM_NIGHT, None)]
+    flight_del = by_identity[(InventoryCategory.FLIGHT, UnitType.SEAT, "ST16DEL")]
+    flight_bom = by_identity[(InventoryCategory.FLIGHT, UnitType.SEAT, "ST16BOM")]
+    assert hotel.predicted_available_units == 61
+    assert hotel.predicted_depletion_velocity == pytest.approx(20.0)
+    assert flight_del.predicted_available_units == 120
+    assert flight_bom.predicted_available_units == 80
+    assert all(record.forecast_date == as_of + timedelta(days=1) for record in records)
+    assert all(record.model_version == "stage17_inventory:test-version" for record in records)
+    assert db.query(DestinationDemandForecast).filter(
+        DestinationDemandForecast.dest_id == "ST16D"
+    ).count() == 0

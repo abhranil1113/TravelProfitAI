@@ -55,7 +55,7 @@ class InventoryForecastingService:
             record = dict(snapshot_record)
 
             required = [
-                "inventory_id", "inventory_type", "supplier_id", "origin_id",
+                "inventory_id", "inventory_type", "supplier_id",
                 "destination_id", "unit_type", "travel_date", "snapshot_date",
                 "days_to_travel", "total_capacity", "booked_quantity",
                 "available_quantity", "days_since_prev_snapshot",
@@ -67,6 +67,15 @@ class InventoryForecastingService:
                 if raise_on_error:
                     raise ModelInferenceError(
                         f"Missing authoritative inventory forecasting features for {inv_id}: {missing}"
+                    )
+                return None
+            if (
+                str(record["inventory_type"]).upper() == "FLIGHT"
+                and record.get("origin_id") is None
+            ):
+                if raise_on_error:
+                    raise ModelInferenceError(
+                        f"Missing origin destination for flight inventory {inv_id}."
                     )
                 return None
 
@@ -83,13 +92,16 @@ class InventoryForecastingService:
                     )
                 return None
 
-            occ_rate = (booked_qty / tot_cap) if tot_cap > 0 else 0.0
-            avail_rate = (avail_qty / tot_cap) if tot_cap > 0 else 0.0
-            if avail_rate <= 0.15:
+            occ_rate = round((booked_qty / tot_cap) if tot_cap > 0 else 0.0, 4)
+            avail_rate = round((avail_qty / tot_cap) if tot_cap > 0 else 0.0, 4)
+            availability_pct = avail_rate * 100.0
+            if availability_pct <= 0:
+                derived_bucket = "Sold_Out"
+            elif availability_pct <= 10:
                 derived_bucket = "Critical"
-            elif avail_rate <= 0.35:
+            elif availability_pct <= 25:
                 derived_bucket = "Low"
-            elif avail_rate <= 0.70:
+            elif availability_pct <= 50:
                 derived_bucket = "Moderate"
             else:
                 derived_bucket = "High"
@@ -111,11 +123,16 @@ class InventoryForecastingService:
                 "occupancy_rate": occ_rate,
                 "inventory_utilization_rate": occ_rate,
                 "availability_rate": avail_rate,
-                "availability_percentage": avail_rate * 100.0,
+                "availability_percentage": round(availability_pct, 2),
                 "availability_bucket": derived_bucket,
                 "high_occupancy_indicator": _to_bool(record.get("high_occupancy_indicator"), occ_rate >= 0.8),
-                "low_availability_indicator": _to_bool(record.get("low_availability_indicator"), avail_qty < 5),
-                "rapid_depletion_indicator": _to_bool(record.get("rapid_depletion_indicator"), False),
+                "low_availability_indicator": _to_bool(
+                    record.get("low_availability_indicator"), avail_rate <= 0.20
+                ),
+                "rapid_depletion_indicator": _to_bool(
+                    record.get("rapid_depletion_indicator"),
+                    float(record["inventory_depletion_velocity"]) >= 5.0,
+                ),
             }
             for key, value in derived.items():
                 record[key] = value
@@ -134,7 +151,11 @@ class InventoryForecastingService:
                 return None
 
             row_aligned = row_df[self.expected_features]
-            X_trans = self.preprocessor.transform(row_aligned)
+            X_trans = (
+                self.preprocessor.transform(row_aligned)
+                if self.preprocessor is not None
+                else row_aligned
+            )
             pred_raw = float(self.estimator.predict(X_trans)[0])
 
             if math.isnan(pred_raw) or math.isinf(pred_raw):
