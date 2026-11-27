@@ -210,18 +210,23 @@ class NotificationService:
         persisted_records: Dict[int, Notification] = {}
         persisted_count = 0
         final_recipients: List[int] = []
+        emit_tasks: List[Tuple[int, Dict[str, Any], Optional[int]]] = []
 
         try:
             if resolved_roles and active_session is not None:
                 try:
-                    role_users = active_session.execute(
-                        select(User.id).where(
-                            User.is_active == True,
-                            User.role.in_(list(resolved_roles)),
-                        )
-                    ).scalars().all()
-                    for uid in role_users:
-                        target_recipients.add(uid)
+                    valid_enum_roles = [
+                        UserRole(r) for r in resolved_roles if r in UserRole._value2member_map_
+                    ]
+                    if valid_enum_roles:
+                        role_users = active_session.execute(
+                            select(User.id).where(
+                                User.is_active == True,
+                                User.role.in_(valid_enum_roles),
+                            )
+                        ).scalars().all()
+                        for uid in role_users:
+                            target_recipients.add(uid)
                 except Exception as e:
                     logger.warning("Failed to resolve users for roles %s: %s", resolved_roles, e)
 
@@ -250,41 +255,79 @@ class NotificationService:
             else:
                 final_recipients = list(target_recipients)
 
-            # 5. Database Persistence (Safe and Non-Blocking)
+            # 5. Database Persistence (Safe and Non-Blocking; never roll back an injected caller session)
             if active_session is not None and final_recipients:
                 try:
                     orm_type = map_event_to_orm_type(event_type)
-                    for uid in final_recipients:
-                        notif = Notification(
-                            user_id=uid,
-                            type=orm_type,
-                            title=title,
-                            message=message,
-                            entity_type=entity_type,
-                            entity_id=str(entity_id) if entity_id is not None else None,
-                            is_read=False,
-                        )
-                        active_session.add(notif)
-                        active_session.flush()
-                        persisted_records[uid] = notif
-                        persisted_count += 1
+                    ctx = None if own_session else active_session.begin_nested()
+                    if ctx is not None:
+                        ctx.__enter__()
+                    try:
+                        for uid in final_recipients:
+                            notif = Notification(
+                                user_id=uid,
+                                type=orm_type,
+                                title=title,
+                                message=message,
+                                entity_type=entity_type,
+                                entity_id=str(entity_id) if entity_id is not None else None,
+                                is_read=False,
+                            )
+                            active_session.add(notif)
+                            active_session.flush()
+                            persisted_records[uid] = notif
+                            persisted_count += 1
 
-                        # Record in-app delivery attempt
-                        is_online = socket_manager.is_user_connected(uid)
-                        delivery = NotificationDelivery(
-                            notification_id=notif.id,
-                            channel=NotificationChannel.IN_APP,
-                            delivery_status=DeliveryStatus.SENT if is_online else DeliveryStatus.PENDING,
-                            attempt_count=1 if is_online else 0,
-                            last_attempt_at=datetime.now(timezone.utc) if is_online else None,
-                            delivered_at=datetime.now(timezone.utc) if is_online else None,
-                        )
-                        active_session.add(delivery)
+                            is_online = socket_manager.is_user_connected(uid)
+                            delivery = NotificationDelivery(
+                                notification_id=notif.id,
+                                channel=NotificationChannel.IN_APP,
+                                delivery_status=DeliveryStatus.SENT if is_online else DeliveryStatus.PENDING,
+                                attempt_count=1 if is_online else 0,
+                                last_attempt_at=datetime.now(timezone.utc) if is_online else None,
+                                delivered_at=datetime.now(timezone.utc) if is_online else None,
+                            )
+                            active_session.add(delivery)
 
-                    active_session.commit()
+                        if ctx is not None:
+                            ctx.__exit__(None, None, None)
+                        active_session.commit()
+                    except Exception:
+                        if ctx is not None:
+                            ctx.__exit__(None, None, None)
+                        raise
                 except Exception as e:
                     logger.error("Failed to persist notification records in DB: %s", e)
-                    active_session.rollback()
+                    if own_session:
+                        active_session.rollback()
+
+            resolved_category = category or EVENT_CATEGORY_MAP.get(event_type, NotificationCategory.SYSTEM).value
+            for uid in final_recipients:
+                notif_orm = persisted_records.get(uid)
+                payload = {
+                    "id": notif_orm.id if notif_orm else None,
+                    "notification_id": notif_orm.id if notif_orm else None,
+                    "event_type": event_type,
+                    "title": title,
+                    "message": message,
+                    "category": resolved_category,
+                    "severity": severity.upper(),
+                    "recipient_id": uid,
+                    "actor_id": actor_id,
+                    "source_module": source_module,
+                    "entity_type": entity_type,
+                    "entity_id": str(entity_id) if entity_id is not None else None,
+                    "metadata": metadata or {},
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "is_read": False,
+                }
+                unread_c: Optional[int] = None
+                if active_session is not None:
+                    try:
+                        unread_c = cls.get_unread_count(active_session, uid)
+                    except Exception:
+                        unread_c = None
+                emit_tasks.append((uid, payload, unread_c))
         finally:
             if own_session and active_session is not None:
                 try:
@@ -294,40 +337,13 @@ class NotificationService:
 
         # 6. Real-Time Socket.IO Emission
         emitted_count = 0
-        resolved_category = category or EVENT_CATEGORY_MAP.get(event_type, NotificationCategory.SYSTEM).value
-
-        for uid in final_recipients:
-            notif_orm = persisted_records.get(uid)
-            payload = {
-                "id": notif_orm.id if notif_orm else None,
-                "notification_id": notif_orm.id if notif_orm else None,
-                "event_type": event_type,
-                "title": title,
-                "message": message,
-                "category": resolved_category,
-                "severity": severity.upper(),
-                "recipient_id": uid,
-                "actor_id": actor_id,
-                "source_module": source_module,
-                "entity_type": entity_type,
-                "entity_id": str(entity_id) if entity_id is not None else None,
-                "metadata": metadata or {},
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "is_read": False,
-            }
-
+        for uid, payload, unread_c in emit_tasks:
             try:
                 delivered = await socket_manager.emit_to_user(uid, SOCKET_EVENT_NOTIFICATION_NEW, payload)
                 if delivered:
                     emitted_count += 1
-
-                # Update recipient's unread count via socket
-                if db is not None:
-                    try:
-                        unread_c = cls.get_unread_count(db, uid)
-                        await socket_manager.emit_unread_count(uid, unread_c)
-                    except Exception:
-                        pass
+                if unread_c is not None:
+                    await socket_manager.emit_unread_count(uid, unread_c)
             except Exception as e:
                 logger.error("Socket.IO emission error for user %s: %s", uid, e)
 
@@ -370,6 +386,45 @@ class NotificationService:
         )
 
     @classmethod
+    async def _emit_socket_only(
+        cls,
+        event_type: str,
+        emit_tasks: List[Tuple[int, Dict[str, Any], Optional[int]]],
+        resolved_roles: Set[str],
+        broadcast_payload: Optional[Dict[str, Any]],
+        persisted_count: int,
+        final_recipients: List[int],
+        skipped_recipients: List[int],
+        persisted_ids: List[int],
+    ) -> NotificationDispatchResult:
+        """Pure async Socket.IO emitter with zero SQLAlchemy Session cross-thread references."""
+        emitted_count = 0
+        for uid, payload, unread_c in emit_tasks:
+            try:
+                delivered = await socket_manager.emit_to_user(uid, SOCKET_EVENT_NOTIFICATION_NEW, payload)
+                if delivered:
+                    emitted_count += 1
+                if unread_c is not None:
+                    await socket_manager.emit_unread_count(uid, unread_c)
+            except Exception as e:
+                logger.error("Socket.IO emission error for user %s: %s", uid, e)
+        if broadcast_payload:
+            for r in resolved_roles:
+                try:
+                    await socket_manager.emit_to_role(r, SOCKET_EVENT_NOTIFICATION_NEW, broadcast_payload)
+                except Exception as e:
+                    logger.error("Socket.IO role broadcast error for role %s: %s", r, e)
+        return NotificationDispatchResult(
+            event_type=event_type,
+            persisted_count=persisted_count,
+            emitted_count=emitted_count,
+            targeted_recipients=final_recipients,
+            skipped_recipients=skipped_recipients,
+            delivery_status="DELIVERED" if emitted_count > 0 else ("PERSISTED_OFFLINE" if persisted_count > 0 else "COMPLETED"),
+            details={"persisted_ids": persisted_ids, "roles_targeted": list(resolved_roles)},
+        )
+
+    @classmethod
     def notify_sync(
         cls,
         event_type: str,
@@ -388,26 +443,174 @@ class NotificationService:
         idempotency_key: Optional[str] = None,
     ) -> Any:
         """
-        Synchronous non-blocking helper for triggering notifications from synchronous business code.
-        Safely schedules async notify on the active event loop if present or dispatches
-        thread-safely to the main event loop, guaranteeing no silent coroutine drops.
+        Synchronous helper for triggering notifications from synchronous business code.
+        When an explicit caller Session is supplied, DB work executes safely on the caller's
+        thread so the Session is never shared across asyncio threads, while Socket.IO emissions
+        still dispatch asynchronously on the event loop.
         """
-        return _schedule_background(
-            cls.notify(
+        if db is None:
+            return _schedule_background(
+                cls.notify(
+                    event_type=event_type,
+                    title=title,
+                    message=message,
+                    recipient_ids=recipient_ids,
+                    roles=roles,
+                    category=category,
+                    severity=severity,
+                    entity_type=entity_type,
+                    entity_id=entity_id,
+                    source_module=source_module,
+                    actor_id=actor_id,
+                    metadata=metadata,
+                    db=None,
+                    idempotency_key=idempotency_key,
+                )
+            )
+
+        now = time.time()
+        target_recipients_pre = set(recipient_ids or [])
+        idemp_token = idempotency_key or f"{event_type}:{entity_type}:{entity_id}:{sorted(list(target_recipients_pre))}"
+        if idemp_token in cls._idempotency_cache and (now - cls._idempotency_cache[idemp_token]) < cls._idempotency_ttl_seconds:
+            return NotificationDispatchResult(
                 event_type=event_type,
-                title=title,
-                message=message,
-                recipient_ids=recipient_ids,
-                roles=roles,
-                category=category,
-                severity=severity,
-                entity_type=entity_type,
-                entity_id=entity_id,
-                source_module=source_module,
-                actor_id=actor_id,
-                metadata=metadata,
-                db=db,
-                idempotency_key=idempotency_key,
+                persisted_count=0,
+                emitted_count=0,
+                targeted_recipients=list(target_recipients_pre),
+                delivery_status="DEDUPLICATED",
+                details={"reason": "idempotency_hit", "key": idemp_token},
+            )
+        cls._idempotency_cache[idemp_token] = now
+
+        target_recipients: Set[int] = set(recipient_ids or [])
+        resolved_roles: Set[str] = {r.upper() for r in (roles or [])}
+        if not target_recipients and not resolved_roles:
+            for dr in EVENT_DEFAULT_ROLES.get(event_type, []):
+                resolved_roles.add(dr.upper())
+
+        if resolved_roles:
+            try:
+                valid_enum_roles = [
+                    UserRole(r) for r in resolved_roles if r in UserRole._value2member_map_
+                ]
+                if valid_enum_roles:
+                    role_users = db.execute(
+                        select(User.id).where(User.is_active == True, User.role.in_(valid_enum_roles))
+                    ).scalars().all()
+                    target_recipients.update(role_users)
+            except Exception as e:
+                logger.warning("Failed to resolve users for roles %s: %s", resolved_roles, e)
+
+        final_recipients: List[int] = []
+        skipped_recipients: List[int] = []
+        if target_recipients:
+            try:
+                disabled = set(
+                    db.execute(
+                        select(NotificationPreference.user_id).where(
+                            NotificationPreference.user_id.in_(list(target_recipients)),
+                            NotificationPreference.channel == NotificationChannel.IN_APP,
+                            NotificationPreference.is_enabled == False,
+                        )
+                    ).scalars().all()
+                )
+                for uid in target_recipients:
+                    (skipped_recipients if uid in disabled else final_recipients).append(uid)
+            except Exception as e:
+                logger.warning("Failed to check notification preferences: %s", e)
+                final_recipients = list(target_recipients)
+
+        persisted_records: Dict[int, Notification] = {}
+        persisted_count = 0
+        if final_recipients:
+            try:
+                orm_type = map_event_to_orm_type(event_type)
+                with db.begin_nested():
+                    for uid in final_recipients:
+                        notif = Notification(
+                            user_id=uid,
+                            type=orm_type,
+                            title=title,
+                            message=message,
+                            entity_type=entity_type,
+                            entity_id=str(entity_id) if entity_id is not None else None,
+                            is_read=False,
+                        )
+                        db.add(notif)
+                        db.flush()
+                        persisted_records[uid] = notif
+                        persisted_count += 1
+                        is_online = socket_manager.is_user_connected(uid)
+                        db.add(NotificationDelivery(
+                            notification_id=notif.id,
+                            channel=NotificationChannel.IN_APP,
+                            delivery_status=DeliveryStatus.SENT if is_online else DeliveryStatus.PENDING,
+                            attempt_count=1 if is_online else 0,
+                            last_attempt_at=datetime.now(timezone.utc) if is_online else None,
+                            delivered_at=datetime.now(timezone.utc) if is_online else None,
+                        ))
+                db.commit()
+            except Exception as e:
+                logger.error("Failed to persist sync notification records in DB: %s", e)
+
+        resolved_category = category or EVENT_CATEGORY_MAP.get(event_type, NotificationCategory.SYSTEM).value
+        emit_tasks: List[Tuple[int, Dict[str, Any], Optional[int]]] = []
+        for uid in final_recipients:
+            notif_orm = persisted_records.get(uid)
+            payload = {
+                "id": notif_orm.id if notif_orm else None,
+                "notification_id": notif_orm.id if notif_orm else None,
+                "event_type": event_type,
+                "title": title,
+                "message": message,
+                "category": resolved_category,
+                "severity": severity.upper(),
+                "recipient_id": uid,
+                "actor_id": actor_id,
+                "source_module": source_module,
+                "entity_type": entity_type,
+                "entity_id": str(entity_id) if entity_id is not None else None,
+                "metadata": metadata or {},
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "is_read": False,
+            }
+            unread_c: Optional[int] = None
+            try:
+                unread_c = cls.get_unread_count(db, uid)
+            except Exception:
+                pass
+            emit_tasks.append((uid, payload, unread_c))
+
+        broadcast_payload = None
+        if resolved_roles:
+            broadcast_payload = {
+                "id": None,
+                "notification_id": None,
+                "event_type": event_type,
+                "title": title,
+                "message": message,
+                "category": resolved_category,
+                "severity": severity.upper(),
+                "recipient_id": None,
+                "actor_id": actor_id,
+                "source_module": source_module,
+                "entity_type": entity_type,
+                "entity_id": str(entity_id) if entity_id is not None else None,
+                "metadata": metadata or {},
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "is_read": False,
+            }
+        persisted_ids = [n.id for n in persisted_records.values()]
+        return _schedule_background(
+            cls._emit_socket_only(
+                event_type=event_type,
+                emit_tasks=emit_tasks,
+                resolved_roles=resolved_roles,
+                broadcast_payload=broadcast_payload,
+                persisted_count=persisted_count,
+                final_recipients=final_recipients,
+                skipped_recipients=skipped_recipients,
+                persisted_ids=persisted_ids,
             )
         )
 

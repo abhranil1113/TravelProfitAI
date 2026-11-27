@@ -1,0 +1,7 @@
+opportunity_id,offer_id,supplier_id,inventory_type,inventory_id,destination_id,travel_date,unit_purchase_cost,expected_unit_contribution,moq,available_qty,rejection_primary_reason,rejection_explanation
+OPP_OFF_SEED_F1,OFF_SEED_F1,SUP_FLT_1,FLIGHT,INV_F1,DEL,2026-12-17,3500.0,920.0,2,100,DESTINATION_CAP_BINDING,Destination DEL has a forecasted demand absorption limit of 0 units. Procurement is blocked due to zero demand.
+OPP_OFF_SEED_F2,OFF_SEED_F2,SUP_FLT_2,FLIGHT,INV_F2,BLR,2026-12-17,4000.0,1015.0,2,100,DESTINATION_CAP_BINDING,Destination BLR has a forecasted demand absorption limit of 0 units. Procurement is blocked due to zero demand.
+OPP_OFF_SEED_F3,OFF_SEED_F3,SUP_FLT_1,FLIGHT,INV_F3,GOA,2026-12-17,2900.0,840.0,2,100,DESTINATION_CAP_BINDING,Destination GOA has a forecasted demand absorption limit of 0 units. Procurement is blocked due to zero demand.
+OPP_OFF_SEED_H1,OFF_SEED_H1,SUP_HTL_1,HOTEL,INV_H1,GOA,2026-12-17,3000.0,729.38,2,100,DESTINATION_CAP_BINDING,Destination GOA has a forecasted demand absorption limit of 0 units. Procurement is blocked due to zero demand.
+OPP_OFF_SEED_H2,OFF_SEED_H2,SUP_HTL_2,HOTEL,INV_H2,DEL,2026-12-17,3200.0,778.0,2,100,DESTINATION_CAP_BINDING,Destination DEL has a forecasted demand absorption limit of 0 units. Procurement is blocked due to zero demand.
+OPP_OFF_SEED_H3,OFF_SEED_H3,SUP_HTL_3,HOTEL,INV_H3,BOM,2026-12-17,2800.0,680.75,2,100,DESTINATION_CAP_BINDING,Destination BOM has a forecasted demand absorption limit of 0 units. Procurement is blocked due to zero demand.

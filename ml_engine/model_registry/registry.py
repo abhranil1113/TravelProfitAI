@@ -69,11 +69,12 @@ class ModelArtifactRegistry:
             if task_name:
                 task_norm = str(task_name.value if hasattr(task_name, "value") else task_name).lower().strip()
                 cls._TASK_GENERATIONS[task_norm] = cls._TASK_GENERATIONS.get(task_norm, 0) + 1
-                keys_to_remove = [k for k in cls._CLASS_CACHE if k.startswith(f"{task_norm}::")]
+                keys_to_remove = [k for k in cls._CLASS_CACHE if f"::{task_norm}::" in k or k.startswith(f"{task_norm}::")]
                 for k in keys_to_remove:
                     del cls._CLASS_CACHE[k]
-                if task_norm in cls._TASK_TO_CACHE_KEY:
-                    del cls._TASK_TO_CACHE_KEY[task_norm]
+                scoped_keys = [sk for sk in cls._TASK_TO_CACHE_KEY if sk.endswith(f"::{task_norm}") or sk == task_norm]
+                for sk in scoped_keys:
+                    del cls._TASK_TO_CACHE_KEY[sk]
                 logger.info("Invalidated ML Engine model cache for task: %s (cleared %d keys, gen=%d)", task_norm, len(keys_to_remove), cls._TASK_GENERATIONS[task_norm])
             else:
                 cls._GLOBAL_GENERATION += 1
@@ -146,6 +147,21 @@ class ModelArtifactRegistry:
         Strictly distinguishes independent trusted checksums from unauthenticated metadata on disk.
         """
         task_norm = str(task_name.value if hasattr(task_name, "value") else task_name).lower().strip()
+        base_norm = os.path.normpath(os.path.abspath(self.base_dir))
+        scoped_task_key = f"{base_norm}::{task_norm}"
+
+        def _verify_cached_checksum(cached_meta: Dict[str, Any]) -> Tuple[Any, Any, Dict[str, Any]]:
+            anchor = expected_checksum or self.config.trusted_checksums.get(task_norm)
+            cached_sha = str(cached_meta.get("_artifact_sha256", "")).lower()
+            if anchor and cached_sha != anchor.strip().lower():
+                raise ChecksumMismatchError(
+                    f"Cached artifact checksum mismatch for {task_norm}: expected '{anchor.strip().lower()}', got '{cached_sha}'."
+                )
+            if self.config.strict_checksum_verification and not (anchor or cached_meta.get("_is_independently_trusted")):
+                raise ArtifactCorruptedError(
+                    f"Strict checksum verification failed on cache hit for task '{task_norm}': independent trust anchor required."
+                )
+            return None
 
         # --- FAST O(1) CACHE PATH ---
         with self._CACHE_LOCK:
@@ -155,17 +171,20 @@ class ModelArtifactRegistry:
                     v_str = str(model_version).strip()
                     for k, val in self._CLASS_CACHE.items():
                         parts = k.split("::")
-                        if len(parts) >= 3 and parts[0] == task_norm and parts[2] == v_str:
+                        if len(parts) >= 4 and parts[0] == base_norm and parts[1] == task_norm and parts[3] == v_str:
+                            _verify_cached_checksum(val[2])
                             return val
-                elif task_norm in self._TASK_TO_CACHE_KEY:
-                    cache_key = self._TASK_TO_CACHE_KEY[task_norm]
+                elif scoped_task_key in self._TASK_TO_CACHE_KEY:
+                    cache_key = self._TASK_TO_CACHE_KEY[scoped_task_key]
                     if cache_key in self._CLASS_CACHE:
-                        return self._CLASS_CACHE[cache_key]
+                        val = self._CLASS_CACHE[cache_key]
+                        _verify_cached_checksum(val[2])
+                        return val
 
             # Obtain or create per-task loading lock under _CACHE_LOCK
-            if task_norm not in self._TASK_LOAD_LOCKS:
-                self._TASK_LOAD_LOCKS[task_norm] = threading.Lock()
-            task_load_lock = self._TASK_LOAD_LOCKS[task_norm]
+            if scoped_task_key not in self._TASK_LOAD_LOCKS:
+                self._TASK_LOAD_LOCKS[scoped_task_key] = threading.Lock()
+            task_load_lock = self._TASK_LOAD_LOCKS[scoped_task_key]
 
         # --- SLOW CACHE MISS PATH (PER-TASK LOAD LOCK) ---
         with task_load_lock:
@@ -178,12 +197,15 @@ class ModelArtifactRegistry:
                         v_str = str(model_version).strip()
                         for k, val in self._CLASS_CACHE.items():
                             parts = k.split("::")
-                            if len(parts) >= 3 and parts[0] == task_norm and parts[2] == v_str:
+                            if len(parts) >= 4 and parts[0] == base_norm and parts[1] == task_norm and parts[3] == v_str:
+                                _verify_cached_checksum(val[2])
                                 return val
-                    elif task_norm in self._TASK_TO_CACHE_KEY:
-                        cache_key = self._TASK_TO_CACHE_KEY[task_norm]
+                    elif scoped_task_key in self._TASK_TO_CACHE_KEY:
+                        cache_key = self._TASK_TO_CACHE_KEY[scoped_task_key]
                         if cache_key in self._CLASS_CACHE:
-                            return self._CLASS_CACHE[cache_key]
+                            val = self._CLASS_CACHE[cache_key]
+                            _verify_cached_checksum(val[2])
+                            return val
 
             task_dir = self.resolve_task_dir(task_norm, model_version=model_version)
             meta_path = os.path.join(task_dir, "metadata.json")
@@ -248,9 +270,9 @@ class ModelArtifactRegistry:
             raw_metadata["_is_independently_trusted"] = is_independently_trusted
             raw_metadata["_checksum_trust_source"] = trust_source
 
-            # Form composite versioned cache key
+            # Form composite versioned cache key scoped to base_dir
             version_str = str(schema.saved_timestamp or "v1")
-            cache_key = f"{task_norm}::{schema.model_name}::{version_str}::{computed_sha256[:12]}"
+            cache_key = f"{base_norm}::{task_norm}::{schema.model_name}::{version_str}::{computed_sha256[:12]}"
 
             # Load artifacts into memory
             try:
@@ -272,7 +294,7 @@ class ModelArtifactRegistry:
                     if self.config.cache_models:
                         self._CLASS_CACHE[cache_key] = cached_tuple
                         if not model_version:
-                            self._TASK_TO_CACHE_KEY[task_norm] = cache_key
+                            self._TASK_TO_CACHE_KEY[scoped_task_key] = cache_key
                     logger.info(
                         "Successfully loaded and cached model for task '%s' (%s, version=%s, trust=%s) from '%s'",
                         task_norm, schema.model_name, version_str, trust_source, task_dir

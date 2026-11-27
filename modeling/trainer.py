@@ -81,8 +81,23 @@ def train_single_model(
     feature_names = list(X_train.columns)
     if preprocessor is not None:
         X_trans = preprocessor.fit_transform(X_train, y_train)
+        if hasattr(estimator, "lag_col") and getattr(estimator, "lag_col_idx", None) is None:
+            try:
+                out_names = list(preprocessor.get_feature_names_out())
+                target_col = estimator.lag_col
+                for idx, col_out in enumerate(out_names):
+                    if col_out == target_col or col_out.endswith(f"__{target_col}"):
+                        estimator.lag_col_idx = idx
+                        estimator.lag_col_idx_ = idx
+                        break
+            except Exception:
+                pass
     else:
         X_trans = X_train.to_numpy()
+        if hasattr(estimator, "lag_col") and estimator.lag_col in X_train.columns and getattr(estimator, "lag_col_idx", None) is None:
+            idx = int(X_train.columns.get_loc(estimator.lag_col))
+            estimator.lag_col_idx = idx
+            estimator.lag_col_idx_ = idx
 
     # Fit estimator
     estimator.fit(X_trans, y_train)

@@ -36,8 +36,8 @@ run_recommendations_router = APIRouter(prefix="/optimization-runs", tags=["14. R
 def list_global_recommendations(
     current_user: Annotated[User, Depends(require_roles(UserRole.PROCUREMENT_MANAGER, UserRole.ANALYST, UserRole.ADMIN))],
     db: Annotated[Session, Depends(get_db)],
-    supplier_id: Optional[int] = None,
-    dest_id: Optional[int] = None,
+    supplier_id: Optional[str] = None,
+    dest_id: Optional[str] = None,
     category: Optional[InventoryCategory] = None,
     approval_status: Optional[ApprovalStatus] = Query(None, alias="status"),
     page: int = Query(1, ge=1),

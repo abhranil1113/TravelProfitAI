@@ -34,8 +34,8 @@ class RecommendationService:
     def list_recommendations(
         db: Session,
         run_id: Optional[str] = None,
-        supplier_id: Optional[int] = None,
-        dest_id: Optional[int] = None,
+        supplier_id: Optional[str] = None,
+        dest_id: Optional[str] = None,
         category: Optional[InventoryCategory] = None,
         approval_status: Optional[ApprovalStatus] = None,
         page: int = 1,
@@ -45,9 +45,9 @@ class RecommendationService:
         if run_id:
             stmt = stmt.where(ProcurementRecommendation.run_id == run_id)
         if supplier_id:
-            stmt = stmt.where(ProcurementRecommendation.supplier_id == supplier_id)
+            stmt = stmt.where(ProcurementRecommendation.supplier_id == supplier_id.strip().upper())
         if dest_id:
-            stmt = stmt.where(ProcurementRecommendation.dest_id == dest_id)
+            stmt = stmt.where(ProcurementRecommendation.dest_id == dest_id.strip().upper())
         if category:
             stmt = stmt.where(ProcurementRecommendation.inventory_category == category)
         if approval_status:
@@ -74,7 +74,15 @@ class RecommendationService:
         notes: Optional[str],
         user_id: int,
     ) -> ProcurementRecommendation:
-        rec = RecommendationService.get_recommendation(db, rec_id)
+        rec = db.execute(
+            select(ProcurementRecommendation)
+            .where(ProcurementRecommendation.id == rec_id)
+            .with_for_update()
+        ).scalar_one_or_none()
+        if not rec:
+            raise NotFoundException(f"Recommendation {rec_id} not found")
+        if rec.approval_status == ApprovalStatus.ORDERED:
+            raise BadRequestException(f"Recommendation {rec_id} is already ORDERED and cannot be re-approved.")
         from backend.app.models.schema import PolicyScope
         from backend.app.services.policy_service import PolicyService
         PolicyService.enforce_workflow_policies(
@@ -117,7 +125,15 @@ class RecommendationService:
         notes: Optional[str],
         user_id: int,
     ) -> ProcurementRecommendation:
-        rec = RecommendationService.get_recommendation(db, rec_id)
+        rec = db.execute(
+            select(ProcurementRecommendation)
+            .where(ProcurementRecommendation.id == rec_id)
+            .with_for_update()
+        ).scalar_one_or_none()
+        if not rec:
+            raise NotFoundException(f"Recommendation {rec_id} not found")
+        if rec.approval_status == ApprovalStatus.ORDERED:
+            raise BadRequestException(f"Recommendation {rec_id} is already ORDERED and cannot be rejected.")
         rec.approval_status = ApprovalStatus.REJECTED
         rec.approved_by_user_id = user_id
         rec.approved_at = datetime.utcnow()
@@ -148,9 +164,12 @@ class RecommendationService:
                 select(ProcurementRecommendation).where(
                     ProcurementRecommendation.run_id == run_id,
                     ProcurementRecommendation.id.in_(rec_ids),
-                )
+                ).with_for_update()
             ).scalars().all()
         )
+        for r in recs:
+            if r.approval_status == ApprovalStatus.ORDERED:
+                raise BadRequestException(f"Recommendation {r.id} is already ORDERED and cannot be bulk-approved.")
         now = datetime.utcnow()
         from backend.app.models.schema import PolicyScope
         from backend.app.services.policy_service import PolicyService
@@ -201,9 +220,12 @@ class RecommendationService:
                 select(ProcurementRecommendation).where(
                     ProcurementRecommendation.run_id == run_id,
                     ProcurementRecommendation.id.in_(rec_ids),
-                )
+                ).with_for_update()
             ).scalars().all()
         )
+        for r in recs:
+            if r.approval_status == ApprovalStatus.ORDERED:
+                raise BadRequestException(f"Recommendation {r.id} is already ORDERED and cannot be bulk-approved.")
         now = datetime.utcnow()
         for r in recs:
             r.approval_status = ApprovalStatus.REJECTED

@@ -102,10 +102,20 @@ class FlightFeaturePreprocessor:
         else:
             stops = int(stops_raw)
 
+        city_map = {
+            "BLR": "Bangalore",
+            "MAA": "Chennai",
+            "DEL": "Delhi",
+            "HYD": "Hyderabad",
+            "CCU": "Kolkata",
+            "BOM": "Mumbai",
+        }
         source_raw = raw_record.get("source_city") or raw_record.get("origin_city")
-        source = str(source_raw).strip() if source_raw else ""
+        source_str = str(source_raw).strip() if source_raw else ""
+        source = city_map.get(source_str.upper(), source_str)
         dest_raw = raw_record.get("destination_city") or raw_record.get("destination_id")
-        dest = str(dest_raw).strip() if dest_raw else ""
+        dest_str = str(dest_raw).strip() if dest_raw else ""
+        dest = city_map.get(dest_str.upper(), dest_str)
 
         route = f"{source}-{dest}" if (source and dest) else str(raw_record.get("route", ""))
 

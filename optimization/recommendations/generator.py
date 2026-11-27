@@ -123,7 +123,7 @@ class RecommendationGenerator:
                 # Destination cap binding?
                 elif (
                     opp.aggregate_demand_cap is not None and
-                    dest_procured_units.get((opp.destination_id, opp.inventory_type), 0) >= opp.aggregate_demand_cap
+                    (dest_procured_units.get((opp.destination_id, opp.inventory_type), 0) + opp.minimum_purchase_qty) > opp.aggregate_demand_cap
                 ):
                     reason_code = RejectionReasonCode.DESTINATION_CAP_BINDING
                 elif opp.purchase_cost <= 0 or opp.selling_price <= 0:
@@ -160,14 +160,14 @@ class RecommendationGenerator:
                     inventory_id=str(exp.get("inventory_id", "UNKNOWN")),
                     destination_id=str(exp.get("destination_id", "UNKNOWN")),
                     travel_date=str(exp.get("travel_date", "UNKNOWN")),
-                    unit_purchase_cost=float(round(float(exp.get("cost_per_unit", 0.0)), 2)),
+                    unit_purchase_cost=float(round(float(exp.get("purchase_cost", exp.get("cost_per_unit", 0.0))), 2)),
                     expected_unit_contribution=0.0,
-                    moq=int(exp.get("minimum_purchase_quantity", 1)),
-                    available_qty=int(exp.get("quantity_available", 0)),
+                    moq=int(exp.get("minimum_purchase_qty", exp.get("minimum_purchase_quantity", 1))),
+                    available_qty=int(exp.get("available_quantity", exp.get("quantity_available", 0))),
                     rejection_primary_reason=RejectionReasonCode.EXPIRED_OFFER.value,
                     rejection_explanation=(
                         f"Offer expired on or before point-in-time cutoff {config.optimization_timestamp} "
-                        f"(valid_until: {exp.get('valid_until', 'N/A')})."
+                        f"(valid_until: {exp.get('offer_valid_until', exp.get('valid_until', 'N/A'))})."
                     )
                 )
                 rejected.append(rej)

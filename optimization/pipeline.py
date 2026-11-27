@@ -87,8 +87,13 @@ class OptimizationPipeline:
         baseline_results: List[BaselineComparisonResult] = BaselineEvaluator.compare_all(
             candidates, solver_result, self.config
         )
-        gm_lift = next((b.profit_lift_pct_vs_greedy_margin for b in baseline_results if "MILP" in b.name), 0.0)
-        gc_lift = 0.0
+        milp_res = next((b for b in baseline_results if "MILP" in b.name), None)
+        gc_res = next((b for b in baseline_results if "Expected Contribution" in b.name), None)
+        gm_lift = milp_res.profit_lift_pct_vs_greedy_margin if milp_res else 0.0
+        if milp_res and gc_res and gc_res.expected_profit != 0:
+            gc_lift = round((milp_res.expected_profit - gc_res.expected_profit) / abs(gc_res.expected_profit) * 100.0, 2)
+        else:
+            gc_lift = 0.0
 
         # 4. Calculate comprehensive evaluation metrics
         metrics: EvaluationMetrics = MetricsCalculator.calculate_metrics(

@@ -106,7 +106,7 @@ class SocketManager:
         async def notification_acknowledged(sid: str, data: Dict[str, Any]):
             return await self.handle_acknowledgement(sid, data)
 
-    async def handle_connect(self, sid: str, environ: Dict[str, Any], auth: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def handle_connect(self, sid: str, environ: Dict[str, Any], auth: Optional[Dict[str, Any]] = None, db: Optional[Any] = None) -> Dict[str, Any]:
         """Handles authentication handshake, session creation, and room assignments."""
         token = self._extract_token(environ, auth)
         if not token:
@@ -119,7 +119,16 @@ class SocketManager:
             if not sub:
                 raise ValueError("Token missing subject claim")
             user_id = int(sub)
-            role = str(payload.get("role", "REVENUE_ANALYST")).upper()
+            raw_role = payload.get("role")
+            if not raw_role or not str(raw_role).strip():
+                raise ValueError("Token missing role claim")
+            role = str(raw_role).strip().upper()
+            if db is not None:
+                from backend.app.models.schema import User
+                user = db.query(User).filter(User.id == user_id).first()
+                if not user or not user.is_active:
+                    raise PermissionError("User inactive or not found")
+                role = user.role.value.upper()
         except Exception as e:
             logger.warning("Socket.IO connection rejected: token invalid or expired (sid=%s): %s", sid, e)
             raise socketio.exceptions.ConnectionRefusedError("Authentication failed: invalid or expired token")

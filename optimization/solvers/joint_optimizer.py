@@ -10,7 +10,7 @@ and portfolio supplier concentration limits.
 import time
 import logging
 from collections import defaultdict
-from typing import List, Dict
+from typing import List, Dict, Optional
 from ortools.linear_solver import pywraplp
 
 from optimization.config import OptimizationConfig
@@ -207,7 +207,12 @@ class JointProcurementOptimizer(BaseProcurementOptimizer):
 
         obj_val = solver.Objective().Value() if (is_optimal or status_str == "FEASIBLE") else 0.0
         best_bound = solver.Objective().BestBound() if (is_optimal or status_str == "FEASIBLE") else 0.0
-        gap = abs(best_bound - obj_val) / (abs(obj_val) + 1e-9) if obj_val != 0 else 0.0
+        if is_optimal:
+            gap = 0.0
+        elif obj_val != 0:
+            gap = abs(best_bound - obj_val) / (abs(obj_val) + 1e-9)
+        else:
+            gap = 1.0 if (status_str == "FEASIBLE" and best_bound > 0) else 0.0
 
         return SolverResult(
             status=status_str,

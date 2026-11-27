@@ -197,7 +197,7 @@ class SupplierPortalService:
         db: Session, credential_id: int, user_id: int
     ) -> SupplierCredentialCreateResponse:
         old_cred = db.execute(
-            select(SupplierApiCredential).where(SupplierApiCredential.id == credential_id)
+            select(SupplierApiCredential).where(SupplierApiCredential.id == credential_id).with_for_update()
         ).scalar_one_or_none()
         if not old_cred:
             raise EntityNotFoundError("SupplierApiCredential", credential_id)
@@ -254,7 +254,7 @@ class SupplierPortalService:
         db: Session, credential_id: int, user_id: int
     ) -> SupplierApiCredential:
         cred = db.execute(
-            select(SupplierApiCredential).where(SupplierApiCredential.id == credential_id)
+            select(SupplierApiCredential).where(SupplierApiCredential.id == credential_id).with_for_update()
         ).scalar_one_or_none()
         if not cred:
             raise EntityNotFoundError("SupplierApiCredential", credential_id)
@@ -314,6 +314,13 @@ class SupplierPortalService:
         )
         payload_hash = hashlib.sha256(canonical_payload.encode("utf-8")).hexdigest()
         idem_key = (header_idempotency_key or req.idempotency_key or f"auto_{payload_hash[:24]}").strip()
+
+        # Serialize concurrent pushes per supplier to guarantee idempotent replay under READ COMMITTED
+        db.execute(
+            select(Supplier.supplier_id)
+            .where(Supplier.supplier_id == credential.supplier_id)
+            .with_for_update()
+        ).scalar_one_or_none()
 
         existing_sync = db.execute(
             select(SupplierRateSyncLog).where(
@@ -592,7 +599,7 @@ class SupplierPortalService:
         db: Session, onboarding_id: int, req: SupplierOnboardingAdvanceRequest, user_id: int
     ) -> SupplierOnboardingWorkflow:
         wf = db.execute(
-            select(SupplierOnboardingWorkflow).where(SupplierOnboardingWorkflow.id == onboarding_id)
+            select(SupplierOnboardingWorkflow).where(SupplierOnboardingWorkflow.id == onboarding_id).with_for_update()
         ).scalar_one_or_none()
         if not wf:
             raise EntityNotFoundError("SupplierOnboardingWorkflow", onboarding_id)
@@ -744,7 +751,7 @@ class SupplierPortalService:
         db: Session, batch_id: int, user_id: int
     ) -> SettlementNettingBatch:
         batch = db.execute(
-            select(SettlementNettingBatch).where(SettlementNettingBatch.id == batch_id)
+            select(SettlementNettingBatch).where(SettlementNettingBatch.id == batch_id).with_for_update()
         ).scalar_one_or_none()
         if not batch:
             raise EntityNotFoundError("SettlementNettingBatch", batch_id)
@@ -768,7 +775,7 @@ class SupplierPortalService:
         db: Session, batch_id: int, user_id: int
     ) -> SettlementNettingBatch:
         batch = db.execute(
-            select(SettlementNettingBatch).where(SettlementNettingBatch.id == batch_id)
+            select(SettlementNettingBatch).where(SettlementNettingBatch.id == batch_id).with_for_update()
         ).scalar_one_or_none()
         if not batch:
             raise EntityNotFoundError("SettlementNettingBatch", batch_id)

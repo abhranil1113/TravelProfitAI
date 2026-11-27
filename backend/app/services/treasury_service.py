@@ -140,7 +140,7 @@ class TreasuryService:
     ) -> FXForwardContract:
         """Approves and executes a DRAFT FX forward contract (Admin only, Policy-enforced)."""
         contract = db.execute(
-            select(FXForwardContract).where(FXForwardContract.id == contract_id)
+            select(FXForwardContract).where(FXForwardContract.id == contract_id).with_for_update()
         ).scalar_one_or_none()
         if not contract:
             raise EntityNotFoundError("FXForwardContract", contract_id)
@@ -201,7 +201,7 @@ class TreasuryService:
     @staticmethod
     def settle_fx_forward(db: Session, contract_id: int, admin_user_id: int) -> FXForwardContract:
         contract = db.execute(
-            select(FXForwardContract).where(FXForwardContract.id == contract_id)
+            select(FXForwardContract).where(FXForwardContract.id == contract_id).with_for_update()
         ).scalar_one_or_none()
         if not contract:
             raise EntityNotFoundError("FXForwardContract", contract_id)
@@ -222,7 +222,7 @@ class TreasuryService:
     @staticmethod
     def cancel_fx_forward(db: Session, contract_id: int, admin_user_id: int) -> FXForwardContract:
         contract = db.execute(
-            select(FXForwardContract).where(FXForwardContract.id == contract_id)
+            select(FXForwardContract).where(FXForwardContract.id == contract_id).with_for_update()
         ).scalar_one_or_none()
         if not contract:
             raise EntityNotFoundError("FXForwardContract", contract_id)

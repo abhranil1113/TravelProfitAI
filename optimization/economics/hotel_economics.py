@@ -26,8 +26,8 @@ class HotelEconomicsCalculator:
         """
         c = float(purchase_cost)
         p = float(selling_price)
-        theta = float(sell_through_prob if sell_through_prob is not None else self.assumptions.hotel_base_sell_through)
-        p_c = float(cancellation_prob)
+        theta = max(0.0, min(1.0, float(sell_through_prob if sell_through_prob is not None else self.assumptions.hotel_base_sell_through)))
+        p_c = max(0.0, min(1.0, float(cancellation_prob)))
 
         r_cust = self.assumptions.hotel_customer_refund_rate
         f_resale = self.assumptions.hotel_room_resale_probability

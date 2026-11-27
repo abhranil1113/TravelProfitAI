@@ -11,6 +11,8 @@ Candidate opportunity builder orchestrating Stage 2 data preparation:
 """
 
 import collections
+import hashlib
+import json
 import threading
 from typing import List, Dict, Any, Tuple, Optional
 import pandas as pd
@@ -23,6 +25,8 @@ from optimization.data.demand import DemandService
 from optimization.economics.hotel_economics import HotelEconomicsCalculator
 from optimization.economics.flight_economics import FlightEconomicsCalculator
 from ml_engine.adapters import OptimizationMLAdapter
+from ml_engine.config import MLEngineConfig
+from ml_engine.model_registry.registry import ModelArtifactRegistry
 
 
 class CandidateOpportunityBuilder:
@@ -43,17 +47,27 @@ class CandidateOpportunityBuilder:
         Returns:
             Tuple of (opportunities, candidate_offers, audit_metadata)
         """
+        fin_digest = hashlib.sha256(
+            json.dumps(
+                {
+                    "financial": self.config.financial.model_dump(),
+                    "risk": self.config.risk.model_dump(),
+                    "verified_currencies": sorted(self.config.verified_currencies),
+                    "paths": getattr(self.loader, "paths", {}),
+                },
+                sort_keys=True,
+                default=str,
+            ).encode("utf-8")
+        ).hexdigest()[:16]
         cache_key = (
             str(self.config.optimization_timestamp),
             str(self.config.target_currency),
             bool(self.config.allow_prototype_currency_override),
             bool(self.config.use_flight_salvage_optional),
-            float(self.config.financial.hotel_assumed_stay_duration),
-            float(self.config.financial.demand_scenario_multiplier),
-            float(self.config.financial.default_search_conversion_rate),
-            float(self.config.financial.flight_base_sell_through),
-            float(self.config.financial.hotel_base_sell_through),
-            float(self.config.financial.total_budget),
+            float(self.config.total_budget),
+            str(self.config.models_base_dir),
+            str(getattr(self.loader, "base_dir", "")),
+            fin_digest,
         )
         if self.db is None:
             with self._CACHE_LOCK:
@@ -101,7 +115,13 @@ class CandidateOpportunityBuilder:
         )
 
         # 5. Prediction & Economic Calculators via OptimizationMLAdapter
+        ml_registry = ModelArtifactRegistry(
+            base_dir=self.config.models_base_dir,
+            db=self.db,
+            config=MLEngineConfig(base_model_dir=self.config.models_base_dir),
+        )
         ml_adapter = OptimizationMLAdapter(
+            registry=ml_registry,
             searches_df=raw_searches,
             optimization_timestamp=self.config.optimization_timestamp,
         )
@@ -240,7 +260,10 @@ class CandidateOpportunityBuilder:
             "total_raw_offers": len(raw_offers),
             "active_offers_evaluated": len(active_offers),
             "expired_offers_filtered": offer_audit["expired_offers_dropped"],
-            "resolved_inventory_count": inv_audit["unique_resolved_inventory_items"],
+            "resolved_inventory_count": inv_audit.get(
+                "unique_resolved_inventory_items",
+                inv_audit.get("resolved_items_count", 0),
+            ),
             "prior_searches_used": len(prior_searches),
             "opportunities_generated": len(opportunities),
             "flight_salvage_mode": "10% Optional" if self.config.use_flight_salvage_optional else "0% Baseline Spoilage",

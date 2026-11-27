@@ -76,22 +76,22 @@ class ReportService:
 
                 data["optimization_summary"] = {
                     "run_id": opt_run.run_id,
-                    "status": opt_run.status.value if hasattr(opt_run.status, "value") else str(opt_run.status),
+                    "status": opt_run.pipeline_status.value if hasattr(opt_run.pipeline_status, "value") else str(opt_run.pipeline_status),
                     "target_currency": opt_run.target_currency,
-                    "objective_value": float(opt_run.objective_value or 0.0),
+                    "objective_value": float(opt_run.best_objective_inr or 0.0),
                     "total_spend_inr": float(opt_run.total_spend_inr or 0.0),
-                    "total_expected_contribution_inr": float(opt_run.total_expected_net_contribution_inr or 0.0),
-                    "execution_time_seconds": float(opt_run.execution_time_seconds or 0.0),
+                    "total_expected_contribution_inr": float(opt_run.expected_net_profit_inr or 0.0),
+                    "execution_time_seconds": float(opt_run.solve_time_seconds or 0.0),
                     "created_at": opt_run.created_at.isoformat() if opt_run.created_at else None,
                 }
                 data["recommendations"] = [
                     {
-                        "recommendation_id": r.recommendation_id,
-                        "inventory_type": r.inventory_type.value if hasattr(r.inventory_type, "value") else str(r.inventory_type),
-                        "destination_id": r.destination_id,
-                        "allocated_quantity": int(r.allocated_quantity),
-                        "allocated_spend_inr": float(r.allocated_spend_inr),
-                        "expected_contribution_inr": float(r.expected_net_contribution_inr),
+                        "recommendation_id": r.id,
+                        "inventory_type": r.inventory_category.value if hasattr(r.inventory_category, "value") else str(r.inventory_category),
+                        "destination_id": r.dest_id,
+                        "allocated_quantity": int(r.recommended_qty),
+                        "allocated_spend_inr": float(r.total_spend_inr),
+                        "expected_contribution_inr": float(r.expected_total_contribution_inr),
                         "approval_status": r.approval_status.value if hasattr(r.approval_status, "value") else str(r.approval_status),
                     }
                     for r in recs
@@ -136,11 +136,11 @@ class ReportService:
         else:
             # Generic summary report combining top-level metrics
             latest_run = db.execute(select(OptimizationRun).order_by(OptimizationRun.created_at.desc())).scalars().first()
-            po_count = db.execute(select(func.count(PurchaseOrder.id))).scalar_one()
+            po_count = db.execute(select(func.count(PurchaseOrder.po_number))).scalar_one()
             budget_count = db.execute(select(func.count(ProcurementBudget.id))).scalar_one()
             data["system_summary"] = {
                 "latest_run_id": latest_run.run_id if latest_run else None,
-                "latest_run_status": latest_run.status.value if (latest_run and hasattr(latest_run.status, "value")) else None,
+                "latest_run_status": latest_run.pipeline_status.value if (latest_run and hasattr(latest_run.pipeline_status, "value")) else None,
                 "total_purchase_orders": po_count,
                 "total_budgets": budget_count,
             }

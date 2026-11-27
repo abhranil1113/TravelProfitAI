@@ -44,6 +44,19 @@ class BaselineEvaluator:
         }
 
     @staticmethod
+    def _effective_mode_budget_and_candidates(
+        candidates: List[CandidateOffer],
+        config: OptimizationConfig,
+    ) -> tuple[float, List[CandidateOffer]]:
+        if config.flight_budget_max == 0.0:
+            b = float(config.hotel_budget_max) if config.hotel_budget_max is not None else float(config.total_budget)
+            return b, [c for c in candidates if c.inventory_type == "HOTEL"]
+        if config.hotel_budget_max == 0.0:
+            b = float(config.flight_budget_max) if config.flight_budget_max is not None else float(config.total_budget)
+            return b, [c for c in candidates if c.inventory_type == "FLIGHT"]
+        return float(config.total_budget), candidates
+
+    @staticmethod
     def evaluate_greedy_gross_margin(
         candidates: List[CandidateOffer],
         config: OptimizationConfig
@@ -53,9 +66,9 @@ class BaselineEvaluator:
         margin_ratio = (unit_selling_price - unit_cost) / unit_cost.
         Evaluated under true expected contribution formula.
         """
-        budget = config.total_budget
+        budget, mode_cands = BaselineEvaluator._effective_mode_budget_and_candidates(candidates, config)
         # Filter for candidates with positive gross margin
-        viable = [c for c in candidates if c.unit_selling_price > c.unit_cost and c.unit_cost > 0]
+        viable = [c for c in mode_cands if c.unit_selling_price > c.unit_cost and c.unit_cost > 0]
         # Sort descending by gross margin ratio
         sorted_cands = sorted(
             viable,
@@ -112,8 +125,8 @@ class BaselineEvaluator:
         roi = unit_contribution / unit_cost.
         Only considers opportunities with positive expected contribution.
         """
-        budget = config.total_budget
-        viable = [c for c in candidates if c.unit_contribution > 0 and c.unit_cost > 0]
+        budget, mode_cands = BaselineEvaluator._effective_mode_budget_and_candidates(candidates, config)
+        viable = [c for c in mode_cands if c.unit_contribution > 0 and c.unit_cost > 0]
         sorted_cands = sorted(
             viable,
             key=lambda c: c.unit_contribution / c.unit_cost,

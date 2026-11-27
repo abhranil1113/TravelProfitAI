@@ -38,7 +38,7 @@ def plot_hotel_cancellation_by_lead_time(hotel_df: pd.DataFrame, save_path: Opti
     df = hotel_df.copy()
     bins = [0, 7, 30, 90, 180, 365, 800]
     labels = ["0-7d", "8-30d", "31-90d", "91-180d", "181-365d", "365d+"]
-    df["lead_time_bin"] = pd.cut(df["lead_time"], bins=bins, labels=labels, right=True)
+    df["lead_time_bin"] = pd.cut(df["lead_time"], bins=bins, labels=labels, include_lowest=True, right=True)
 
     summary = df.groupby("lead_time_bin", observed=True)["is_canceled"].agg(
         total="count",
@@ -237,7 +237,7 @@ def plot_flight_ontime_by_airline(
     else:
         carrier_col = "AIRLINE"
 
-    completed = df[df["CANCELLED"] == 0] if "CANCELLED" in df.columns else df
+    completed = df[df["CANCELLED"] == 0].copy() if "CANCELLED" in df.columns else df.copy()
     completed["is_ontime"] = (completed["ARRIVAL_DELAY"] <= 15).astype(int)
 
     summary = completed.groupby(carrier_col).agg(
@@ -367,7 +367,8 @@ def plot_inventory_utilization_distribution(inventory_df: pd.DataFrame, save_pat
 
     from eda.snapshot_analysis import get_latest_inventory_snapshots
     dedup = get_latest_inventory_snapshots(inventory_df)
-    dedup["utilization_pct"] = (dedup["booked_quantity"] / dedup["total_capacity"]) * 100
+    denom = dedup["total_capacity"].replace(0, np.nan)
+    dedup["utilization_pct"] = (dedup["booked_quantity"] / denom) * 100
 
     fig, ax = plt.subplots(figsize=PLOT_STYLE["figure_sizes"]["standard"])
     sns.histplot(

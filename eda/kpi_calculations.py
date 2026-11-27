@@ -134,11 +134,16 @@ def compute_supplier_kpis(supplier_df: pd.DataFrame) -> Dict[str, Any]:
     refundable_count = int((supplier_df["refundable"] == 1).sum()) if "refundable" in supplier_df.columns else 0
     refundable_pct = safe_divide(refundable_count, total_offers) * 100
 
-    by_supplier = supplier_df.groupby("supplier_id").agg(
+    calc_df = supplier_df.copy()
+    if "margin_percentage" not in calc_df.columns:
+        sp = calc_df["selling_price"].replace(0, np.nan)
+        calc_df["margin_percentage"] = (((calc_df["selling_price"] - calc_df["purchase_cost"]) / sp) * 100.0).fillna(0.0)
+
+    by_supplier = calc_df.groupby("supplier_id").agg(
         offer_count=("offer_id", "count"),
         avg_cost=("purchase_cost", "mean"),
         avg_selling=("selling_price", "mean"),
-        avg_margin_pct=("margin_percentage" if "margin_percentage" in supplier_df.columns else "purchase_cost", "mean"),
+        avg_margin_pct=("margin_percentage", "mean"),
     ).reset_index()
 
     return {

@@ -85,7 +85,7 @@ def test_workflow_b_reference_and_ml(client, admin_headers, pm_headers, analyst_
     assert fs["name"] == "wf_b_features"
 
 
-def test_workflow_c_optimization_and_procurement(client, admin_headers, pm_headers):
+def test_workflow_c_optimization_and_procurement(client, seeded_optimization_db, admin_headers, pm_headers):
     """Workflow C: Budget activation, MILP Optimization, Approval, and PO Generation."""
     # 1. Create and activate budget
     budget = client.post(

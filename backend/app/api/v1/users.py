@@ -4,6 +4,7 @@ from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
+from backend.app.core.config import get_settings
 from backend.app.core.exceptions import PermissionDeniedError
 from backend.app.dependencies import get_current_user, get_db, require_roles
 from backend.app.models.schema import User, UserRole
@@ -173,9 +174,10 @@ def force_password_reset(
 ):
     """Force password reset token generation and revoke all current sessions (Tier 2)."""
     token = UserService.force_password_reset(db, id, admin_id=current_admin.id)
+    settings = get_settings()
     return AuthMessageResponse(
         message="Force password reset token generated and sessions revoked.",
-        action_token=token,
+        action_token=None if settings.ENVIRONMENT.lower() == "production" else token,
     )
 
 

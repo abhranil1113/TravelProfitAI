@@ -53,10 +53,20 @@ def audit_feature_leakage(
             risk = "Target Variable"
             decision = "Target Only"
             reason = "Supervised regression label; excluded from input feature matrix."
-        elif "price" in feature_name and feature_name != "price":
-            risk = "None"
-            decision = "Include"
-            reason = "Transformed target or log representation for training."
+        elif feature_name == "price_log":
+            risk = "Critical / Direct Target Transform"
+            decision = "Quarantined / Excluded"
+            reason = "Log transformation of target regression price; must never enter inputs."
+        elif feature_name == "price_record_id":
+            risk = "Metadata Identifier"
+            decision = "Excluded Identifier"
+            reason = "Synthetic surrogate identifier; excluded from model features."
+
+    elif dataset_name == "flight_operations_features":
+        if feature_name in ["is_cancelled", "is_diverted", "arrival_delay_minutes", "departure_delay_minutes", "is_ontime_arrival"]:
+            risk = "Critical / Post-Flight Operational Outcome"
+            decision = "Quarantined / Excluded"
+            reason = "Observed only after scheduled flight departure/arrival; unavailable at booking/procurement time."
 
     elif dataset_name == "customer_demand_features":
         if feature_name in ["clicked", "booking_completed", "has_funnel_anomaly"]:

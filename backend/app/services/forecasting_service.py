@@ -75,9 +75,9 @@ class ForecastingService:
         active_offers = offer_query.all()
 
         registry = ModelRegistry(db=db)
-        opt_config = OptimizationConfig()
-        flight_service = FlightPriceService(registry, opt_config)
-        hotel_service = HotelCancellationService(registry, opt_config)
+        opt_config = OptimizationConfig(run_id=batch_id, optimization_timestamp=as_of.isoformat())
+        flight_service: Optional[FlightPriceService] = None
+        hotel_service: Optional[HotelCancellationService] = None
 
         # Existing predictions cache for upsert handling
         existing_preds = {
@@ -96,6 +96,8 @@ class ForecastingService:
 
             inv_cat = offer.inventory_category
             if inv_cat == InventoryCategory.HOTEL:
+                if hotel_service is None:
+                    hotel_service = HotelCancellationService(registry, opt_config)
                 offer_dict = {
                     "offer_id": oid,
                     "destination_id": str(offer.dest_id),
@@ -108,6 +110,8 @@ class ForecastingService:
                 theta = opt_config.financial.hotel_base_sell_through
                 demand_units = int(offer.moq)
             else:  # FLIGHT
+                if flight_service is None:
+                    flight_service = FlightPriceService(registry, opt_config)
                 offer_dict = {
                     "offer_id": oid,
                     "origin_id": str(offer.origin_dest_id) if offer.origin_dest_id else "DEL",

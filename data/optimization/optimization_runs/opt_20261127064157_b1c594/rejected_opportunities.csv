@@ -1,0 +1,2 @@
+opportunity_id,offer_id,supplier_id,inventory_type,inventory_id,destination_id,travel_date,unit_purchase_cost,expected_unit_contribution,moq,available_qty,rejection_primary_reason,rejection_explanation
+OPP_OFF_SEED_H1,OFF_SEED_H1,SUP_HTL_1,HOTEL,INV_H1,GOA,2026-12-17,3000.0,729.38,2,100,NOT_SELECTED_BY_OPTIMAL_ALLOCATION,Not selected in the optimal portfolio allocation. Other candidate offers provided higher expected contribution density within the available budget and portfolio constraints.

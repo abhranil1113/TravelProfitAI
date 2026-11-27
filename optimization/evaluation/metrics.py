@@ -29,7 +29,12 @@ class MetricsCalculator:
         profit_lift_vs_greedy_contrib: Optional[float] = None
     ) -> EvaluationMetrics:
         cand_map: Dict[str, CandidateOffer] = {c.opportunity_id: c for c in candidates}
-        total_budget = config.total_budget
+        if config.flight_budget_max == 0.0 and config.hotel_budget_max is not None:
+            total_budget = float(config.hotel_budget_max)
+        elif config.hotel_budget_max == 0.0 and config.flight_budget_max is not None:
+            total_budget = float(config.flight_budget_max)
+        else:
+            total_budget = float(config.total_budget)
         total_spend = solver_result.total_spend
         remaining_budget = max(0.0, total_budget - total_spend)
         budget_util_pct = (total_spend / total_budget * 100.0) if total_budget > 0 else 0.0

@@ -12,8 +12,8 @@ Target leakage occurs when features contain information that would not be availa
 This audit evaluates all candidate features against their prediction cutoff timestamps across all seven analytical domains.
 
 - **Total Features Evaluated:** 234
-- **Eligible Features Approved for Modeling:** 224
-- **Quarantined / Post-Event Excluded Variables:** 13
+- **Eligible Features Approved for Modeling:** 217
+- **Quarantined / Post-Event Excluded Variables:** 20
 
 ---
 
@@ -96,7 +96,7 @@ The following variables contain post-event outcome information, circular formula
 | hotel_cancellation_features | currency | is_canceled | Booking Creation Time (Pre-Arrival) | None | Include | Feature observed prior to prediction cutoff; zero target information. |
 | hotel_cancellation_features | arrival_date | is_canceled | Booking Creation Time (Pre-Arrival) | None | Include | Feature observed prior to prediction cutoff; zero target information. |
 | flight_price_features | price | price | Flight Search Quote Time (Pre-Departure) | Target Variable | Target Only | Supervised regression label; excluded from input feature matrix. |
-| flight_price_features | price_log | price | Flight Search Quote Time (Pre-Departure) | None | Include | Transformed target or log representation for training. |
+| flight_price_features | price_log | price | Flight Search Quote Time (Pre-Departure) | Critical / Direct Target Transform | Quarantined / Excluded | Log transformation of target regression price; must never enter inputs. |
 | flight_price_features | days_left | price | Flight Search Quote Time (Pre-Departure) | None | Include | Feature observed prior to prediction cutoff; zero target information. |
 | flight_price_features | days_left_bucket | price | Flight Search Quote Time (Pre-Departure) | None | Include | Feature observed prior to prediction cutoff; zero target information. |
 | flight_price_features | days_left_log | price | Flight Search Quote Time (Pre-Departure) | None | Include | Feature observed prior to prediction cutoff; zero target information. |
@@ -114,7 +114,7 @@ The following variables contain post-event outcome information, circular formula
 | flight_price_features | route | price | Flight Search Quote Time (Pre-Departure) | None | Include | Feature observed prior to prediction cutoff; zero target information. |
 | flight_price_features | departure_time | price | Flight Search Quote Time (Pre-Departure) | None | Include | Feature observed prior to prediction cutoff; zero target information. |
 | flight_price_features | arrival_time | price | Flight Search Quote Time (Pre-Departure) | None | Include | Feature observed prior to prediction cutoff; zero target information. |
-| flight_price_features | price_record_id | price | Flight Search Quote Time (Pre-Departure) | None | Include | Transformed target or log representation for training. |
+| flight_price_features | price_record_id | price | Flight Search Quote Time (Pre-Departure) | Metadata Identifier | Excluded Identifier | Synthetic surrogate identifier; excluded from model features. |
 | flight_price_features | currency | price | Flight Search Quote Time (Pre-Departure) | None | Include | Feature observed prior to prediction cutoff; zero target information. |
 | flight_operations_features | year | ARRIVAL_DELAY | Scheduled Flight Departure Time | None | Include | Feature observed prior to prediction cutoff; zero target information. |
 | flight_operations_features | month | ARRIVAL_DELAY | Scheduled Flight Departure Time | None | Include | Feature observed prior to prediction cutoff; zero target information. |
@@ -132,11 +132,11 @@ The following variables contain post-event outcome information, circular formula
 | flight_operations_features | origin_airport | ARRIVAL_DELAY | Scheduled Flight Departure Time | None | Include | Feature observed prior to prediction cutoff; zero target information. |
 | flight_operations_features | destination_airport | ARRIVAL_DELAY | Scheduled Flight Departure Time | None | Include | Feature observed prior to prediction cutoff; zero target information. |
 | flight_operations_features | route | ARRIVAL_DELAY | Scheduled Flight Departure Time | None | Include | Feature observed prior to prediction cutoff; zero target information. |
-| flight_operations_features | is_cancelled | ARRIVAL_DELAY | Scheduled Flight Departure Time | None | Include | Feature observed prior to prediction cutoff; zero target information. |
-| flight_operations_features | is_diverted | ARRIVAL_DELAY | Scheduled Flight Departure Time | None | Include | Feature observed prior to prediction cutoff; zero target information. |
-| flight_operations_features | arrival_delay_minutes | ARRIVAL_DELAY | Scheduled Flight Departure Time | None | Include | Feature observed prior to prediction cutoff; zero target information. |
-| flight_operations_features | departure_delay_minutes | ARRIVAL_DELAY | Scheduled Flight Departure Time | None | Include | Feature observed prior to prediction cutoff; zero target information. |
-| flight_operations_features | is_ontime_arrival | ARRIVAL_DELAY | Scheduled Flight Departure Time | None | Include | Feature observed prior to prediction cutoff; zero target information. |
+| flight_operations_features | is_cancelled | ARRIVAL_DELAY | Scheduled Flight Departure Time | Critical / Post-Flight Operational Outcome | Quarantined / Excluded | Observed only after scheduled flight departure/arrival; unavailable at booking/procurement time. |
+| flight_operations_features | is_diverted | ARRIVAL_DELAY | Scheduled Flight Departure Time | Critical / Post-Flight Operational Outcome | Quarantined / Excluded | Observed only after scheduled flight departure/arrival; unavailable at booking/procurement time. |
+| flight_operations_features | arrival_delay_minutes | ARRIVAL_DELAY | Scheduled Flight Departure Time | Critical / Post-Flight Operational Outcome | Quarantined / Excluded | Observed only after scheduled flight departure/arrival; unavailable at booking/procurement time. |
+| flight_operations_features | departure_delay_minutes | ARRIVAL_DELAY | Scheduled Flight Departure Time | Critical / Post-Flight Operational Outcome | Quarantined / Excluded | Observed only after scheduled flight departure/arrival; unavailable at booking/procurement time. |
+| flight_operations_features | is_ontime_arrival | ARRIVAL_DELAY | Scheduled Flight Departure Time | Critical / Post-Flight Operational Outcome | Quarantined / Excluded | Observed only after scheduled flight departure/arrival; unavailable at booking/procurement time. |
 | flight_operations_features | unit | ARRIVAL_DELAY | Scheduled Flight Departure Time | None | Include | Feature observed prior to prediction cutoff; zero target information. |
 | customer_demand_features | search_id | search_volume | Prior Time-Window Horizon | None | Include | Feature observed prior to prediction cutoff; zero target information. |
 | customer_demand_features | user_id | search_volume | Prior Time-Window Horizon | None | Include | Feature observed prior to prediction cutoff; zero target information. |

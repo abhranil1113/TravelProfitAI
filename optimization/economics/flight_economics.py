@@ -31,7 +31,7 @@ class FlightEconomicsCalculator:
         eta = self.assumptions.flight_price_elasticity
 
         if p <= 0 or p_ml <= 0:
-            return theta_0
+            return max(self.assumptions.flight_min_sell_through, min(self.assumptions.flight_max_sell_through, theta_0))
 
         if p > p_ml:
             ratio = p_ml / p

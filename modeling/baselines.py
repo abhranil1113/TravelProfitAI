@@ -59,10 +59,10 @@ class NaiveForecaster(BaseEstimator, RegressorMixin):
                     state["lag_col_idx"] = int(matches[0])
             except Exception:
                 pass
-        # Fallback to standard 15-feature panel index if lag_col is lag_1
+        # Fallback to standard ColumnTransformer numerical-first index for lag_1
         if state.get("lag_col_idx_") is None and state.get("lag_col") == "lag_1":
-            state["lag_col_idx_"] = 5
-            state["lag_col_idx"] = 5
+            state["lag_col_idx_"] = 3
+            state["lag_col_idx"] = 3
         self.__dict__.update(state)
 
     def fit(self, X, y=None):

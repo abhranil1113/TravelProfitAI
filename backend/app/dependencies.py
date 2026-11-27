@@ -23,17 +23,27 @@ def get_current_user(
         raise AuthenticationError("Authentication token is missing.")
     try:
         payload = decode_access_token(token)
-        user_id = payload.get("sub")
-        if user_id is None:
+        sub = payload.get("sub")
+        if sub is None:
             raise AuthenticationError("Token payload is missing subject.")
+        user_id = int(sub)
+    except AuthenticationError:
+        raise
     except Exception:
         raise AuthenticationError("Token is invalid or expired.")
 
-    user = db.query(User).filter(User.id == int(user_id)).first()
+    user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise AuthenticationError("User not found.")
     if not user.is_active:
         raise PermissionDeniedError("User account is deactivated.")
+    if user.password_changed_at is not None and payload.get("iat") is not None:
+        from datetime import timezone
+        pwd_ts = int(
+            (user.password_changed_at.replace(tzinfo=timezone.utc) if user.password_changed_at.tzinfo is None else user.password_changed_at).timestamp()
+        )
+        if int(payload["iat"]) < pwd_ts:
+            raise AuthenticationError("Token invalidated by subsequent password change.")
     return user
 
 

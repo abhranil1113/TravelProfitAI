@@ -176,7 +176,7 @@ class AuthService:
         user_agent: Optional[str] = None,
     ) -> TokenResponse:
         t_hash = hash_token(raw_refresh_token)
-        token_record = db.query(RefreshToken).filter(RefreshToken.token_hash == t_hash).first()
+        token_record = db.query(RefreshToken).filter(RefreshToken.token_hash == t_hash).with_for_update().first()
 
         if not token_record:
             raise AuthenticationError("Invalid refresh token.")
@@ -211,16 +211,17 @@ class AuthService:
         # Revoke old token
         token_record.revoked_at = now
 
-        # Create new rotated token in same family
+        # Create new rotated token in same family & link replaced_by_token_id accurately
         new_raw_token = generate_secure_token()
         new_token_record = RefreshToken(
             user_id=user.id,
             token_hash=hash_token(new_raw_token),
             token_family_id=token_record.token_family_id,
-            replaced_by_token_id=token_record.id,
             expires_at=now + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
         )
         db.add(new_token_record)
+        db.flush()
+        token_record.replaced_by_token_id = new_token_record.id
 
         permissions = user.custom_permissions_json if isinstance(user.custom_permissions_json, list) else []
         new_access_token = create_access_token(

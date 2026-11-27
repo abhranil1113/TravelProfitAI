@@ -90,7 +90,14 @@ class PipelineService:
             cleaner = cleaning_map.get(ds_name)
             if cleaner:
                 clean_df, meta = cleaner(raw_df)
-                dups = meta.get("duplicates_dropped", 0) if isinstance(meta, dict) else 0
+                dups = (
+                    meta.get("duplicates_dropped")
+                    or meta.get("exact_duplicates_removed")
+                    or meta.get("rows_removed")
+                    or 0
+                    if isinstance(meta, dict)
+                    else 0
+                )
             else:
                 clean_df = raw_df.drop_duplicates()
                 dups = len(raw_df) - len(clean_df)
@@ -103,9 +110,9 @@ class PipelineService:
 
             batch.rows_ingested = len(clean_df)
             batch.rows_rejected = max(0, len(raw_df) - len(clean_df))
-            batch.rows_duplicates_removed = dups
+            batch.rows_duplicates_removed = int(dups)
             batch.processed_parquet_path = str(out_parquet)
-            batch.status = PipelineStatus.COMPLETED
+            batch.status = PipelineStatus.SUCCESS
             batch.error_message = None
             batch.processing_completed_at = datetime.now(timezone.utc)
 

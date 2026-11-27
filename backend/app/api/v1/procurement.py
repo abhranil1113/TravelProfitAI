@@ -32,7 +32,7 @@ fulfillments_router = APIRouter(prefix="/purchase-order-fulfillments", tags=["15
 def list_purchase_orders(
     current_user: Annotated[User, Depends(require_roles(UserRole.PROCUREMENT_MANAGER, UserRole.ADMIN))],
     db: Annotated[Session, Depends(get_db)],
-    supplier_id: Optional[int] = None,
+    supplier_id: Optional[str] = None,
     po_status: Optional[POStatus] = Query(None, alias="status"),
     budget_id: Optional[int] = None,
     page: int = Query(1, ge=1),

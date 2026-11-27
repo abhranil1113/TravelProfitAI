@@ -3,12 +3,15 @@ from __future__ import annotations
 import csv
 import io
 import json
+import logging
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from backend.app.core.exceptions import (
     BadRequestException,
@@ -166,6 +169,16 @@ class OptimizationService:
             target_currency=req.target_currency or "INR",
             allow_prototype_currency_override=True if req.allow_prototype_currency_override or (req.target_currency or "INR") == "INR" else False,
         )
+
+        from backend.app.models.schema import OfferStatus, SupplierOffer
+
+        active_offer_count = db.query(SupplierOffer).filter(
+            SupplierOffer.status == OfferStatus.ACTIVE
+        ).count()
+        if active_offer_count == 0:
+            raise BadRequestException(
+                "No active supplier offers available in database. Create or import supplier offers before running optimization."
+            )
 
         pipeline = OptimizationPipeline(opt_config, base_dir=".", db=db)
         plan = pipeline.run(output_dir="data/optimization")
@@ -380,7 +393,14 @@ class OptimizationService:
 
         # Real procurement recommendations persisted to database
         from backend.app.core.exceptions import EntityNotFoundError
-        from backend.app.models.schema import Destination, InventoryCategory, OfferStatus, Supplier, SupplierOffer, SupplierType, UnitType
+        from backend.app.models.schema import (
+            Destination,
+            InventoryCategory,
+            RejectedOpportunity,
+            Supplier,
+            SupplierOffer,
+            UnitType,
+        )
         for rec in plan.recommendations:
             # Ensure foreign key entities exist
             dest_code = str(rec.destination_id).upper()
@@ -414,12 +434,56 @@ class OptimizationService:
                 expected_unit_contribution_inr=Decimal(str(round(rec.expected_unit_contribution, 2))),
                 expected_total_contribution_inr=Decimal(str(round(rec.expected_total_net_profit, 2))),
                 sell_through_rate=float(rec.expected_sell_through),
-                moq_applied=1,
-                capacity_available=rec.procurement_quantity,
+                moq_applied=int(offer_entity.moq or 1),
+                capacity_available=int(offer_entity.max_capacity or rec.procurement_quantity),
                 rationale=rec.selection_rationale,
                 approval_status=ApprovalStatus.PENDING,
             )
             db.add(db_rec)
+
+        # Persist rejected opportunities where matching catalog FKs exist
+        from backend.app.models.schema import RejectionReasonCode as DBRejectionReasonCode
+
+        _reason_fallback_map = {
+            "DESTINATION_CAP_BINDING": DBRejectionReasonCode.SUPPLIER_CAP_BINDING,
+            "INSUFFICIENT_SUPPLIER_CAPACITY": DBRejectionReasonCode.MOQ_EXCEEDS_DEMAND,
+            "CATEGORY_BUDGET_LIMIT": DBRejectionReasonCode.MOQ_EXCEEDS_BUDGET,
+            "INVALID_CURRENCY": DBRejectionReasonCode.NOT_SELECTED_BY_OPTIMAL_ALLOCATION,
+            "INVALID_COMMERCIAL_INPUT": DBRejectionReasonCode.NEGATIVE_CONTRIBUTION,
+        }
+        for rej in getattr(plan, "rejected_opportunities", []):
+            off_code = str(rej.offer_id)
+            supp_code = str(rej.supplier_id).upper()
+            dest_code = str(rej.destination_id).upper()
+            if (
+                db.query(SupplierOffer.offer_id).filter(SupplierOffer.offer_id == off_code).first()
+                and db.query(Supplier.supplier_id).filter(Supplier.supplier_id == supp_code).first()
+                and db.query(Destination.dest_id).filter(Destination.dest_id == dest_code).first()
+            ):
+                inv_cat = InventoryCategory.HOTEL if str(rej.inventory_type).upper() == "HOTEL" else InventoryCategory.FLIGHT
+                u_type = UnitType.ROOM_NIGHT if inv_cat == InventoryCategory.HOTEL else UnitType.SEAT
+                moq_cost = Decimal(str(round(float(rej.moq) * float(rej.unit_purchase_cost), 2)))
+                raw_reason = str(rej.rejection_primary_reason or "NOT_SELECTED_BY_OPTIMAL_ALLOCATION")
+                try:
+                    db_reason = DBRejectionReasonCode(raw_reason)
+                    detail_txt = str(rej.rejection_explanation or "")
+                except ValueError:
+                    db_reason = _reason_fallback_map.get(
+                        raw_reason, DBRejectionReasonCode.NOT_SELECTED_BY_OPTIMAL_ALLOCATION
+                    )
+                    detail_txt = f"[{raw_reason}] {rej.rejection_explanation or ''}".strip()
+                db.add(RejectedOpportunity(
+                    run_id=run_id,
+                    offer_id=off_code,
+                    supplier_id=supp_code,
+                    dest_id=dest_code,
+                    inventory_category=inv_cat,
+                    unit_type=u_type,
+                    reason_code=db_reason,
+                    reason_detail=detail_txt,
+                    expected_unit_contribution_inr=Decimal(str(round(float(rej.expected_unit_contribution), 2))),
+                    moq_cost_inr=moq_cost,
+                ))
 
         audit = AuditLog(
             user_id=user_id,
@@ -494,7 +558,11 @@ class OptimizationService:
 
     @staticmethod
     def cancel_run(db: Session, run_id: str, user_id: int) -> OptimizationRun:
-        run = OptimizationService.get_run(db, run_id)
+        run = db.execute(
+            select(OptimizationRun).where(OptimizationRun.run_id == run_id).with_for_update()
+        ).scalar_one_or_none()
+        if not run:
+            raise NotFoundException(f"Optimization run {run_id} not found")
         if run.pipeline_status in (PipelineStatus.SUCCESS, PipelineStatus.FAILED, PipelineStatus.CANCELLED):
             raise BadRequestException(f"Cannot cancel run in status '{run.pipeline_status.value}'")
 
@@ -552,7 +620,11 @@ class OptimizationService:
 
     @staticmethod
     def approve_run(db: Session, run_id: str, notes: Optional[str], user_id: int) -> OptimizationRun:
-        run = OptimizationService.get_run(db, run_id)
+        run = db.execute(
+            select(OptimizationRun).where(OptimizationRun.run_id == run_id).with_for_update()
+        ).scalar_one_or_none()
+        if not run:
+            raise NotFoundException(f"Optimization run {run_id} not found")
         if run.approval_status != ApprovalStatus.PENDING:
             raise BadRequestException(f"Run is already in status '{run.approval_status.value}'")
 
@@ -566,7 +638,7 @@ class OptimizationService:
             select(ProcurementRecommendation).where(
                 ProcurementRecommendation.run_id == run_id,
                 ProcurementRecommendation.approval_status == ApprovalStatus.PENDING,
-            )
+            ).with_for_update()
         ).scalars().all()
         for r in recs:
             r.approval_status = ApprovalStatus.APPROVED
@@ -584,15 +656,15 @@ class OptimizationService:
         db.commit()
         db.refresh(run)
 
-        # Trigger real-time notification for optimization cancellation
+        # Trigger real-time notification for optimization approval
         NotificationService.notify_sync(
-            event_type=EventTypes.OPTIMIZATION_FAILED,
-            title="Optimization Cancelled",
-            message=f"Optimization run {run.run_id} has been cancelled.",
+            event_type=EventTypes.OPTIMIZATION_COMPLETED,
+            title="Optimization Plan Approved",
+            message=f"Optimization run {run.run_id} ({len(recs)} recommendations) has been approved.",
             recipient_ids=[user_id],
-            roles=[RoleNames.ANALYST, RoleNames.ADMIN],
+            roles=[RoleNames.ANALYST, RoleNames.ADMIN, RoleNames.PROCUREMENT_MANAGER],
             category=NotificationCategory.OPTIMIZATION.value,
-            severity="WARNING",
+            severity="SUCCESS",
             entity_type="optimization_run",
             entity_id=run.run_id,
             source_module="optimization",
@@ -604,7 +676,11 @@ class OptimizationService:
 
     @staticmethod
     def reject_run(db: Session, run_id: str, notes: Optional[str], user_id: int) -> OptimizationRun:
-        run = OptimizationService.get_run(db, run_id)
+        run = db.execute(
+            select(OptimizationRun).where(OptimizationRun.run_id == run_id).with_for_update()
+        ).scalar_one_or_none()
+        if not run:
+            raise NotFoundException(f"Optimization run {run_id} not found")
         if run.approval_status != ApprovalStatus.PENDING:
             raise BadRequestException(f"Run is already in status '{run.approval_status.value}'")
 
@@ -618,7 +694,7 @@ class OptimizationService:
             select(ProcurementRecommendation).where(
                 ProcurementRecommendation.run_id == run_id,
                 ProcurementRecommendation.approval_status == ApprovalStatus.PENDING,
-            )
+            ).with_for_update()
         ).scalars().all()
         for r in recs:
             r.approval_status = ApprovalStatus.REJECTED
@@ -636,13 +712,13 @@ class OptimizationService:
         db.commit()
         db.refresh(run)
 
-        # Trigger real-time notification for optimization cancellation
+        # Trigger real-time notification for optimization rejection
         NotificationService.notify_sync(
             event_type=EventTypes.OPTIMIZATION_FAILED,
-            title="Optimization Cancelled",
-            message=f"Optimization run {run.run_id} has been cancelled.",
+            title="Optimization Plan Rejected",
+            message=f"Optimization run {run.run_id} has been rejected.",
             recipient_ids=[user_id],
-            roles=[RoleNames.ANALYST, RoleNames.ADMIN],
+            roles=[RoleNames.ANALYST, RoleNames.ADMIN, RoleNames.PROCUREMENT_MANAGER],
             category=NotificationCategory.OPTIMIZATION.value,
             severity="WARNING",
             entity_type="optimization_run",
@@ -815,13 +891,17 @@ class OptimizationService:
 
     @staticmethod
     def generate_purchase_orders(db: Session, run_id: str, user_id: int) -> GeneratePurchaseOrdersResponse:
-        run = OptimizationService.get_run(db, run_id)
+        run = db.execute(
+            select(OptimizationRun).where(OptimizationRun.run_id == run_id).with_for_update()
+        ).scalar_one_or_none()
+        if not run:
+            raise NotFoundException(f"Optimization run {run_id} not found")
         recs = list(
             db.execute(
                 select(ProcurementRecommendation).where(
                     ProcurementRecommendation.run_id == run_id,
                     ProcurementRecommendation.approval_status == ApprovalStatus.APPROVED,
-                )
+                ).with_for_update()
             ).scalars().all()
         )
 

@@ -1,27 +1,53 @@
-dataset_name,rule_id,rule_name,condition,violation_count,severity,action_taken
-customer_search_events,BR_SE_01,Search ID Uniqueness,search_id must be strictly unique,0,CRITICAL,Validated - 100% Unique
-customer_search_events,BR_SE_02,Chronological Validity,travel_date >= search_date,0,HIGH,Validated - No retrospective travel dates found
-customer_search_events,BR_SE_03,Positive Travellers Count,travellers_count > 0,0,HIGH,Validated - All customer searches have >= 1 traveller
-customer_search_events,BR_SE_04,Hotel Room Specification,rooms_count > 0 when inventory_type == 'HOTEL',0,MEDIUM,Validated - All hotel searches specify >= 1 room
-customer_search_events,BR_SE_05,Non-Negative Search Price,search_price >= 0,0,HIGH,Validated - No negative search prices
-customer_search_events,BR_SE_06,Conversion Funnel Integrity,booking_completed == True implies clicked == True,0,MEDIUM,Validated - Funnel progression logically sound
-supplier_offers,BR_SO_01,Offer ID Uniqueness,offer_id must be strictly unique,0,CRITICAL,Validated - 100% Unique
-supplier_offers,BR_SO_02,Non-Negative Pricing,purchase_cost >= 0 and selling_price >= 0,0,HIGH,Validated - All costs and prices non-negative
-supplier_offers,BR_SO_03,Order Quantity Feasibility,minimum_purchase_qty <= available_quantity,0,HIGH,Validated - Minimum procurement quantity is attainable
-supplier_offers,BR_SO_04,Negative Margin Flag,purchase_cost <= selling_price,0,WARNING,Flagged for business analysis; 0 loss-leader offers detected
-supplier_offers,BR_SO_05,Offer Expiration Horizon,offer_valid_until <= travel_date,0,LOW,Confirmed: All supplier offers expire prior to travel date
-inventory_availability,BR_IA_01,Snapshot ID Uniqueness,snapshot_id must be unique,0,CRITICAL,Validated - 100% Unique snapshots
-inventory_availability,BR_IA_02,Inventory Balance Equation,available_quantity == total_capacity - booked_quantity,0,CRITICAL,Validated - Perfect capacity conservation across all snapshots
-inventory_availability,BR_IA_03,Sold Out Indicator Consistency,sold_out == True iff available_quantity == 0,0,HIGH,Validated - Sold out status strictly matches zero availability
-inventory_availability,BR_IA_04,Overbooking Constraint,booked_quantity <= total_capacity,0,HIGH,Validated - No unbacked overbooking violations
-market_seasonal_signals,BR_MS_01,Demand Index Boundedness,demand_index between 0.0 and 1.0,0,HIGH,"Validated - Normalized demand scale [0, 1]"
-market_seasonal_signals,BR_MS_02,Valid Month Number,month in 1..12,0,HIGH,Validated - Gregorian calendar month values
-market_seasonal_signals,BR_MS_03,Date-Month Synchronization,month matches calendar month of travel_date,0,HIGH,Validated - Full seasonal temporal consistency
-market_seasonal_signals,BR_MS_04,Non-Negative Precipitation,rainfall_mm >= 0.0,0,MEDIUM,Validated - Non-negative rainfall measurements
-flight_prices,BR_FP_01,Strictly Positive Ticket Price,price > 0,0,CRITICAL,Validated - All 300k prices strictly positive
-flight_prices,BR_FP_02,Strictly Positive Flight Duration,duration > 0,0,HIGH,Validated - Flight durations strictly positive (min 0.83 hrs)
-hotel_bookings,BR_HB_01,Non-Negative Average Daily Rate,adr >= 0.0,1,HIGH,Detected 1 negative ADR record (-6.38); cleaned in pipeline
-hotel_bookings,BR_HB_02,Guest Occupancy Validation,adults + children + babies >= 1,180,HIGH,Detected 180 phantom bookings with 0 occupants; cleaned in pipeline
-hotel_bookings,BR_HB_03,Extreme ADR Outlier Check,adr <= 5000,1,MEDIUM,Detected 1 extreme outlier (adr=5400.0); cleaned in pipeline
-flights,BR_FL_01,Positive Flight Route Distance,DISTANCE > 0,0,HIGH,Validated - All route distances positive
-flights,BR_FL_02,Cancellation Reason Tracking,CANCELLATION_REASON populated when CANCELLED == 1,0,LOW,Preserved legitimate cancelled flight audit records
+dataset_name,rule_id,rule_name,condition,violation_count,severity,action_taken,stage
+customer_search_events,BR_SE_01,Search ID Uniqueness,search_id must be strictly unique,0,CRITICAL,Validated - 100% Unique,raw
+customer_search_events,BR_SE_02,Chronological Validity,travel_date >= search_date,0,HIGH,Validated - No retrospective travel dates found,raw
+customer_search_events,BR_SE_03,Positive Travellers Count,travellers_count > 0,0,HIGH,Validated - All customer searches have >= 1 traveller,raw
+customer_search_events,BR_SE_04,Hotel Room Specification,rooms_count > 0 when inventory_type == 'HOTEL',0,MEDIUM,Validated - All hotel searches specify >= 1 room,raw
+customer_search_events,BR_SE_05,Non-Negative Search Price,search_price >= 0,0,HIGH,Validated - No negative search prices,raw
+customer_search_events,BR_SE_06,Conversion Funnel Integrity,booking_completed == True implies clicked == True,0,MEDIUM,Validated - Funnel progression logically sound,raw
+supplier_offers,BR_SO_01,Offer ID Uniqueness,offer_id must be strictly unique,0,CRITICAL,Validated - 100% Unique,raw
+supplier_offers,BR_SO_02,Non-Negative Pricing,purchase_cost >= 0 and selling_price >= 0,0,HIGH,Validated - All costs and prices non-negative,raw
+supplier_offers,BR_SO_03,Order Quantity Feasibility,minimum_purchase_qty <= available_quantity,0,HIGH,Validated - Minimum procurement quantity is attainable,raw
+supplier_offers,BR_SO_04,Negative Margin Flag,purchase_cost <= selling_price,0,WARNING,Flagged for business analysis; 0 loss-leader offers detected,raw
+supplier_offers,BR_SO_05,Offer Expiration Horizon,offer_valid_until <= travel_date,0,LOW,Confirmed: All supplier offers expire prior to travel date,raw
+inventory_availability,BR_IA_01,Snapshot ID Uniqueness,snapshot_id must be unique,0,CRITICAL,Validated - 100% Unique snapshots,raw
+inventory_availability,BR_IA_02,Inventory Balance Equation,available_quantity == total_capacity - booked_quantity,0,CRITICAL,Validated - Perfect capacity conservation across all snapshots,raw
+inventory_availability,BR_IA_03,Sold Out Indicator Consistency,sold_out == True iff available_quantity == 0,0,HIGH,Validated - Sold out status strictly matches zero availability,raw
+inventory_availability,BR_IA_04,Overbooking Constraint,booked_quantity <= total_capacity,0,HIGH,Validated - No unbacked overbooking violations,raw
+market_seasonal_signals,BR_MS_01,Demand Index Boundedness,demand_index between 0.0 and 1.0,0,HIGH,"Validated - Normalized demand scale [0, 1]",raw
+market_seasonal_signals,BR_MS_02,Valid Month Number,month in 1..12,0,HIGH,Validated - Gregorian calendar month values,raw
+market_seasonal_signals,BR_MS_03,Date-Month Synchronization,month matches calendar month of travel_date,0,HIGH,Validated - Full seasonal temporal consistency,raw
+market_seasonal_signals,BR_MS_04,Non-Negative Precipitation,rainfall_mm >= 0.0,0,MEDIUM,Validated - Non-negative rainfall measurements,raw
+flight_prices,BR_FP_01,Strictly Positive Ticket Price,price > 0,0,CRITICAL,Validated - All 300k prices strictly positive,raw
+flight_prices,BR_FP_02,Strictly Positive Flight Duration,duration > 0,0,HIGH,Validated - Flight durations strictly positive (min 0.83 hrs),raw
+hotel_bookings,BR_HB_01,Non-Negative Average Daily Rate,adr >= 0.0,1,HIGH,Detected 1 negative ADR record (-6.38); cleaned in pipeline,raw
+hotel_bookings,BR_HB_02,Guest Occupancy Validation,adults + children + babies >= 1,180,HIGH,Detected 180 phantom bookings with 0 occupants; cleaned in pipeline,raw
+hotel_bookings,BR_HB_03,Extreme ADR Outlier Check,adr <= 5000,1,MEDIUM,Detected 1 extreme outlier (adr=5400.0); cleaned in pipeline,raw
+flights,BR_FL_01,Positive Flight Route Distance,DISTANCE > 0,0,HIGH,Validated - All route distances positive,raw
+flights,BR_FL_02,Cancellation Reason Tracking,CANCELLATION_REASON populated when CANCELLED == 1,0,LOW,Preserved legitimate cancelled flight audit records,raw
+customer_search_events,BR_SE_01,Search ID Uniqueness,search_id must be strictly unique,0,CRITICAL,Validated - 100% Unique,processed
+customer_search_events,BR_SE_02,Chronological Validity,travel_date >= search_date,0,HIGH,Validated - No retrospective travel dates found,processed
+customer_search_events,BR_SE_03,Positive Travellers Count,travellers_count > 0,0,HIGH,Validated - All customer searches have >= 1 traveller,processed
+customer_search_events,BR_SE_04,Hotel Room Specification,rooms_count > 0 when inventory_type == 'HOTEL',0,MEDIUM,Validated - All hotel searches specify >= 1 room,processed
+customer_search_events,BR_SE_05,Non-Negative Search Price,search_price >= 0,0,HIGH,Validated - No negative search prices,processed
+customer_search_events,BR_SE_06,Conversion Funnel Integrity,booking_completed == True implies clicked == True,0,MEDIUM,Validated - Funnel progression logically sound,processed
+supplier_offers,BR_SO_01,Offer ID Uniqueness,offer_id must be strictly unique,0,CRITICAL,Validated - 100% Unique,processed
+supplier_offers,BR_SO_02,Non-Negative Pricing,purchase_cost >= 0 and selling_price >= 0,0,HIGH,Validated - All costs and prices non-negative,processed
+supplier_offers,BR_SO_03,Order Quantity Feasibility,minimum_purchase_qty <= available_quantity,0,HIGH,Validated - Minimum procurement quantity is attainable,processed
+supplier_offers,BR_SO_04,Negative Margin Flag,purchase_cost <= selling_price,0,WARNING,Flagged for business analysis; 0 loss-leader offers detected,processed
+supplier_offers,BR_SO_05,Offer Expiration Horizon,offer_valid_until <= travel_date,0,LOW,Confirmed: All supplier offers expire prior to travel date,processed
+inventory_availability,BR_IA_01,Snapshot ID Uniqueness,snapshot_id must be unique,0,CRITICAL,Validated - 100% Unique snapshots,processed
+inventory_availability,BR_IA_02,Inventory Balance Equation,available_quantity == total_capacity - booked_quantity,0,CRITICAL,Validated - Perfect capacity conservation across all snapshots,processed
+inventory_availability,BR_IA_03,Sold Out Indicator Consistency,sold_out == True iff available_quantity == 0,0,HIGH,Validated - Sold out status strictly matches zero availability,processed
+inventory_availability,BR_IA_04,Overbooking Constraint,booked_quantity <= total_capacity,0,HIGH,Validated - No unbacked overbooking violations,processed
+market_seasonal_signals,BR_MS_01,Demand Index Boundedness,demand_index between 0.0 and 1.0,0,HIGH,"Validated - Normalized demand scale [0, 1]",processed
+market_seasonal_signals,BR_MS_02,Valid Month Number,month in 1..12,0,HIGH,Validated - Gregorian calendar month values,processed
+market_seasonal_signals,BR_MS_03,Date-Month Synchronization,month matches calendar month of travel_date,0,HIGH,Validated - Full seasonal temporal consistency,processed
+market_seasonal_signals,BR_MS_04,Non-Negative Precipitation,rainfall_mm >= 0.0,0,MEDIUM,Validated - Non-negative rainfall measurements,processed
+flight_prices,BR_FP_01,Strictly Positive Ticket Price,price > 0,0,CRITICAL,Validated - All 300k prices strictly positive,processed
+flight_prices,BR_FP_02,Strictly Positive Flight Duration,duration > 0,0,HIGH,Validated - Flight durations strictly positive (min 0.83 hrs),processed
+hotel_bookings,BR_HB_01,Non-Negative Average Daily Rate,adr >= 0.0,0,HIGH,Detected 0 negative ADR record (-6.38); cleaned in pipeline,processed
+hotel_bookings,BR_HB_02,Guest Occupancy Validation,adults + children + babies >= 1,0,HIGH,Detected 0 phantom bookings with 0 occupants; cleaned in pipeline,processed
+hotel_bookings,BR_HB_03,Extreme ADR Outlier Check,adr <= 5000,0,MEDIUM,Detected 0 extreme outlier (adr=5400.0); cleaned in pipeline,processed
+flights,BR_FL_01,Positive Flight Route Distance,DISTANCE > 0,0,HIGH,Validated - All route distances positive,processed
+flights,BR_FL_02,Cancellation Reason Tracking,CANCELLATION_REASON populated when CANCELLED == 1,0,LOW,Preserved legitimate cancelled flight audit records,processed

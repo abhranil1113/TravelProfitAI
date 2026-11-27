@@ -169,35 +169,26 @@ class MLEngine:
         from ml_engine.risk_prediction.risk_prediction_service import RiskPredictionService
         from ml_engine.inventory_forecasting.inventory_forecast_service import InventoryForecastService
 
+        from ml_engine.exceptions import ChecksumMismatchError, ArtifactCorruptedError
         reg = registry or ModelArtifactRegistry(base_dir=base_model_dir, db=db)
-        engine = cls(config=MLEngineConfig(base_model_dir=base_model_dir), registry=reg)
+        engine_cfg = getattr(reg, "config", None) or MLEngineConfig(base_model_dir=base_model_dir)
+        engine = cls(config=engine_cfg, registry=reg)
 
         # Register domain predictor handlers
-        try:
-            demand_svc = DemandForecastService(
+        for task_enum, svc_fn in (
+            (PredictionTask.DEMAND_FORECASTING, lambda: DemandForecastService(
                 registry=reg, searches_df=searches_df, optimization_timestamp=optimization_timestamp
-            )
-            engine.register_predictor(PredictionTask.DEMAND_FORECASTING, demand_svc.handle_prediction_request)
-        except Exception as e:
-            logger.debug("Demand service auto-registration skipped: %s", e)
-
-        try:
-            price_svc = PricePredictionService(registry=reg)
-            engine.register_predictor(PredictionTask.FLIGHT_PRICE, price_svc.handle_prediction_request)
-        except Exception as e:
-            logger.debug("Flight price service auto-registration skipped: %s", e)
-
-        try:
-            risk_svc = RiskPredictionService(registry=reg)
-            engine.register_predictor(PredictionTask.HOTEL_CANCELLATION, risk_svc.handle_prediction_request)
-        except Exception as e:
-            logger.debug("Hotel cancellation risk service auto-registration skipped: %s", e)
-
-        try:
-            inv_svc = InventoryForecastService(registry=reg)
-            engine.register_predictor(PredictionTask.INVENTORY_FORECASTING, inv_svc.handle_prediction_request)
-        except Exception as e:
-            logger.debug("Inventory forecast service auto-registration skipped: %s", e)
+            ).handle_prediction_request),
+            (PredictionTask.FLIGHT_PRICE, lambda: PricePredictionService(registry=reg).handle_prediction_request),
+            (PredictionTask.HOTEL_CANCELLATION, lambda: RiskPredictionService(registry=reg).handle_prediction_request),
+            (PredictionTask.INVENTORY_FORECASTING, lambda: InventoryForecastService(registry=reg).handle_prediction_request),
+        ):
+            try:
+                engine.register_predictor(task_enum, svc_fn())
+            except (ChecksumMismatchError, ArtifactCorruptedError):
+                raise
+            except Exception as e:
+                logger.warning("Service auto-registration skipped for %s: %s", task_enum.value, e)
 
         return engine
 
@@ -239,83 +230,86 @@ class MLEngine:
         the Future returns TIMEOUT to the caller immediately, but the thread continues executing until completion.
         The admission slot remains occupied until the underlying worker finishes, preventing thread pool starvation.
         """
-        if self._is_shutdown:
-            return PredictionResult(
-                task=request.task,
-                status=InferenceStatus.FAILED,
-                prediction=None,
-                error_message="MLEngine has been shut down; request rejected.",
-            )
+        with self._lifecycle_lock:
+            if self._is_shutdown:
+                return PredictionResult(
+                    task=request.task,
+                    status=InferenceStatus.FAILED,
+                    prediction=None,
+                    error_message="MLEngine has been shut down; request rejected.",
+                )
 
-        start_time = time.perf_counter()
+            start_time = time.perf_counter()
 
-        # 1. Bounded admission check: clamp admission wait to available budget
-        adm_timeout = 0.05
-        if admission_timeout_override is not None:
-            adm_timeout = max(0.001, admission_timeout_override)
-        elif timeout_override is not None:
-            adm_timeout = min(0.05, max(0.001, timeout_override))
+            # 1. Bounded admission check: clamp admission wait to available budget
+            adm_timeout = 0.05
+            if admission_timeout_override is not None:
+                adm_timeout = max(0.001, admission_timeout_override)
+            elif timeout_override is not None:
+                adm_timeout = min(0.05, max(0.001, timeout_override))
 
-        admitted = self._admission_semaphore.acquire(blocking=True, timeout=adm_timeout)
-        if not admitted:
-            latency_ms = float(round((time.perf_counter() - start_time) * 1000.0, 3))
-            logger.warning("Inference admission rejected: queue capacity saturated for task %s", request.task.value)
-            self._record_telemetry(request.task.value, latency_ms, is_success=False)
-            return PredictionResult(
-                task=request.task,
-                status=InferenceStatus.FAILED,
-                prediction=None,
-                latency_ms=latency_ms,
-                error_message="Inference rejected: engine queue capacity exceeded (admission overload).",
-            )
-
-        # 2. Check remaining execution time budget after queue admission
-        now = time.perf_counter()
-        elapsed_admission = now - start_time
-        if timeout_override is not None:
-            remaining_after_admission = timeout_override - elapsed_admission
-            if remaining_after_admission <= 0:
-                # Batch/overall deadline expired during queue admission; release slot immediately
-                self._admission_semaphore.release()
-                latency_ms = float(round(elapsed_admission * 1000.0, 3))
-                logger.warning("Inference deadline expired during queue admission for task %s", request.task.value)
+            admitted = self._admission_semaphore.acquire(blocking=True, timeout=adm_timeout)
+            if not admitted:
+                latency_ms = float(round((time.perf_counter() - start_time) * 1000.0, 3))
+                logger.warning("Inference admission rejected: queue capacity saturated for task %s", request.task.value)
                 self._record_telemetry(request.task.value, latency_ms, is_success=False)
                 return PredictionResult(
                     task=request.task,
-                    status=InferenceStatus.TIMEOUT,
+                    status=InferenceStatus.FAILED,
                     prediction=None,
                     latency_ms=latency_ms,
-                    error_message=f"Inference deadline expired during queue admission (elapsed: {latency_ms:.1f}ms).",
+                    error_message="Inference rejected: engine queue capacity exceeded (admission overload).",
                 )
-            timeout_sec = min(self.config.inference_timeout_seconds, remaining_after_admission)
-        else:
-            timeout_sec = self.config.inference_timeout_seconds
 
-        # 3. Submit task to thread pool
-        try:
-            future = self._executor.submit(self._execute_prediction, request)
-        except Exception as submit_exc:
-            # If submission fails (e.g. executor shut down concurrently), release immediately
-            self._admission_semaphore.release()
-            latency_ms = float(round((time.perf_counter() - start_time) * 1000.0, 3))
-            logger.error("Failed to submit inference task for %s: %s", request.task.value, submit_exc)
-            self._record_telemetry(request.task.value, latency_ms, is_success=False)
-            return PredictionResult(
-                task=request.task,
-                status=InferenceStatus.FAILED,
-                prediction=None,
-                latency_ms=latency_ms,
-                error_message=f"Task submission failed: {submit_exc}",
-            )
+            # 2. Check remaining execution time budget after queue admission
+            now = time.perf_counter()
+            elapsed_admission = now - start_time
+            if timeout_override is not None:
+                remaining_after_admission = timeout_override - elapsed_admission
+                if remaining_after_admission <= 0:
+                    # Batch/overall deadline expired during queue admission; release slot immediately
+                    self._admission_semaphore.release()
+                    latency_ms = float(round(elapsed_admission * 1000.0, 3))
+                    logger.warning("Inference deadline expired during queue admission for task %s", request.task.value)
+                    self._record_telemetry(request.task.value, latency_ms, is_success=False)
+                    return PredictionResult(
+                        task=request.task,
+                        status=InferenceStatus.TIMEOUT,
+                        prediction=None,
+                        latency_ms=latency_ms,
+                        error_message=f"Inference deadline expired during queue admission (elapsed: {latency_ms:.1f}ms).",
+                    )
+                timeout_sec = min(self.config.inference_timeout_seconds, remaining_after_admission)
+            else:
+                timeout_sec = self.config.inference_timeout_seconds
 
-        # Attach callback so admission slot is released ONLY when the worker actually finishes or is cancelled
-        future.add_done_callback(self._release_admission_slot)
+            # 3. Submit task to thread pool under lifecycle lock to eliminate shutdown/submit race
+            timed_out_event = threading.Event()
+            try:
+                future = self._executor.submit(self._execute_prediction, request, timed_out_event)
+            except Exception as submit_exc:
+                # If submission fails (e.g. executor shut down concurrently), release immediately
+                self._admission_semaphore.release()
+                latency_ms = float(round((time.perf_counter() - start_time) * 1000.0, 3))
+                logger.error("Failed to submit inference task for %s: %s", request.task.value, submit_exc)
+                self._record_telemetry(request.task.value, latency_ms, is_success=False)
+                return PredictionResult(
+                    task=request.task,
+                    status=InferenceStatus.FAILED,
+                    prediction=None,
+                    latency_ms=latency_ms,
+                    error_message=f"Task submission failed: {submit_exc}",
+                )
+
+            # Attach callback so admission slot is released ONLY when the worker actually finishes or is cancelled
+            future.add_done_callback(self._release_admission_slot)
 
         # 4. Wait up to clamped timeout threshold
         try:
             result = future.result(timeout=timeout_sec)
             return result
         except concurrent.futures.TimeoutError:
+            timed_out_event.set()
             latency_ms = float(round((time.perf_counter() - start_time) * 1000.0, 3))
             logger.error("Inference timed out for task %s after %.2fs", request.task.value, timeout_sec)
             self._record_telemetry(request.task.value, latency_ms, is_success=False)
@@ -329,6 +323,7 @@ class MLEngine:
                 error_message=f"Inference exceeded timeout of {timeout_sec:.2f}s",
             )
         except Exception as exc:
+            timed_out_event.set()
             latency_ms = float(round((time.perf_counter() - start_time) * 1000.0, 3))
             logger.error("Worker exception during inference for %s: %s", request.task.value, exc)
             self._record_telemetry(request.task.value, latency_ms, is_success=False)
@@ -340,9 +335,13 @@ class MLEngine:
                 error_message=str(exc),
             )
 
-    def _execute_prediction(self, request: PredictionRequest) -> PredictionResult:
+    def _execute_prediction(self, request: PredictionRequest, timed_out_event: Optional[threading.Event] = None) -> PredictionResult:
         """Internal worker executing model prediction."""
         start_time = time.perf_counter()
+
+        def _rec(latency: float, ok: bool, unsup: bool = False) -> None:
+            if timed_out_event is None or not timed_out_event.is_set():
+                self._record_telemetry(request.task.value, latency, is_success=ok, is_unsupported=unsup)
 
         try:
             # 0. Explicit unsupported tasks
@@ -357,13 +356,13 @@ class MLEngine:
 
                 is_success = (result.status == InferenceStatus.SUCCESS)
                 is_unsup = (result.status == InferenceStatus.UNSUPPORTED)
-                self._record_telemetry(request.task.value, latency_ms, is_success, is_unsup)
+                _rec(latency_ms, is_success, is_unsup)
                 return result
 
             # 2. Generic artifact loading fallback if registry is connected
             if self.registry is not None:
                 res = self._predict_via_registry(request, start_time)
-                self._record_telemetry(request.task.value, res.latency_ms, is_success=True)
+                _rec(res.latency_ms, True)
                 return res
 
             raise ModelNotFoundError(
@@ -372,7 +371,7 @@ class MLEngine:
 
         except UnsupportedPredictionError as upe:
             latency_ms = float(round((time.perf_counter() - start_time) * 1000.0, 3))
-            self._record_telemetry(request.task.value, latency_ms, is_success=False, is_unsupported=True)
+            _rec(latency_ms, False, True)
             logger.info("Prediction unsupported for task %s (%s): %s", request.task.value, request.entity_id, upe)
             return PredictionResult(
                 task=request.task,
@@ -383,7 +382,7 @@ class MLEngine:
             )
         except FeatureValidationError as fve:
             latency_ms = float(round((time.perf_counter() - start_time) * 1000.0, 3))
-            self._record_telemetry(request.task.value, latency_ms, is_success=False)
+            _rec(latency_ms, False)
             logger.warning("Feature validation failed for task %s: %s", request.task.value, fve)
             return PredictionResult(
                 task=request.task,
@@ -399,7 +398,7 @@ class MLEngine:
             )
         except Exception as exc:
             latency_ms = float(round((time.perf_counter() - start_time) * 1000.0, 3))
-            self._record_telemetry(request.task.value, latency_ms, is_success=False)
+            _rec(latency_ms, False)
             logger.error("Inference failure for task %s: %s", request.task.value, exc, exc_info=True)
             return PredictionResult(
                 task=request.task,
@@ -505,7 +504,8 @@ class MLEngine:
                 invalid_values=inv_vals,
             )
 
-        row_df = pd.DataFrame([request.features])[expected_features]
+        aligned = {f: request.features.get(f, np.nan) for f in expected_features} if expected_features else dict(request.features)
+        row_df = pd.DataFrame([aligned])[expected_features] if expected_features else pd.DataFrame([request.features])
         X_trans = preprocessor.transform(row_df) if preprocessor is not None else row_df
 
         # Predict

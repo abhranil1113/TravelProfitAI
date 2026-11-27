@@ -36,7 +36,8 @@ from backend.app.services.procurement_service import ProcurementService
 # SECTION 1: OPTIMIZATION SERVICE REAL SOLVER EXECUTION
 # ==============================================================================
 
-def test_optimization_real_execution(db):
+def test_optimization_real_execution(seeded_optimization_db):
+    db = seeded_optimization_db
     """Verify OptimizationService executes genuine OR-Tools solver and stores authentic metrics."""
     req = OptimizationRunTriggerRequest(
         optimization_mode=OptimizationMode.JOINT,
@@ -79,7 +80,8 @@ def test_optimization_real_execution(db):
     assert "optimization_summary.json" in filenames
 
 
-def test_optimization_compare_runs(db):
+def test_optimization_compare_runs(seeded_optimization_db):
+    db = seeded_optimization_db
     """Verify run comparison assigns comparison_group_id and retrieves compared runs."""
     req = OptimizationRunTriggerRequest(
         optimization_mode=OptimizationMode.HOTEL_ONLY,

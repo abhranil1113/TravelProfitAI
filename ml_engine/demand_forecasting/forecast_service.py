@@ -41,6 +41,19 @@ class DemandForecastService:
             self.optimization_timestamp = pd.Timestamp.now().strftime("%Y-%m-%d")
 
         self.estimator, self.preprocessor, self.metadata = self.registry.get_model(self.TASK_NAME)
+        if self.preprocessor is not None and hasattr(self.estimator, "lag_col") and hasattr(self.preprocessor, "get_feature_names_out"):
+            try:
+                out_names = list(self.preprocessor.get_feature_names_out())
+                lag_col = str(getattr(self.estimator, "lag_col", "lag_1"))
+                matched_idx = next(
+                    (i for i, n in enumerate(out_names) if n == lag_col or n.endswith(f"__{lag_col}")),
+                    None,
+                )
+                if matched_idx is not None:
+                    self.estimator.lag_col_idx_ = int(matched_idx)
+                    self.estimator.lag_col_idx = int(matched_idx)
+            except Exception:
+                pass
         self.expected_features: List[str] = self.metadata.get("feature_names", [
             "destination_id", "inventory_type", "search_volume", "total_travellers",
             "avg_search_price", "lag_1", "lag_7", "lag_14", "rolling_mean_7",
@@ -153,7 +166,21 @@ class DemandForecastService:
             self._prediction_cache[key] = None
             return None
 
-        feat_dict = self._feature_cache[key]
+        feat_dict = dict(self._feature_cache[key])
+        # Align inventory_type casing to fitted OrdinalEncoder categories (e.g. ['FLIGHT', 'HOTEL'])
+        if self.preprocessor is not None and hasattr(self.preprocessor, "named_transformers_"):
+            try:
+                cat_trans = self.preprocessor.named_transformers_.get("cat")
+                cats = getattr(cat_trans, "categories_", None) if cat_trans is not None else None
+                if cats:
+                    raw_val = str(feat_dict.get("inventory_type", ""))
+                    for cat_list in cats:
+                        for c_val in cat_list:
+                            if str(c_val).lower() == raw_val.lower():
+                                feat_dict["inventory_type"] = c_val
+                                break
+            except Exception:
+                pass
         row_df = pd.DataFrame([feat_dict])[self.expected_features]
 
         try:

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from backend.app.models.schema import (
     BudgetStatus,
     Destination,
+    OfferPrediction,
     OfferStatus,
     OptimizationRun,
     POStatus,
@@ -133,24 +134,54 @@ class AnalyticsService:
 
     @staticmethod
     def get_cancellation_and_pricing(db: Session) -> CancellationPricingAnalyticsResponse:
+        hotel_preds = db.execute(
+            select(
+                SupplierOffer.dest_id,
+                Destination.name,
+                func.avg(OfferPrediction.predicted_cancellation_prob).label("avg_cancel"),
+            )
+            .join(SupplierOffer, OfferPrediction.offer_id == SupplierOffer.offer_id)
+            .join(Destination, SupplierOffer.dest_id == Destination.dest_id)
+            .where(OfferPrediction.predicted_cancellation_prob.is_not(None))
+            .group_by(SupplierOffer.dest_id, Destination.name)
+            .order_by(func.avg(OfferPrediction.predicted_cancellation_prob).desc())
+            .limit(10)
+        ).all()
+
+        if hotel_preds:
+            avg_rate = sum(float(r.avg_cancel or 0.0) for r in hotel_preds) / len(hotel_preds) * 100.0
+            high_risk = [
+                {
+                    "dest_code": r.dest_id,
+                    "name": r.name,
+                    "avg_cancellation_rate": round(float(r.avg_cancel or 0.0) * 100.0, 2),
+                    "risk_tier": "HIGH" if float(r.avg_cancel or 0.0) >= 0.25 else ("MEDIUM" if float(r.avg_cancel or 0.0) >= 0.15 else "LOW"),
+                }
+                for r in hotel_preds
+            ]
+        else:
+            avg_rate = 0.0
+            high_risk = []
+
         return CancellationPricingAnalyticsResponse(
-            average_hotel_cancellation_rate=Decimal("18.4"),
-            high_risk_destinations=[
-                {"dest_code": "GOA", "name": "Goa Beachfront", "avg_cancellation_rate": 28.5, "risk_tier": "HIGH"},
-                {"dest_code": "DXB", "name": "Dubai Urban", "avg_cancellation_rate": 22.1, "risk_tier": "MEDIUM"},
-                {"dest_code": "BOM", "name": "Mumbai City", "avg_cancellation_rate": 14.2, "risk_tier": "LOW"},
-            ],
-            price_elasticity_summary=[
-                {"category": "HOTEL", "segment": "LUXURY", "elasticity_coefficient": -1.25, "sensitivity": "ELASTIC"},
-                {"category": "HOTEL", "segment": "BUDGET", "elasticity_coefficient": -1.85, "sensitivity": "HIGHLY_ELASTIC"},
-                {"category": "FLIGHT", "segment": "ECONOMY", "elasticity_coefficient": -1.60, "sensitivity": "ELASTIC"},
-                {"category": "FLIGHT", "segment": "BUSINESS", "elasticity_coefficient": -0.65, "sensitivity": "INELASTIC"},
-            ],
+            average_hotel_cancellation_rate=Decimal(str(round(avg_rate, 2))),
+            high_risk_destinations=high_risk,
+            price_elasticity_summary=[],
         )
 
     @staticmethod
     def get_supplier_scorecard(db: Session) -> SupplierScorecardResponse:
         suppliers = db.execute(select(Supplier).order_by(Supplier.supplier_id)).scalars().all()
+        spend_rows = db.execute(
+            select(
+                PurchaseOrder.supplier_id,
+                func.coalesce(func.sum(PurchaseOrder.total_committed_spend_inr), 0).label("total_spend"),
+            )
+            .where(PurchaseOrder.status != POStatus.CANCELLED)
+            .group_by(PurchaseOrder.supplier_id)
+        ).all()
+        spend_by_sup = {r.supplier_id: Decimal(str(r.total_spend or 0)) for r in spend_rows}
+
         items = []
         for s in suppliers:
             # Query latest performance snapshot
@@ -165,7 +196,7 @@ class AnalyticsService:
                     supplier_id=s.supplier_id,
                     supplier_name=s.name,
                     supplier_type=s.supplier_type.value,
-                    total_spend_inr=Decimal("0.00"),
+                    total_spend_inr=spend_by_sup.get(s.supplier_id, Decimal("0.00")),
                     on_time_delivery_rate=Decimal(str(round(snap.fulfillment_rate_30d * 100, 2))) if snap and snap.fulfillment_rate_30d is not None else Decimal("95.00"),
                     fulfillment_accuracy_rate=Decimal(str(round(snap.fulfillment_rate_7d * 100, 2))) if snap and snap.fulfillment_rate_7d is not None else Decimal("97.50"),
                     quality_score=Decimal(str(snap.avg_lead_time_days_30d)) if snap and snap.avg_lead_time_days_30d is not None else Decimal("4.8"),

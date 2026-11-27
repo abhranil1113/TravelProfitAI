@@ -61,13 +61,30 @@ class InventoryForecastingService:
 
             occ_rate = (booked_qty / tot_cap) if tot_cap > 0 else 0.0
             avail_rate = (avail_qty / tot_cap) if tot_cap > 0 else 0.0
+            if avail_rate <= 0.15:
+                derived_bucket = "Critical"
+            elif avail_rate <= 0.35:
+                derived_bucket = "Low"
+            elif avail_rate <= 0.70:
+                derived_bucket = "Moderate"
+            else:
+                derived_bucket = "High"
+
+            def _to_bool(val: Any, default_val: bool) -> bool:
+                if val is None:
+                    return default_val
+                if isinstance(val, bool):
+                    return val
+                if isinstance(val, str):
+                    return val.strip().lower() in ("true", "1", "yes")
+                return bool(val)
 
             # Derive standard features if missing
             defaults = {
                 "inventory_id": inv_id,
                 "inventory_type": record.get("inventory_type", "HOTEL"),
                 "supplier_id": record.get("supplier_id", "UNKNOWN"),
-                "origin_id": record.get("origin_id", "NONE"),
+                "origin_id": record.get("origin_id", "None"),
                 "destination_id": record.get("destination_id", "NONE"),
                 "unit_type": record.get("unit_type", "ROOM_NIGHT"),
                 "travel_date": str(record.get("travel_date", "")),
@@ -80,15 +97,15 @@ class InventoryForecastingService:
                 "inventory_utilization_rate": occ_rate,
                 "availability_rate": avail_rate,
                 "availability_percentage": avail_rate * 100.0,
-                "availability_bucket": record.get("availability_bucket", "MEDIUM"),
+                "availability_bucket": record.get("availability_bucket", derived_bucket),
                 "days_since_prev_snapshot": float(record.get("days_since_prev_snapshot", 1.0)),
                 "change_in_booked_quantity": float(record.get("change_in_booked_quantity", 0.0)),
                 "change_in_available_quantity": float(record.get("change_in_available_quantity", 0.0)),
                 "booking_velocity_units_per_day": float(record.get("booking_velocity_units_per_day", 0.0)),
                 "inventory_depletion_velocity": float(record.get("inventory_depletion_velocity", 0.0)),
-                "high_occupancy_indicator": record.get("high_occupancy_indicator", "FALSE" if occ_rate < 0.8 else "TRUE"),
-                "low_availability_indicator": record.get("low_availability_indicator", "FALSE" if avail_qty >= 5 else "TRUE"),
-                "rapid_depletion_indicator": record.get("rapid_depletion_indicator", "FALSE"),
+                "high_occupancy_indicator": _to_bool(record.get("high_occupancy_indicator"), occ_rate >= 0.8),
+                "low_availability_indicator": _to_bool(record.get("low_availability_indicator"), avail_qty < 5),
+                "rapid_depletion_indicator": _to_bool(record.get("rapid_depletion_indicator"), False),
             }
 
             for k, v in defaults.items():

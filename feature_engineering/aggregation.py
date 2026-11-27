@@ -73,15 +73,21 @@ def build_destination_demand_supply_indicators(
     supply = dedup_inv.groupby(group_cols).agg(**supply_agg_dict).reset_index()
 
     # 4. Supplier procurement economics aggregation
-    cost_col = "purchase_cost_inr" if "purchase_cost_inr" in supplier_df.columns else "purchase_cost"
-    sell_col = "selling_price_inr" if "selling_price_inr" in supplier_df.columns else "selling_price"
-    margin_col = (
-        "margin_percentage"
-        if "margin_percentage" in supplier_df.columns
-        else ("gross_margin_percentage" if "gross_margin_percentage" in supplier_df.columns else cost_col)
-    )
+    calc_supp = supplier_df.copy()
+    cost_col = "purchase_cost_inr" if "purchase_cost_inr" in calc_supp.columns else "purchase_cost"
+    sell_col = "selling_price_inr" if "selling_price_inr" in calc_supp.columns else "selling_price"
+    if "margin_percentage" in calc_supp.columns:
+        margin_col = "margin_percentage"
+    elif "gross_margin_percentage" in calc_supp.columns:
+        margin_col = "gross_margin_percentage"
+    else:
+        sell_nonzero = calc_supp[sell_col].replace(0, np.nan)
+        calc_supp["_computed_margin_pct"] = (
+            ((calc_supp[sell_col] - calc_supp[cost_col]) / sell_nonzero) * 100.0
+        ).fillna(0.0)
+        margin_col = "_computed_margin_pct"
 
-    supplier_econ = supplier_df.groupby(group_cols).agg(
+    supplier_econ = calc_supp.groupby(group_cols).agg(
         supplier_offers_count=("offer_id", "count"),
         avg_supplier_cost_inr=(cost_col, "mean"),
         avg_supplier_selling_inr=(sell_col, "mean"),

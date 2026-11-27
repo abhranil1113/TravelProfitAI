@@ -67,9 +67,9 @@ class HealthService:
         items = []
         all_healthy = True
         for m in models:
-            # Check model artifact on disk if storage_uri is present
+            # Check model artifact on disk if artifact_dir is present
             artifact_exists = True
-            if m.storage_uri and not os.path.exists(m.storage_uri):
+            if m.artifact_dir and not os.path.exists(m.artifact_dir):
                 artifact_exists = False
 
             model_st = m.model_status or ("DEPLOYED" if artifact_exists else "DEGRADED")

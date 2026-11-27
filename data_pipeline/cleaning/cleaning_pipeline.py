@@ -132,6 +132,7 @@ def run_cleaning_pipeline(
     # Step 4: Write Cleaning Summary & Lineage JSON
     logger.info("Phase 4: Emitting cleaning summary and lineage audit report...")
     summary_path = REPORT_PATHS["cleaning_summary"]
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
     with open(summary_path, "w", encoding="utf-8") as f:
         json.dump(cleaning_summaries, f, indent=2)
 

@@ -317,10 +317,11 @@ class MLOpsService:
         # Wire FEATURE_STALENESS retraining trigger evaluation
         evaluated_types: List[MLModelType] = []
         if fs and fs.entity_type:
-            try:
-                evaluated_types.append(MLModelType(fs.entity_type.upper()))
-            except ValueError:
-                pass
+            ent = fs.entity_type.strip().lower()
+            mt_lookup = {m.value.lower(): m for m in MLModelType}
+            mt_lookup.update({m.name.lower(): m for m in MLModelType})
+            if ent in mt_lookup:
+                evaluated_types.append(mt_lookup[ent])
         if not evaluated_types and st != FreshnessStatus.FRESH:
             evaluated_types = list(
                 db.execute(
@@ -360,13 +361,20 @@ class MLOpsService:
             raise EntityNotFoundError("MLModel", req.model_id)
 
         if req.deployment_mode == DeploymentMode.CANARY:
-            # Ensure at most one active canary per model_type
+            # Serialize CANARY creation per model_type by locking all MLModel rows of this type
+            # (ordering deterministically prevents deadlocks and closes phantom-read INSERT races).
+            db.execute(
+                select(MLModel.id)
+                .where(MLModel.model_type == model.model_type)
+                .order_by(MLModel.id.asc())
+                .with_for_update()
+            ).all()
             active_canary = db.execute(
                 select(ModelDeployment).where(
                     ModelDeployment.model_type == model.model_type,
                     ModelDeployment.deployment_mode == DeploymentMode.CANARY,
                     ModelDeployment.status == DeploymentStatus.ACTIVE,
-                )
+                ).with_for_update()
             ).scalar_one_or_none()
             if active_canary:
                 raise ConflictException(
@@ -566,7 +574,7 @@ class MLOpsService:
             )
         ).scalar_one_or_none()
 
-        promoted = MLRegistryService.promote_model(db, model_id, user_id=user_id)
+        promoted = MLRegistryService.promote_model(db, model_id, user_id=user_id, commit=False)
 
         # Mark any active deployments for this model as PROMOTED
         active_deps = list(
@@ -574,7 +582,7 @@ class MLOpsService:
                 select(ModelDeployment).where(
                     ModelDeployment.model_id == model.id,
                     ModelDeployment.status == DeploymentStatus.ACTIVE,
-                )
+                ).with_for_update()
             ).scalars().all()
         )
         for dep in active_deps:
@@ -591,6 +599,13 @@ class MLOpsService:
             metadata_json={"version": promoted.version},
         ))
         db.commit()
+        model_type_str = promoted.model_type.value if hasattr(promoted.model_type, "value") else str(promoted.model_type)
+        ModelRegistry.invalidate_cache(model_type_str.lower())
+        try:
+            from ml_engine.model_registry.registry import ModelArtifactRegistry
+            ModelArtifactRegistry.invalidate_cache(model_type_str.lower())
+        except Exception as exc:
+            logger.warning("Failed to invalidate ModelArtifactRegistry cache after governed promotion: %s", exc)
         db.refresh(promoted)
         return promoted
 

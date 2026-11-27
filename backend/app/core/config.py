@@ -79,6 +79,8 @@ class Settings(BaseSettings):
                 raise ValueError("Insecure or default WORKER_SECRET_TOKEN is not permitted in production.")
             if "*" in self.BACKEND_CORS_ORIGINS:
                 raise ValueError("Wildcard '*' in BACKEND_CORS_ORIGINS is not permitted in production.")
+            if self.SOCKET_IO_CORS_ORIGINS == "*" or (isinstance(self.SOCKET_IO_CORS_ORIGINS, list) and "*" in self.SOCKET_IO_CORS_ORIGINS):
+                raise ValueError("Wildcard '*' in SOCKET_IO_CORS_ORIGINS is not permitted in production.")
         return self
     
     model_config = SettingsConfigDict(

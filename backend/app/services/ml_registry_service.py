@@ -37,7 +37,8 @@ class MLRegistryService:
     ) -> list[FeatureSet]:
         query = db.query(FeatureSet)
         if model_type:
-            query = query.filter(FeatureSet.model_type == model_type)
+            mt_val = model_type.value if hasattr(model_type, "value") else str(model_type)
+            query = query.filter(FeatureSet.entity_type == mt_val)
         if name:
             query = query.filter(FeatureSet.name.ilike(f"%{name.strip()}%"))
         return query.order_by(FeatureSet.created_at.desc()).all()
@@ -99,8 +100,10 @@ class MLRegistryService:
         return db.query(MLModel).filter(MLModel.is_champion == True).all()
 
     @staticmethod
-    def promote_model(db: Session, model_id: int, user_id: int) -> MLModel:
-        model = MLRegistryService.get_model(db, model_id)
+    def promote_model(db: Session, model_id: int, user_id: int, commit: bool = True) -> MLModel:
+        model = db.query(MLModel).filter(MLModel.id == model_id).with_for_update().first()
+        if not model:
+            raise EntityNotFoundError("MLModel", model_id)
 
         model_type_str = (
             model.model_type.value
@@ -164,6 +167,10 @@ class MLRegistryService:
                 "artifact_checksum": model.artifact_checksum,
             },
         ))
+        if not commit:
+            db.flush()
+            return model
+
         db.commit()
 
         # Invalidate in-memory ModelRegistry and ML Engine caches immediately after successful database commit

@@ -25,8 +25,26 @@ class PricePredictionService:
     TASK_NAME = PredictionTask.FLIGHT_PRICE.value
 
     # Supported categories validated against training dataset schema
-    SUPPORTED_AIRLINES = {"Air India", "AirAsia", "GO FIRST", "Indigo", "SpiceJet", "Vistara"}
+    SUPPORTED_AIRLINES = {"Air_India", "AirAsia", "GO_FIRST", "Indigo", "SpiceJet", "Vistara"}
+    AIRLINE_ALIASES = {
+        "air india": "Air_India",
+        "air_india": "Air_India",
+        "airasia": "AirAsia",
+        "go first": "GO_FIRST",
+        "go_first": "GO_FIRST",
+        "indigo": "Indigo",
+        "spicejet": "SpiceJet",
+        "vistara": "Vistara",
+    }
     SUPPORTED_CITIES = {"Bangalore", "Chennai", "Delhi", "Hyderabad", "Kolkata", "Mumbai"}
+    AIRPORT_CODE_TO_CITY = {
+        "BLR": "Bangalore",
+        "MAA": "Chennai",
+        "DEL": "Delhi",
+        "HYD": "Hyderabad",
+        "CCU": "Kolkata",
+        "BOM": "Mumbai",
+    }
     SUPPORTED_CLASSES = {"Economy", "Business"}
 
     def __init__(self, registry: ModelArtifactRegistry):
@@ -44,16 +62,19 @@ class PricePredictionService:
         if missing:
             return False, f"Missing required flight fields: {missing}"
 
-        airline = str(raw_record.get("airline", "")).strip()
+        airline_raw = str(raw_record.get("airline", "")).strip()
+        airline = self.AIRLINE_ALIASES.get(airline_raw.lower(), airline_raw)
         if not airline or airline not in self.SUPPORTED_AIRLINES:
-            return False, f"Airline '{airline}' is not in supported training domains: {sorted(self.SUPPORTED_AIRLINES)}"
+            return False, f"Airline '{airline_raw}' is not in supported training domains: {sorted(self.SUPPORTED_AIRLINES)}"
 
-        source = str(raw_record.get("source_city") or raw_record.get("origin_city", "")).strip()
-        dest = str(raw_record.get("destination_city") or raw_record.get("destination_id", "")).strip()
+        source_raw = str(raw_record.get("source_city") or raw_record.get("origin_city", "")).strip()
+        dest_raw = str(raw_record.get("destination_city") or raw_record.get("destination_id", "")).strip()
+        source = self.AIRPORT_CODE_TO_CITY.get(source_raw.upper(), source_raw)
+        dest = self.AIRPORT_CODE_TO_CITY.get(dest_raw.upper(), dest_raw)
         if not source or source not in self.SUPPORTED_CITIES:
-            return False, f"Origin city '{source}' is not in supported flight cities: {sorted(self.SUPPORTED_CITIES)}"
+            return False, f"Origin city '{source_raw}' is not in supported flight cities: {sorted(self.SUPPORTED_CITIES)}"
         if not dest or dest not in self.SUPPORTED_CITIES:
-            return False, f"Destination city '{dest}' is not in supported flight cities: {sorted(self.SUPPORTED_CITIES)}"
+            return False, f"Destination city '{dest_raw}' is not in supported flight cities: {sorted(self.SUPPORTED_CITIES)}"
 
         cabin = str(raw_record.get("class") or raw_record.get("cabin_class", "Economy")).strip().capitalize()
         if not cabin or cabin not in self.SUPPORTED_CLASSES:

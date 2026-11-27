@@ -60,6 +60,7 @@ class PointInTimeResolver:
             audit_meta = {
                 "total_snapshots": len(df),
                 "resolved_items_count": 0,
+                "unique_resolved_inventory_items": 0,
                 "warning": "No inventory snapshots observed prior to optimization timestamp.",
                 "optimization_timestamp": self.optimization_timestamp,
             }

@@ -61,14 +61,15 @@ class SolverFactory:
         time_limit_ms = int(solver_config.time_limit_seconds * 1000)
         solver.SetTimeLimit(time_limit_ms)
 
-        # Set relative gap tolerance if supported
+        # Apply relative MIP gap tolerance using backend-native parameter strings where supported
         try:
-            solver_params = pywraplp.MPSolverParameters()
-            solver_params.SetDoubleParam(
-                pywraplp.MPSolverParameters.RELATIVE_MIP_GAP,
-                solver_config.relative_gap_tolerance
-            )
-            solver.SetSolverSpecificParametersAsString("")
+            gap = float(solver_config.relative_gap_tolerance)
+            if chosen_backend == "SCIP":
+                solver.SetSolverSpecificParametersAsString(f"limits/gap = {gap}")
+            elif chosen_backend == "HIGHS":
+                solver.SetSolverSpecificParametersAsString(f"mip_rel_gap {gap}")
+            elif chosen_backend == "CBC":
+                solver.SetSolverSpecificParametersAsString(f"ratio {gap}")
         except Exception as e:
             logger.debug(f"Note: solver parameter setting: {e}")
 

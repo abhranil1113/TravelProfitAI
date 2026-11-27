@@ -50,7 +50,7 @@ class ProcurementService:
     @staticmethod
     def list_purchase_orders(
         db: Session,
-        supplier_id: Optional[int] = None,
+        supplier_id: Optional[str] = None,
         po_status: Optional[POStatus] = None,
         budget_id: Optional[int] = None,
         page: int = 1,
@@ -58,7 +58,7 @@ class ProcurementService:
     ) -> tuple[List[PurchaseOrder], int]:
         stmt = select(PurchaseOrder)
         if supplier_id:
-            stmt = stmt.where(PurchaseOrder.supplier_id == supplier_id)
+            stmt = stmt.where(PurchaseOrder.supplier_id == supplier_id.strip().upper())
         if po_status:
             stmt = stmt.where(PurchaseOrder.status == po_status)
         if budget_id:
@@ -151,29 +151,9 @@ class ProcurementService:
             total_amount += line_total
             calculated_lines.append((line_req, offer, unit_cost, line_total))
 
-        # Validate budget if specified
-        budget = None
-        if req.budget_id:
-            budget = db.execute(
-                select(ProcurementBudget)
-                .where(ProcurementBudget.id == req.budget_id)
-                .with_for_update()
-            ).scalar_one_or_none()
-            if not budget:
-                raise NotFoundException(f"Procurement budget {req.budget_id} not found")
-            if budget.status != BudgetStatus.ACTIVE:
-                raise BadRequestException(
-                    f"Cannot allocate from budget '{budget.budget_code}' in status '{budget.status.value}'. Must be ACTIVE."
-                )
-
-            available_budget = budget.total_amount_inr - budget.spent_amount_inr - budget.reserved_amount_inr
-            if available_budget < total_amount:
-                raise BadRequestException(
-                    f"Insufficient available budget. Requested INR {total_amount:,.2f}, available INR {available_budget:,.2f}"
-                )
-
         po_num = f"PO-{datetime.utcnow().strftime('%Y%m%d')}-{supplier.supplier_id}-{uuid.uuid4().hex[:4].upper()}"
 
+        # Evaluate workflow policies BEFORE acquiring budget row lock so policy rollback never drops locks
         from backend.app.services.policy_service import PolicyService
         po_policy_ctx = {
             "supplier_id": supplier.supplier_id,
@@ -199,6 +179,27 @@ class ProcurementService:
             user_id=user_id,
         )
 
+        # Validate & lock budget after policy gates pass
+        budget = None
+        if req.budget_id:
+            budget = db.execute(
+                select(ProcurementBudget)
+                .where(ProcurementBudget.id == req.budget_id)
+                .with_for_update()
+            ).scalar_one_or_none()
+            if not budget:
+                raise NotFoundException(f"Procurement budget {req.budget_id} not found")
+            if budget.status != BudgetStatus.ACTIVE:
+                raise BadRequestException(
+                    f"Cannot allocate from budget '{budget.budget_code}' in status '{budget.status.value}'. Must be ACTIVE."
+                )
+
+            available_budget = budget.total_amount_inr - budget.spent_amount_inr - budget.reserved_amount_inr
+            if available_budget < total_amount:
+                raise BadRequestException(
+                    f"Insufficient available budget. Requested INR {total_amount:,.2f}, available INR {available_budget:,.2f}"
+                )
+
         po = PurchaseOrder(
             po_number=po_num,
             supplier_id=supplier.supplier_id,
@@ -217,10 +218,13 @@ class ProcurementService:
             rec_id = line_req.recommendation_id
             if rec_id:
                 rec = db.execute(
-                    select(ProcurementRecommendation).where(ProcurementRecommendation.id == rec_id)
+                    select(ProcurementRecommendation)
+                    .where(ProcurementRecommendation.id == rec_id)
+                    .with_for_update()
                 ).scalar_one_or_none()
                 if not rec:
                     raise NotFoundException(f"Recommendation {rec_id} not found")
+                rec.approval_status = ApprovalStatus.ORDERED
             else:
                 # Handled for manual PO line where schema requires non-null recommendation_id
                 # Schema change recommendation documented in remediation report for future approval

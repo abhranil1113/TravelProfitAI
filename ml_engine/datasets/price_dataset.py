@@ -18,7 +18,7 @@ class PriceDataset:
     Enforces the approved 17-feature matrix specification and pricing target.
     """
 
-    FEATURE_NAMES: List[str] = FlightFeaturePreprocessor.FEATURE_NAMES
+    FEATURE_NAMES: List[str] = FlightFeaturePreprocessor.EXPECTED_FEATURES
     TARGET_NAME: str = "price"
 
     def __init__(self, data: pd.DataFrame, target_col: Optional[str] = None):

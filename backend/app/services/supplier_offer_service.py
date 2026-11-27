@@ -231,42 +231,49 @@ class SupplierOfferService:
         for row in reader:
             rows_received += 1
             try:
-                offer_id = row["offer_id"].strip()
-                existing = db.query(SupplierOffer).filter(SupplierOffer.offer_id == offer_id).first()
-                if not existing:
-                    v_until = datetime.fromisoformat(row["valid_until"].strip()).date() if "T" in row["valid_until"] else datetime.strptime(row["valid_until"].strip(), "%Y-%m-%d").date()
-                    t_date = datetime.strptime(row["travel_date"].strip(), "%Y-%m-%d").date()
-                    if t_date < v_until:
-                        t_date = v_until
-                    new_offer = SupplierOffer(
-                        offer_id=offer_id,
-                        supplier_id=row["supplier_id"].strip().upper(),
-                        inventory_id=row["inventory_id"].strip(),
-                        dest_id=row["dest_id"].strip().upper(),
-                        origin_dest_id=row.get("origin_dest_id", "").strip().upper() or None,
-                        inventory_category=InventoryCategory(row["inventory_category"].strip().upper()),
-                        unit_type=UnitType(row["unit_type"].strip().upper()),
-                        max_capacity=int(row["available_qty"]),
-                        moq=int(row.get("moq", 1)),
-                        unit_cost_inr=Decimal(row["cost_per_unit_inr"]),
-                        list_price_inr=Decimal(row["cost_per_unit_inr"]) * Decimal("1.20"),
-                        currency_code=row.get("currency", "INR").strip().upper(),
-                        valid_from=date.today(),
-                        valid_until=v_until,
-                        travel_date=t_date,
-                        status=OfferStatus.ACTIVE,
-                    )
-                    db.add(new_offer)
-                    rows_imported += 1
-                else:
-                    existing.max_capacity = int(row["available_qty"])
-                    existing.unit_cost_inr = Decimal(row["cost_per_unit_inr"])
-                    existing.list_price_inr = Decimal(row["cost_per_unit_inr"]) * Decimal("1.20")
-                    rows_imported += 1
-            except Exception:
+                with db.begin_nested():
+                    offer_id = row["offer_id"].strip()
+                    existing = db.query(SupplierOffer).filter(SupplierOffer.offer_id == offer_id).first()
+                    if not existing:
+                        v_until = datetime.fromisoformat(row["valid_until"].strip()).date() if "T" in row["valid_until"] else datetime.strptime(row["valid_until"].strip(), "%Y-%m-%d").date()
+                        t_date = datetime.strptime(row["travel_date"].strip(), "%Y-%m-%d").date()
+                        if t_date < v_until:
+                            raise ValueError(f"travel_date {t_date.isoformat()} cannot precede valid_until {v_until.isoformat()}")
+                        new_offer = SupplierOffer(
+                            offer_id=offer_id,
+                            supplier_id=row["supplier_id"].strip().upper(),
+                            inventory_id=row["inventory_id"].strip(),
+                            dest_id=row["dest_id"].strip().upper(),
+                            origin_dest_id=row.get("origin_dest_id", "").strip().upper() or None,
+                            inventory_category=InventoryCategory(row["inventory_category"].strip().upper()),
+                            unit_type=UnitType(row["unit_type"].strip().upper()),
+                            max_capacity=int(row["available_qty"]),
+                            moq=int(row.get("moq", 1)),
+                            unit_cost_inr=Decimal(row["cost_per_unit_inr"]),
+                            list_price_inr=Decimal(row["cost_per_unit_inr"]) * Decimal("1.20"),
+                            currency_code=row.get("currency", "INR").strip().upper(),
+                            valid_from=date.today(),
+                            valid_until=v_until,
+                            travel_date=t_date,
+                            status=OfferStatus.ACTIVE,
+                        )
+                        db.add(new_offer)
+                    else:
+                        existing.max_capacity = int(row["available_qty"])
+                        existing.unit_cost_inr = Decimal(row["cost_per_unit_inr"])
+                        existing.list_price_inr = Decimal(row["cost_per_unit_inr"]) * Decimal("1.20")
+                    db.flush()
+                rows_imported += 1
+            except Exception as exc:
                 rows_failed += 1
+                logger.warning("CSV bulk import row %d rejected: %s", rows_received, exc)
 
-        batch.status = PipelineStatus.SUCCESS if rows_failed == 0 else PipelineStatus.PARTIAL
+        if rows_imported == 0 and rows_failed > 0:
+            batch.status = PipelineStatus.FAILED
+        elif rows_failed > 0:
+            batch.status = PipelineStatus.PARTIAL
+        else:
+            batch.status = PipelineStatus.SUCCESS
         batch.rows_ingested = rows_imported
         batch.rows_rejected = rows_failed
         batch.processing_completed_at = datetime.now(timezone.utc)

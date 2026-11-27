@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 
-def test_optimization_runs_lifecycle(client, admin_headers, pm_headers, analyst_headers):
+def test_optimization_runs_lifecycle(client, seeded_optimization_db, admin_headers, pm_headers, analyst_headers):
     """Test #106 to #123, #176, #179: Optimization runs, baselines, risk, sensitivity, and artifacts."""
     # 106. POST /optimization-runs (trigger run)
     run_res = client.post(

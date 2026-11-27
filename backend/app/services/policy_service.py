@@ -467,7 +467,7 @@ class PolicyService:
         admin_user_id: int,
     ) -> PolicyExceptionRequest:
         exc = db.execute(
-            select(PolicyExceptionRequest).where(PolicyExceptionRequest.id == exception_id)
+            select(PolicyExceptionRequest).where(PolicyExceptionRequest.id == exception_id).with_for_update()
         ).scalar_one_or_none()
         if not exc:
             raise EntityNotFoundError("PolicyExceptionRequest", exception_id)

@@ -2,7 +2,7 @@
   "task_name": "supplier_lead_time_prediction",
   "model_name": "dummy",
   "test_records_count": 30,
-  "inference_duration_seconds": 0.0026,
+  "inference_duration_seconds": 0.0019,
   "applied_decision_threshold": 0.5,
   "metrics": {
     "mae": 3.7079,

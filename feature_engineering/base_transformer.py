@@ -67,7 +67,7 @@ def bin_series(
         include_lowest=True,
         right=True,
     )
-    return binned.astype(str).fillna("Unknown")
+    return binned.astype("object").fillna("Unknown").astype(str)
 
 
 class BaseFeatureTransformer:

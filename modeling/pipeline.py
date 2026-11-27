@@ -66,8 +66,14 @@ def run_task_pipeline(
     dates_full = pd.to_datetime(df_full[date_col]) if date_col is not None else None
 
     # 4. Train-Test Split (15% untouched holdout test set respecting temporal boundaries)
-    # The holdout test set is determined on the FULL dataset to guarantee test stability.
+    # Sort chronologically first when temporal so expanding-window CV never mixes entities/hotels across dates.
     if is_temporal and dates_full is not None:
+        sort_order = np.argsort(dates_full.to_numpy(dtype="datetime64[ns]"), kind="mergesort")
+        X = X.iloc[sort_order].reset_index(drop=True)
+        y = y.iloc[sort_order].reset_index(drop=True)
+        df_full = df_full.iloc[sort_order].reset_index(drop=True)
+        dates_full = dates_full.iloc[sort_order].reset_index(drop=True)
+
         unique_dates = pd.Series(np.sort(dates_full.unique()))
         n_unique = len(unique_dates)
         train_date_end_idx = int(n_unique * 0.85)
@@ -254,7 +260,8 @@ def run_task_pipeline(
                     "selected_threshold": frozen_threshold,
                     "cost_fn": cost_fn,
                     "cost_fp": cost_fp,
-                    "oof_minimal_cost": thresh_opt.get("minimal_cost"),
+                    "oof_minimal_cost": thresh_opt.get("minimal_total_cost"),
+                    "oof_minimal_cost_per_instance": thresh_opt.get("minimal_cost_per_instance"),
                     "oof_baseline_cost_at_05": thresh_opt.get("baseline_cost_at_05"),
                     "oof_cost_savings_pct": thresh_opt.get("cost_savings_pct"),
                     "cv_model": champ_model,

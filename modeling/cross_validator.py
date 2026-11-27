@@ -89,13 +89,20 @@ def execute_cross_validation(
         ValidationStrategy.CHRONOLOGICAL_SPLIT,
     ]
     gap = task_config.business_params.get("embargo_gap_days", 0) if is_time_based else 0
-    splitter = get_cross_validation_splitter(
-        task_config.validation_strategy,
-        n_splits=n_splits,
-        shuffle=(not is_time_based),
-        random_state=RANDOM_SEED,
-        gap=gap,
-    )
+    splitter = None
+    if task_config.validation_strategy == ValidationStrategy.TIME_SERIES_SPLIT and groups is not None and gap > 0:
+        from modeling.splitters import PurgedGroupTimeSeriesSplit
+        n_unique_dates = len(pd.Series(groups).dropna().unique())
+        if n_unique_dates >= (n_splits + 1):
+            splitter = PurgedGroupTimeSeriesSplit(n_splits=n_splits, embargo_gap=gap)
+    if splitter is None:
+        splitter = get_cross_validation_splitter(
+            task_config.validation_strategy,
+            n_splits=n_splits,
+            shuffle=(not is_time_based),
+            random_state=RANDOM_SEED,
+            gap=gap,
+        )
 
     # 2. Partition Features
     num_cols, cat_cols = partition_features(
@@ -154,7 +161,13 @@ def execute_cross_validation(
         if not is_classifier:
             oof_preds[val_idx] = val_preds
         elif val_prob is not None:
-            oof_preds[val_idx] = val_prob
+            if val_prob.shape[1] == oof_preds.shape[1]:
+                oof_preds[val_idx] = val_prob
+            elif hasattr(artifact.estimator, "classes_"):
+                for col_i, cls_val in enumerate(artifact.estimator.classes_):
+                    cls_idx = int(cls_val) if isinstance(cls_val, (int, np.integer)) and 0 <= int(cls_val) < oof_preds.shape[1] else None
+                    if cls_idx is not None:
+                        oof_preds[val_idx, cls_idx] = val_prob[:, col_i]
 
         # Compute all metrics for this fold
         metrics_dict = compute_metrics(

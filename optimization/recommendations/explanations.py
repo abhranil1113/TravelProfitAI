@@ -30,14 +30,18 @@ class ExplanationEngine:
         currency = opp.currency
 
         if inv_type == "HOTEL":
-            cancel_pct = (opp.predicted_cancellation_prob * 100.0) if opp.predicted_cancellation_prob is not None else 0.0
             sell_pct = opp.sell_through_probability * 100.0
+            if opp.predicted_cancellation_prob is not None:
+                cancel_desc = f"Model estimated {opp.predicted_cancellation_prob * 100.0:.1f}% cancellation risk"
+            else:
+                prior_pct = config.risk.hotel_default_cancellation_prior * 100.0
+                cancel_desc = f"Baseline prior cancellation assumption ({prior_pct:.1f}%) applied (no guest-cohort booking attributes)"
             return (
                 f"Selected {quantity} {unit}s from supplier {opp.supplier_id} for destination {opp.destination_id}. "
                 f"Expected net contribution is +{currency} {contrib:,.2f}/unit (+{currency} {total_profit:,.2f} total) "
                 f"at {spend:,.2f} {currency} spend. "
                 f"Offer satisfies MOQ ({opp.minimum_purchase_qty}) and capacity ({opp.available_quantity}). "
-                f"Model estimated {cancel_pct:.1f}% cancellation risk with {sell_pct:.1f}% sell-through."
+                f"{cancel_desc} with {sell_pct:.1f}% sell-through."
             )
         else:
             sell_pct = opp.sell_through_probability * 100.0

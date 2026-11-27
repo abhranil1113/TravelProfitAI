@@ -40,14 +40,68 @@ class InventoryForecastService:
     def predict_future_available_quantity(self, snapshot_record: Dict[str, Any]) -> Optional[float]:
         """
         Predicts remaining capacity bounded within [0, total_capacity].
-        Returns None if required engineered snapshot features are missing.
+        Deterministically computes single-snapshot ratio/date features when base quantities exist,
+        and returns None if required lag/velocity or core snapshot features are missing.
         """
-        missing = [f for f in self.expected_features if f not in snapshot_record or snapshot_record[f] is None]
+        record = dict(snapshot_record or {})
+        base_reqs = [
+            "inventory_id", "inventory_type", "supplier_id", "destination_id",
+            "unit_type", "travel_date", "snapshot_date",
+            "total_capacity", "booked_quantity", "available_quantity",
+        ]
+        if any(f not in record or record[f] is None for f in base_reqs):
+            logger.info("Snapshot record missing core base inventory fields.")
+            return None
+
+        try:
+            tot_cap = float(record["total_capacity"])
+            booked_qty = float(record["booked_quantity"])
+            avail_qty = float(record["available_quantity"])
+        except (TypeError, ValueError):
+            return None
+
+        if "origin_id" not in record or record["origin_id"] is None:
+            if str(record.get("inventory_type", "")).upper() == "HOTEL":
+                record["origin_id"] = "None"
+
+        if "days_to_travel" not in record or record["days_to_travel"] is None:
+            try:
+                t_dt = pd.to_datetime(record["travel_date"])
+                s_dt = pd.to_datetime(record["snapshot_date"])
+                record["days_to_travel"] = max(0.0, float((t_dt - s_dt).days))
+            except Exception:
+                pass
+
+        occ_rate = (booked_qty / tot_cap) if tot_cap > 0 else 0.0
+        avail_rate = (avail_qty / tot_cap) if tot_cap > 0 else 0.0
+        record.setdefault("occupancy_rate", occ_rate)
+        record.setdefault("inventory_utilization_rate", occ_rate)
+        record.setdefault("availability_rate", avail_rate)
+        record.setdefault("availability_percentage", avail_rate * 100.0)
+        if "availability_bucket" not in record or record["availability_bucket"] is None:
+            if avail_rate <= 0.15:
+                record["availability_bucket"] = "Critical"
+            elif avail_rate <= 0.35:
+                record["availability_bucket"] = "Low"
+            elif avail_rate <= 0.70:
+                record["availability_bucket"] = "Moderate"
+            else:
+                record["availability_bucket"] = "High"
+        if "high_occupancy_indicator" not in record or record["high_occupancy_indicator"] is None:
+            record["high_occupancy_indicator"] = bool(occ_rate >= 0.8)
+        if "low_availability_indicator" not in record or record["low_availability_indicator"] is None:
+            record["low_availability_indicator"] = bool(avail_qty < 5)
+
+        for bool_col in ("high_occupancy_indicator", "low_availability_indicator", "rapid_depletion_indicator"):
+            if bool_col in record and isinstance(record[bool_col], str):
+                record[bool_col] = record[bool_col].strip().lower() in ("true", "1", "yes")
+
+        missing = [f for f in self.expected_features if f not in record or record[f] is None]
         if missing:
             logger.info("Snapshot record missing required features: %s", missing[:5])
             return None
 
-        row_df = pd.DataFrame([snapshot_record])[self.expected_features]
+        row_df = pd.DataFrame([record])[self.expected_features]
 
         try:
             X_trans = self.preprocessor.transform(row_df) if self.preprocessor is not None else row_df

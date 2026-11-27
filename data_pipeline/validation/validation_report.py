@@ -90,8 +90,13 @@ def run_and_save_validation_reports(
         df_missing = df_missing_raw
     df_missing.to_csv(output_dir / "missing_values.csv", index=False)
 
-    # 3. Duplicates CSV
+    # 3. Duplicates CSV (Raw and Processed)
     df_dupes = detect_all_duplicates(raw_datasets)
+    df_dupes["stage"] = "raw"
+    if processed_datasets:
+        df_dupes_proc = detect_all_duplicates(processed_datasets)
+        df_dupes_proc["stage"] = "processed"
+        df_dupes = pd.concat([df_dupes, df_dupes_proc], ignore_index=True)
     df_dupes.to_csv(output_dir / "duplicates.csv", index=False)
 
     # 4. Data Type Issues CSV
@@ -102,12 +107,22 @@ def run_and_save_validation_reports(
     df_ids = validate_id_consistency(raw_datasets)
     df_ids.to_csv(output_dir / "id_consistency.csv", index=False)
 
-    # 6. Business Rules CSV
+    # 6. Business Rules CSV (Raw and Processed)
     df_rules = validate_business_rules(raw_datasets)
+    df_rules["stage"] = "raw"
+    if processed_datasets:
+        df_rules_proc = validate_business_rules(processed_datasets)
+        df_rules_proc["stage"] = "processed"
+        df_rules = pd.concat([df_rules, df_rules_proc], ignore_index=True)
     df_rules.to_csv(output_dir / "business_rule_violations.csv", index=False)
 
-    # 7. Outliers CSV
+    # 7. Outliers CSV (Raw and Processed)
     df_outliers = analyze_dataset_outliers(raw_datasets)
+    df_outliers["stage"] = "raw"
+    if processed_datasets:
+        df_outliers_proc = analyze_dataset_outliers(processed_datasets)
+        df_outliers_proc["stage"] = "processed"
+        df_outliers = pd.concat([df_outliers, df_outliers_proc], ignore_index=True)
     df_outliers.to_csv(output_dir / "outliers.csv", index=False)
 
     # 8. Final Markdown Report
