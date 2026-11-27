@@ -256,9 +256,10 @@ class MLRegistryService:
         if algo_norm not in allowed_algorithms:
             raise BadRequestException(f"Unsupported algorithm '{payload.algorithm}'. Allowed: {sorted(list(allowed_algorithms))}")
 
-        batch_task = f"train-run-{uuid.uuid4().hex[:8]}"
+        # This repository has no Celery worker or task consumer. Do not invent a task ID.
+        batch_task = None
         run_notes = (payload.notes or "").strip()
-        audit_note = f"Registered training run request. Awaiting administrative execution batch. {run_notes}".strip()
+        audit_note = f"Training run registered but not dispatched because no executable worker exists. {run_notes}".strip()
 
         run = ModelTrainingRun(
             model_type=payload.model_type,
@@ -276,7 +277,7 @@ class MLRegistryService:
             user_id=user_id,
             action="ML_TRAINING_RUN_TRIGGERED",
             entity_type="model_training_runs",
-            entity_id=str(batch_task),
+            entity_id=str(run.id),
             new_value_json={"model_type": payload.model_type.value, "algorithm": payload.algorithm, "status": "PENDING"},
         ))
         db.commit()
@@ -296,7 +297,7 @@ class MLRegistryService:
         if run.status in (TrainingStatus.COMPLETED, TrainingStatus.FAILED, TrainingStatus.ABORTED):
             raise ConflictError(f"Cannot cancel run {run_id} in terminal state '{run.status.value}'.")
 
-        run.status = TrainingStatus.FAILED
+        run.status = TrainingStatus.ABORTED
         run.notes = f"Cancelled by user {user_id}. {run.notes or ''}".strip()
         db.add(AuditLog(
             user_id=user_id,

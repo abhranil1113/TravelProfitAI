@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -23,6 +23,7 @@ from backend.app.models.schema import (
     FXContractDirection,
     FXContractStatus,
     FXForwardContract,
+    FXRateSource,
     HedgeEffectivenessRecord,
     MarginBreachAction,
     MarginProtectionRule,
@@ -50,22 +51,37 @@ class TreasuryService:
 
     @staticmethod
     def get_verified_spot_rate(
-        db: Session, base_currency: str, quote_currency: str = "INR"
+        db: Session, base_currency: str, quote_currency: str = "INR",
+        as_of_date: Optional[date] = None,
+        require_fresh: bool = True,
     ) -> ExchangeRate:
         base = base_currency.strip().upper()
         quote = quote_currency.strip().upper()
         if base == quote:
             raise BadRequestException("Base and quote currency must differ to query FX spot rate.")
 
-        row = db.execute(
-            select(ExchangeRate)
-            .where(ExchangeRate.from_currency == base, ExchangeRate.to_currency == quote)
-            .order_by(ExchangeRate.as_of_date.desc())
-        ).scalars().first()
+        stmt = select(ExchangeRate).where(
+            ExchangeRate.from_currency == base,
+            ExchangeRate.to_currency == quote,
+        )
+        if as_of_date is not None:
+            stmt = stmt.where(ExchangeRate.as_of_date <= as_of_date)
+        stmt = stmt.order_by(ExchangeRate.as_of_date.desc())
+        row = db.execute(stmt).scalars().first()
         if not row:
             raise BadRequestException(
                 f"No verified ExchangeRate record found for {base}/{quote}. Ingest rate via /exchange-rates first."
             )
+        effective_today = as_of_date or date.today()
+        if row.as_of_date > effective_today:
+            raise BadRequestException("Exchange rate record is future-dated.")
+        if require_fresh:
+            from backend.app.core.config import get_settings
+            max_age = get_settings().FX_RATE_MAX_AGE_DAYS
+            if effective_today - row.as_of_date > timedelta(days=max_age):
+                raise BadRequestException(
+                    f"Exchange rate {base}/{quote} is stale: latest valid rate is from {row.as_of_date.isoformat()}."
+                )
         return row
 
     @staticmethod
@@ -73,11 +89,10 @@ class TreasuryService:
         db: Session, req: FXForwardCreateRequest, user_id: int
     ) -> FXForwardContract:
         """Creates a DRAFT FX forward contract. Execution requires explicit Admin approval."""
-        if req.spot_rate_at_booking is not None:
-            spot_rate = req.spot_rate_at_booking
-        else:
-            spot_row = TreasuryService.get_verified_spot_rate(db, req.base_currency, req.quote_currency)
-            spot_rate = spot_row.rate
+        spot_row = TreasuryService.get_verified_spot_rate(
+            db, req.base_currency, req.quote_currency, as_of_date=req.trade_date
+        )
+        spot_rate = spot_row.rate
 
         val_ts = req.valuation_timestamp or datetime.now(timezone.utc)
         mtm = TreasuryService._compute_mtm(
@@ -94,7 +109,7 @@ class TreasuryService:
             notional_amount_base=req.notional_amount_base,
             contracted_forward_rate=req.contracted_forward_rate,
             spot_rate_at_booking=spot_rate,
-            rate_source=req.rate_source,
+            rate_source=FXRateSource(spot_row.source) if spot_row.source in FXRateSource._value2member_map_ else req.rate_source,
             trade_date=req.trade_date,
             maturity_date=req.maturity_date,
             valuation_timestamp=val_ts,
@@ -168,18 +183,17 @@ class TreasuryService:
             user_id=admin_user_id,
         )
 
-        # Re-value MTM against latest verified spot if available
-        try:
-            latest_spot = TreasuryService.get_verified_spot_rate(db, contract.base_currency, contract.quote_currency)
-            contract.mark_to_market_inr = TreasuryService._compute_mtm(
-                contract.direction,
-                contract.notional_amount_base,
-                contract.contracted_forward_rate,
-                latest_spot.rate,
-            )
-            contract.valuation_timestamp = datetime.now(timezone.utc)
-        except BadRequestException:
-            pass
+        # Execution requires a fresh verified spot rate; stale or missing rates block execution.
+        latest_spot = TreasuryService.get_verified_spot_rate(
+            db, contract.base_currency, contract.quote_currency
+        )
+        contract.mark_to_market_inr = TreasuryService._compute_mtm(
+            contract.direction,
+            contract.notional_amount_base,
+            contract.contracted_forward_rate,
+            latest_spot.rate,
+        )
+        contract.valuation_timestamp = datetime.now(timezone.utc)
 
         contract.status = FXContractStatus.ACTIVE
         contract.approved_by_user_id = admin_user_id
@@ -381,7 +395,14 @@ class TreasuryService:
         if contract.status not in (FXContractStatus.APPROVED, FXContractStatus.ACTIVE, FXContractStatus.SETTLED):
             raise InvalidStateTransitionError(contract.status.value, "HEDGE_EFFECTIVENESS_MEASUREMENT")
 
-        spot_row = TreasuryService.get_verified_spot_rate(db, contract.base_currency, contract.quote_currency)
+        measurement_date = req.measurement_date or date.today()
+        spot_row = TreasuryService.get_verified_spot_rate(
+            db,
+            contract.base_currency,
+            contract.quote_currency,
+            as_of_date=measurement_date,
+            require_fresh=False,
+        )
         current_spot = spot_row.rate
 
         # Hedging instrument fair value change since booking
@@ -408,7 +429,7 @@ class TreasuryService:
 
         rec = HedgeEffectivenessRecord(
             contract_id=contract.id,
-            measurement_date=req.measurement_date or date.today(),
+            measurement_date=measurement_date,
             spot_rate_at_measurement=current_spot,
             hedged_item_fv_change_inr=hedged_item_change,
             hedging_instrument_fv_change_inr=inst_fv_change,

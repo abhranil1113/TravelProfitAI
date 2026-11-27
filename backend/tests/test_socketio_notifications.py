@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 import pytest
 import socketio
+from sqlalchemy import select
 
 from backend.app.core.config import get_settings
 from backend.app.core.notification_events import (
@@ -16,7 +17,7 @@ from backend.app.core.notification_events import (
     SOCKET_EVENT_NOTIFICATION_READ,
     SOCKET_EVENT_NOTIFICATION_UNREAD_COUNT,
 )
-from backend.app.core.security import create_access_token
+from backend.app.core.security import create_access_token, hash_password
 from backend.app.core.socket_manager import socket_manager
 from backend.app.models.schema import (
     DeliveryStatus,
@@ -61,35 +62,37 @@ def test_socket_manager_ping_pong_configuration():
 # ==============================================================================
 
 @pytest.mark.asyncio
-async def test_socket_connection_successful_auth():
+async def test_socket_connection_successful_auth(db):
     """Verify client connects successfully with valid JWT and joins user and role rooms."""
-    token = create_access_token(subject=101, role="ADMIN")
+    token = create_access_token(subject=1, role="ADMIN")
     session = await socket_manager.handle_connect(
         sid="test-sid-101",
         environ={},
         auth={"token": token},
+        db=db,
     )
 
-    assert session["user_id"] == 101
+    assert session["user_id"] == 1
     assert session["role"] == "ADMIN"
-    assert socket_manager.is_user_connected(101) is True
-    assert socket_manager.get_user_connection_count(101) == 1
-    assert 101 in socket_manager.get_connected_user_ids()
+    assert socket_manager.is_user_connected(1) is True
+    assert socket_manager.get_user_connection_count(1) == 1
+    assert 1 in socket_manager.get_connected_user_ids()
 
 
 @pytest.mark.asyncio
-async def test_socket_connection_bearer_auth_header():
+async def test_socket_connection_bearer_auth_header(db):
     """Verify authentication succeeds when token is sent via HTTP Authorization header."""
-    token = create_access_token(subject=102, role="PROCUREMENT_MANAGER")
+    token = create_access_token(subject=2, role="PROCUREMENT_MANAGER")
     session = await socket_manager.handle_connect(
         sid="test-sid-102",
         environ={"headers": [(b"authorization", f"Bearer {token}".encode("utf-8"))]},
         auth=None,
+        db=db,
     )
 
-    assert session["user_id"] == 102
+    assert session["user_id"] == 2
     assert session["role"] == "PROCUREMENT_MANAGER"
-    assert socket_manager.is_user_connected(102) is True
+    assert socket_manager.is_user_connected(2) is True
 
 
 @pytest.mark.asyncio
@@ -152,29 +155,29 @@ async def test_socket_connection_expired_token_rejection():
 # ==============================================================================
 
 @pytest.mark.asyncio
-async def test_socket_multiple_connections_per_user():
+async def test_socket_multiple_connections_per_user(db):
     """Verify multiple active browser tabs/devices for one user are tracked accurately."""
-    token = create_access_token(subject=201, role="REVENUE_ANALYST")
+    token = create_access_token(subject=3, role="ANALYST")
 
     # Tab 1 connects
-    await socket_manager.handle_connect(sid="tab-1", environ={}, auth={"token": token})
-    assert socket_manager.get_user_connection_count(201) == 1
-    assert socket_manager.is_user_connected(201) is True
+    await socket_manager.handle_connect(sid="tab-1", environ={}, auth={"token": token}, db=db)
+    assert socket_manager.get_user_connection_count(3) == 1
+    assert socket_manager.is_user_connected(3) is True
 
     # Tab 2 connects (same user)
-    await socket_manager.handle_connect(sid="tab-2", environ={}, auth={"token": token})
-    assert socket_manager.get_user_connection_count(201) == 2
-    assert socket_manager.is_user_connected(201) is True
+    await socket_manager.handle_connect(sid="tab-2", environ={}, auth={"token": token}, db=db)
+    assert socket_manager.get_user_connection_count(3) == 2
+    assert socket_manager.is_user_connected(3) is True
 
     # Tab 1 closes
     await socket_manager.handle_disconnect(sid="tab-1")
-    assert socket_manager.get_user_connection_count(201) == 1
-    assert socket_manager.is_user_connected(201) is True
+    assert socket_manager.get_user_connection_count(3) == 1
+    assert socket_manager.is_user_connected(3) is True
 
     # Tab 2 closes
     await socket_manager.handle_disconnect(sid="tab-2")
-    assert socket_manager.get_user_connection_count(201) == 0
-    assert socket_manager.is_user_connected(201) is False
+    assert socket_manager.get_user_connection_count(3) == 0
+    assert socket_manager.is_user_connected(3) is False
 
 
 # ==============================================================================
@@ -182,13 +185,13 @@ async def test_socket_multiple_connections_per_user():
 # ==============================================================================
 
 @pytest.mark.asyncio
-async def test_socket_event_emitters_and_acknowledgement():
+async def test_socket_event_emitters_and_acknowledgement(db):
     """Verify emit methods and client delivery acknowledgement tracking."""
-    token = create_access_token(subject=301, role="ADMIN")
-    await socket_manager.handle_connect(sid="sid-ack", environ={}, auth={"token": token})
+    token = create_access_token(subject=1, role="ADMIN")
+    await socket_manager.handle_connect(sid="sid-ack", environ={}, auth={"token": token}, db=db)
 
     # Test user emission
-    delivered = await socket_manager.emit_to_user(301, "test:event", {"data": 123})
+    delivered = await socket_manager.emit_to_user(1, "test:event", {"data": 123})
     assert delivered is True
 
     # Test disconnected user emission
@@ -205,10 +208,10 @@ async def test_socket_event_emitters_and_acknowledgement():
         data={"notification_id": 555},
     )
     assert ack is not None
-    assert ack["user_id"] == 301
+    assert ack["user_id"] == 1
     assert ack["notification_id"] == 555
 
-    stored_ack = socket_manager.get_acknowledgement(user_id=301, notification_id=555)
+    stored_ack = socket_manager.get_acknowledgement(user_id=1, notification_id=555)
     assert stored_ack is not None
     assert stored_ack["notification_id"] == 555
 
@@ -242,14 +245,25 @@ def test_notification_object_creation():
 
 
 @pytest.mark.asyncio
-async def test_notification_idempotency_deduplication():
+async def test_notification_idempotency_deduplication(db):
     """Verify identical notifications within the idempotency window are deduplicated."""
+    if db.execute(select(User.id).where(User.id == 701)).scalar_one_or_none() is None:
+        db.add(User(
+            id=701,
+            email="notification701@example.com",
+            full_name="Notification Test",
+            hashed_password=hash_password("NotificationPass123!"),
+            role=UserRole.ANALYST,
+            is_active=True,
+        ))
+        db.commit()
     res1 = await NotificationService.notify(
         event_type=EventTypes.INVENTORY_LOW_THRESHOLD,
         title="Low Inventory",
         message="Capacity is below 10%",
         recipient_ids=[701],
         idempotency_key="idemp-test-key-100",
+        db=db,
     )
     assert res1.delivery_status in ("DELIVERED", "PERSISTED_OFFLINE", "COMPLETED")
 
@@ -260,6 +274,7 @@ async def test_notification_idempotency_deduplication():
         message="Capacity is below 10%",
         recipient_ids=[701],
         idempotency_key="idemp-test-key-100",
+        db=db,
     )
     assert res2.delivery_status == "DEDUPLICATED"
     assert res2.details.get("reason") == "idempotency_hit"
@@ -479,7 +494,23 @@ async def test_live_asgi_socketio_client_connectivity():
     await asyncio.sleep(0.8)
 
     try:
-        token = create_access_token(subject=888, role="ADMIN")
+        from backend.app.database.session import SessionLocal
+        seed_db = SessionLocal()
+        try:
+            existing = seed_db.query(User).filter(User.id == 1).first()
+            if not existing:
+                seed_db.add(User(
+                    id=1,
+                    email="socket-live@example.com",
+                    full_name="Socket Live Test",
+                    hashed_password=hash_password("SocketLivePass123!"),
+                    role=UserRole.ADMIN,
+                    is_active=True,
+                ))
+                seed_db.commit()
+        finally:
+            seed_db.close()
+        token = create_access_token(subject=1, role="ADMIN")
         sio_client = socketio.AsyncClient()
         received_events = []
 
@@ -495,8 +526,8 @@ async def test_live_asgi_socketio_client_connectivity():
         await sio_client.connect(url, auth={"token": token}, socketio_path="socket.io")
         assert sio_client.sid is not None
 
-        # Emit real server event to user 888
-        delivered = await socket_manager.emit_to_user(888, "notification:new", {"title": "Live Wire Alert"})
+        # Emit real server event to the authenticated user
+        delivered = await socket_manager.emit_to_user(1, "notification:new", {"title": "Live Wire Alert"})
         assert delivered is True
 
         # Wait for client receipt over wire
@@ -506,7 +537,7 @@ async def test_live_asgi_socketio_client_connectivity():
         # Client sends acknowledgement back
         await sio_client.emit("notification_acknowledged", {"notification_id": 777})
         await asyncio.sleep(0.3)
-        ack = socket_manager.get_acknowledgement(888, 777)
+        ack = socket_manager.get_acknowledgement(1, 777)
         assert ack is not None
         assert ack["notification_id"] == 777
 

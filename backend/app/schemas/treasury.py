@@ -19,13 +19,13 @@ from backend.app.models.schema import (
 # =============================================================================
 
 class FXForwardCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     base_currency: str = Field(..., min_length=3, max_length=3)
     quote_currency: str = Field("INR", min_length=3, max_length=3)
     direction: FXContractDirection
     notional_amount_base: Decimal = Field(..., gt=0)
     contracted_forward_rate: Decimal = Field(..., gt=0)
-    spot_rate_at_booking: Optional[Decimal] = Field(None, gt=0)
-    rate_source: FXRateSource = FXRateSource.RBI
     trade_date: date
     maturity_date: date
     valuation_timestamp: Optional[datetime] = None

@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     SOCKET_IO_PING_INTERVAL: int = 25
     SOCKET_IO_PING_TIMEOUT: int = 20
     SOCKET_IO_CORS_ORIGINS: Any = ["http://localhost:3000", "http://localhost:5173"]
+    FX_RATE_MAX_AGE_DAYS: int = 7
 
     @field_validator("SOCKET_IO_CORS_ORIGINS", mode="before")
     @classmethod
@@ -79,6 +80,12 @@ class Settings(BaseSettings):
                 raise ValueError("Insecure or default WORKER_SECRET_TOKEN is not permitted in production.")
             if "*" in self.BACKEND_CORS_ORIGINS:
                 raise ValueError("Wildcard '*' in BACKEND_CORS_ORIGINS is not permitted in production.")
+            if self.DATABASE_URL.strip().lower().startswith("sqlite"):
+                raise ValueError("SQLite DATABASE_URL is not permitted in production.")
+            if "://" not in self.DATABASE_URL:
+                raise ValueError("DATABASE_URL must include a valid database scheme.")
+            if len(self.WORKER_SECRET_TOKEN) < 32:
+                raise ValueError("WORKER_SECRET_TOKEN must be at least 32 characters in production.")
             if self.SOCKET_IO_CORS_ORIGINS == "*" or (isinstance(self.SOCKET_IO_CORS_ORIGINS, list) and "*" in self.SOCKET_IO_CORS_ORIGINS):
                 raise ValueError("Wildcard '*' in SOCKET_IO_CORS_ORIGINS is not permitted in production.")
         return self

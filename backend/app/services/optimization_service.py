@@ -502,7 +502,7 @@ class OptimizationService:
             title="Optimization Completed",
             message=f"Optimization run {run.run_id} solved successfully with expected profit INR {run.expected_net_profit_inr:,.2f}.",
             recipient_ids=[user_id],
-            roles=[RoleNames.ANALYST, RoleNames.PROCUREMENT_MANAGER, RoleNames.EXECUTIVE],
+            roles=[RoleNames.ANALYST, RoleNames.PROCUREMENT_MANAGER, RoleNames.ADMIN],
             category=NotificationCategory.OPTIMIZATION.value,
             severity="SUCCESS",
             entity_type="optimization_run",

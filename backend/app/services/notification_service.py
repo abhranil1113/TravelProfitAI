@@ -185,7 +185,8 @@ class NotificationService:
                 delivery_status="DEDUPLICATED",
                 details={"reason": "idempotency_hit", "key": idemp_token},
             )
-        cls._idempotency_cache[idemp_token] = now
+        # Reserve idempotency only after persistence succeeds. A failed transaction
+        # must not prevent a legitimate retry.
 
         # 3. Resolve Recipients
         target_recipients: Set[int] = set(recipient_ids or [])
@@ -229,6 +230,17 @@ class NotificationService:
                             target_recipients.add(uid)
                 except Exception as e:
                     logger.warning("Failed to resolve users for roles %s: %s", resolved_roles, e)
+
+            if active_session is not None and target_recipients:
+                existing_user_ids = set(
+                    active_session.execute(
+                        select(User.id).where(
+                            User.id.in_(list(target_recipients)),
+                            User.is_active == True,
+                        )
+                    ).scalars().all()
+                )
+                target_recipients.intersection_update(existing_user_ids)
 
             # 4. Filter by Notification Preferences (In-App Channel)
             skipped_recipients: List[int] = []
@@ -278,20 +290,20 @@ class NotificationService:
                             persisted_records[uid] = notif
                             persisted_count += 1
 
-                            is_online = socket_manager.is_user_connected(uid)
                             delivery = NotificationDelivery(
                                 notification_id=notif.id,
                                 channel=NotificationChannel.IN_APP,
-                                delivery_status=DeliveryStatus.SENT if is_online else DeliveryStatus.PENDING,
-                                attempt_count=1 if is_online else 0,
-                                last_attempt_at=datetime.now(timezone.utc) if is_online else None,
-                                delivered_at=datetime.now(timezone.utc) if is_online else None,
+                                delivery_status=DeliveryStatus.PENDING,
+                                attempt_count=0,
+                                last_attempt_at=None,
+                                delivered_at=None,
                             )
                             active_session.add(delivery)
 
                         if ctx is not None:
                             ctx.__exit__(None, None, None)
                         active_session.commit()
+                        cls._idempotency_cache[idemp_token] = now
                     except Exception:
                         if ctx is not None:
                             ctx.__exit__(None, None, None)
@@ -348,29 +360,6 @@ class NotificationService:
                 logger.error("Socket.IO emission error for user %s: %s", uid, e)
 
         # Broadcast to role rooms if roles targeted
-        if resolved_roles:
-            broadcast_payload = {
-                "id": None,
-                "notification_id": None,
-                "event_type": event_type,
-                "title": title,
-                "message": message,
-                "category": resolved_category,
-                "severity": severity.upper(),
-                "recipient_id": None,
-                "actor_id": actor_id,
-                "source_module": source_module,
-                "entity_type": entity_type,
-                "entity_id": str(entity_id) if entity_id is not None else None,
-                "metadata": metadata or {},
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "is_read": False,
-            }
-            for r in resolved_roles:
-                try:
-                    await socket_manager.emit_to_role(r, SOCKET_EVENT_NOTIFICATION_NEW, broadcast_payload)
-                except Exception as e:
-                    logger.error("Socket.IO role broadcast error for role %s: %s", r, e)
 
         return NotificationDispatchResult(
             event_type=event_type,
@@ -480,8 +469,6 @@ class NotificationService:
                 delivery_status="DEDUPLICATED",
                 details={"reason": "idempotency_hit", "key": idemp_token},
             )
-        cls._idempotency_cache[idemp_token] = now
-
         target_recipients: Set[int] = set(recipient_ids or [])
         resolved_roles: Set[str] = {r.upper() for r in (roles or [])}
         if not target_recipients and not resolved_roles:
@@ -500,6 +487,17 @@ class NotificationService:
                     target_recipients.update(role_users)
             except Exception as e:
                 logger.warning("Failed to resolve users for roles %s: %s", resolved_roles, e)
+
+        if target_recipients:
+            existing_user_ids = set(
+                db.execute(
+                    select(User.id).where(
+                        User.id.in_(list(target_recipients)),
+                        User.is_active == True,
+                    )
+                ).scalars().all()
+            )
+            target_recipients.intersection_update(existing_user_ids)
 
         final_recipients: List[int] = []
         skipped_recipients: List[int] = []
@@ -540,16 +538,16 @@ class NotificationService:
                         db.flush()
                         persisted_records[uid] = notif
                         persisted_count += 1
-                        is_online = socket_manager.is_user_connected(uid)
                         db.add(NotificationDelivery(
                             notification_id=notif.id,
                             channel=NotificationChannel.IN_APP,
-                            delivery_status=DeliveryStatus.SENT if is_online else DeliveryStatus.PENDING,
-                            attempt_count=1 if is_online else 0,
-                            last_attempt_at=datetime.now(timezone.utc) if is_online else None,
-                            delivered_at=datetime.now(timezone.utc) if is_online else None,
+                            delivery_status=DeliveryStatus.PENDING,
+                            attempt_count=0,
+                            last_attempt_at=None,
+                            delivered_at=None,
                         ))
                 db.commit()
+                cls._idempotency_cache[idemp_token] = now
             except Exception as e:
                 logger.error("Failed to persist sync notification records in DB: %s", e)
 
@@ -582,24 +580,6 @@ class NotificationService:
             emit_tasks.append((uid, payload, unread_c))
 
         broadcast_payload = None
-        if resolved_roles:
-            broadcast_payload = {
-                "id": None,
-                "notification_id": None,
-                "event_type": event_type,
-                "title": title,
-                "message": message,
-                "category": resolved_category,
-                "severity": severity.upper(),
-                "recipient_id": None,
-                "actor_id": actor_id,
-                "source_module": source_module,
-                "entity_type": entity_type,
-                "entity_id": str(entity_id) if entity_id is not None else None,
-                "metadata": metadata or {},
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "is_read": False,
-            }
         persisted_ids = [n.id for n in persisted_records.values()]
         return _schedule_background(
             cls._emit_socket_only(
