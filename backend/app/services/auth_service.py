@@ -263,6 +263,8 @@ class AuthService:
             new_value_json={"revoked_sessions": count},
         ))
         db.commit()
+        from backend.app.core.socket_manager import socket_manager
+        socket_manager.disconnect_user_sync(user_id, reason="logout_all")
         return count
 
     @staticmethod
@@ -364,6 +366,8 @@ class AuthService:
         ))
         db.commit()
         db.refresh(user)
+        from backend.app.core.socket_manager import socket_manager
+        socket_manager.disconnect_user_sync(user.id, reason="password_reset")
         return user
 
     @staticmethod
@@ -388,3 +392,5 @@ class AuthService:
             entity_id=str(user.id),
         ))
         db.commit()
+        from backend.app.core.socket_manager import socket_manager
+        socket_manager.disconnect_user_sync(user.id, reason="password_changed")

@@ -95,6 +95,8 @@ class UserService:
         updater_id: Optional[int] = None,
     ) -> User:
         user = UserService.get_user_by_id(db, user_id)
+        old_role = user.role
+        old_active = user.is_active
         updated_fields = {}
 
         if payload.full_name is not None:
@@ -119,6 +121,10 @@ class UserService:
         ))
         db.commit()
         db.refresh(user)
+        if (not user.is_active and old_active) or (user.role != old_role):
+            from backend.app.core.socket_manager import socket_manager
+            reason = "deactivated" if not user.is_active else "role_changed"
+            socket_manager.disconnect_user_sync(user.id, reason=reason)
         return user
 
     @staticmethod
@@ -140,6 +146,8 @@ class UserService:
         ))
         db.commit()
         db.refresh(user)
+        from backend.app.core.socket_manager import socket_manager
+        socket_manager.disconnect_user_sync(user.id, reason="deactivated")
         return user
 
     @staticmethod

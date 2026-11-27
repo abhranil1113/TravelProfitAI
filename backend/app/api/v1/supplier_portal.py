@@ -4,6 +4,7 @@ from typing import Annotated, List, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
+from backend.app.core.exceptions import PermissionDeniedError
 from backend.app.dependencies import (
     get_authenticated_supplier,
     get_db,
@@ -102,6 +103,9 @@ def get_own_supplier_sync_logs(
     page_size: int = Query(20, ge=1, le=100),
 ):
     """Machine-authenticated supplier view of its own synchronization logs (isolated by supplier_id)."""
+    scopes = set(supplier_cred.scopes_json or [])
+    if "sync:read" not in scopes:
+        raise PermissionDeniedError("Credential lacks 'sync:read' scope.")
     items, total = SupplierPortalService.list_sync_logs(
         db, supplier_id=supplier_cred.supplier_id, page=page, page_size=page_size
     )

@@ -372,26 +372,79 @@ class SupplierPortalService:
                         select(SupplierOffer).where(SupplierOffer.offer_id == item.offer_id)
                     ).scalar_one_or_none()
 
+                    has_rates_write = "rates:write" in scopes
+                    has_avail_write = "availability:write" in scopes
+
                     if existing_offer:
                         if existing_offer.supplier_id != credential.supplier_id:
                             raise PermissionDeniedError(
                                 f"Offer '{item.offer_id}' belongs to another supplier; cross-supplier mutation forbidden."
                             )
-                        existing_offer.unit_cost_inr = cost_inr
-                        existing_offer.list_price_inr = list_inr
-                        existing_offer.original_unit_cost = item.unit_cost
-                        existing_offer.original_list_price = item.list_price
-                        existing_offer.currency_code = item.currency_code
-                        existing_offer.exchange_rate_id = fx_id
-                        existing_offer.moq = item.moq
-                        existing_offer.max_capacity = item.max_capacity
-                        existing_offer.valid_from = item.valid_from
-                        existing_offer.valid_until = item.valid_until
-                        existing_offer.travel_date = item.travel_date
-                        existing_offer.status = OfferStatus.ACTIVE
-                        if item.external_offer_reference:
-                            existing_offer.external_offer_reference = item.external_offer_reference
+
+                        existing_orig_cost = (
+                            existing_offer.original_unit_cost
+                            if existing_offer.original_unit_cost is not None
+                            else existing_offer.unit_cost_inr
+                        )
+                        existing_orig_list = (
+                            existing_offer.original_list_price
+                            if existing_offer.original_list_price is not None
+                            else existing_offer.list_price_inr
+                        )
+                        rate_fields_changed = (
+                            item.unit_cost != existing_orig_cost
+                            or item.list_price != existing_orig_list
+                            or item.currency_code != existing_offer.currency_code
+                            or item.moq != existing_offer.moq
+                            or item.valid_from != existing_offer.valid_from
+                            or item.valid_until != existing_offer.valid_until
+                            or item.travel_date != existing_offer.travel_date
+                            or (
+                                item.external_offer_reference is not None
+                                and item.external_offer_reference != existing_offer.external_offer_reference
+                            )
+                        )
+                        capacity_changed = item.max_capacity != existing_offer.max_capacity
+                        avail_mutation_requested = (item.available_units is not None) or capacity_changed
+
+                        if rate_fields_changed and not has_rates_write:
+                            raise PermissionDeniedError(
+                                "Credential lacks 'rates:write' scope to modify offer rates or terms."
+                            )
+                        if avail_mutation_requested and not has_avail_write:
+                            raise PermissionDeniedError(
+                                "Credential lacks 'availability:write' scope to modify availability or capacity."
+                            )
+                        if not has_rates_write and not avail_mutation_requested:
+                            raise PermissionDeniedError(
+                                "Credential lacks 'rates:write' scope and no availability changes were provided."
+                            )
+
+                        if has_rates_write:
+                            existing_offer.unit_cost_inr = cost_inr
+                            existing_offer.list_price_inr = list_inr
+                            existing_offer.original_unit_cost = item.unit_cost
+                            existing_offer.original_list_price = item.list_price
+                            existing_offer.currency_code = item.currency_code
+                            existing_offer.exchange_rate_id = fx_id
+                            existing_offer.moq = item.moq
+                            existing_offer.valid_from = item.valid_from
+                            existing_offer.valid_until = item.valid_until
+                            existing_offer.travel_date = item.travel_date
+                            existing_offer.status = OfferStatus.ACTIVE
+                            if item.external_offer_reference:
+                                existing_offer.external_offer_reference = item.external_offer_reference
+                        if has_avail_write and capacity_changed:
+                            existing_offer.max_capacity = item.max_capacity
                     else:
+                        if not has_rates_write:
+                            raise PermissionDeniedError(
+                                "Credential lacks 'rates:write' scope to create new offers."
+                            )
+                        if item.available_units is not None and not has_avail_write:
+                            raise PermissionDeniedError(
+                                "Credential lacks 'availability:write' scope to publish availability snapshots."
+                            )
                         new_offer = SupplierOffer(
                             offer_id=item.offer_id,
                             supplier_id=credential.supplier_id,
@@ -417,6 +470,10 @@ class SupplierPortalService:
                         db.add(new_offer)
 
                     if inv_item and item.available_units is not None:
+                        if not has_avail_write:
+                            raise PermissionDeniedError(
+                                "Credential lacks 'availability:write' scope to update availability."
+                            )
                         avail = min(item.available_units, item.max_capacity)
                         booked = max(0, item.max_capacity - avail)
                         snap = InventorySnapshot(

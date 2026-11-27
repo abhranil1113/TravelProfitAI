@@ -119,24 +119,48 @@ class SocketManager:
             if not sub:
                 raise ValueError("Token missing subject claim")
             user_id = int(sub)
-            raw_role = payload.get("role")
-            if not raw_role or not str(raw_role).strip():
-                raise ValueError("Token missing role claim")
-            role = str(raw_role).strip().upper()
-            if db is not None:
-                from backend.app.models.schema import User
-                user = db.query(User).filter(User.id == user_id).first()
-                if not user or not user.is_active:
-                    raise PermissionError("User inactive or not found")
-                role = user.role.value.upper()
         except Exception as e:
             logger.warning("Socket.IO connection rejected: token invalid or expired (sid=%s): %s", sid, e)
             raise socketio.exceptions.ConnectionRefusedError("Authentication failed: invalid or expired token")
+
+        own_db = db is None
+        if own_db:
+            from backend.app.database.session import SessionLocal
+            session_db = SessionLocal()
+        else:
+            session_db = db
+
+        try:
+            from backend.app.models.schema import User
+            user = session_db.query(User).filter(User.id == user_id).first()
+            if not user:
+                raise PermissionError("User not found")
+            if not user.is_active:
+                raise PermissionError("User account is deactivated")
+            if user.password_changed_at is not None and payload.get("iat") is not None:
+                pwd_ts = int(
+                    (
+                        user.password_changed_at.replace(tzinfo=timezone.utc)
+                        if user.password_changed_at.tzinfo is None
+                        else user.password_changed_at
+                    ).timestamp()
+                )
+                if int(payload["iat"]) < pwd_ts:
+                    raise PermissionError("Token invalidated by subsequent password change")
+            role = user.role.value.upper()
+        except Exception as e:
+            logger.warning("Socket.IO connection rejected: user authorization failed (sid=%s, user_id=%s): %s", sid, user_id, e)
+            raise socketio.exceptions.ConnectionRefusedError(f"Authentication failed: {e}")
+        finally:
+            if own_db:
+                session_db.close()
 
         # Store active session info in manager
         session_data = {
             "user_id": user_id,
             "role": role,
+            "exp": payload.get("exp"),
+            "iat": payload.get("iat"),
             "connected_at": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -185,9 +209,56 @@ class SocketManager:
             logger.info("Socket.IO client disconnected: sid=%s", sid)
         return session_data
 
+    def _is_session_expired(self, session_data: Dict[str, Any]) -> bool:
+        exp = session_data.get("exp")
+        if exp is None:
+            return False
+        return datetime.now(timezone.utc).timestamp() >= float(exp)
+
+    async def disconnect_sid(self, sid: str) -> None:
+        """Disconnects a single socket session and cleans up tracking."""
+        await self.handle_disconnect(sid)
+        try:
+            await self.sio.disconnect(sid)
+        except Exception:
+            pass
+
+    async def disconnect_user(self, user_id: int, reason: str = "session_invalidated") -> int:
+        """Disconnects all active sockets for a user (e.g., on deactivation, password change, or role change)."""
+        sids = list(self._user_sockets.get(user_id, set()))
+        for sid in sids:
+            await self.disconnect_sid(sid)
+        if sids:
+            logger.info("Disconnected %d socket(s) for user_id=%s (reason=%s)", len(sids), user_id, reason)
+        return len(sids)
+
+    def disconnect_user_sync(self, user_id: int, reason: str = "session_invalidated") -> int:
+        """
+        Synchronously invalidates in-memory socket sessions for a user and schedules
+        engine-level disconnects if an asyncio loop is available.
+        """
+        sids = list(self._user_sockets.pop(user_id, set()))
+        for sid in sids:
+            self._socket_sessions.pop(sid, None)
+        if not sids:
+            return 0
+        logger.info("Revoked %d socket session(s) for user_id=%s (reason=%s)", len(sids), user_id, reason)
+        try:
+            import asyncio
+            loop = asyncio.get_running_loop()
+            for sid in sids:
+                loop.create_task(self.sio.disconnect(sid))
+        except RuntimeError:
+            pass
+        return len(sids)
+
     async def handle_acknowledgement(self, sid: str, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Client acknowledgement of delivered notification."""
         session = self._socket_sessions.get(sid, {})
+        if session and self._is_session_expired(session):
+            logger.warning("Socket.IO session expired during ack (sid=%s, user_id=%s)", sid, session.get("user_id"))
+            await self.disconnect_sid(sid)
+            return None
         user_id = session.get("user_id")
         notif_id = data.get("notification_id")
         if notif_id and user_id:
@@ -207,6 +278,13 @@ class SocketManager:
 
     async def emit_to_user(self, user_id: int, event: str, data: Dict[str, Any]) -> bool:
         """Emits an event to all active sockets belonging to a specific user."""
+        sids = list(self._user_sockets.get(user_id, set()))
+        for sid in sids:
+            sess = self._socket_sessions.get(sid)
+            if sess and self._is_session_expired(sess):
+                await self.disconnect_sid(sid)
+        if not self.is_user_connected(user_id):
+            return False
         room = f"user:{user_id}"
         try:
             await self.sio.emit(event, data, room=room)
